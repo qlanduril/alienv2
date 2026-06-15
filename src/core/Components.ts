@@ -1,5 +1,8 @@
 import { Entity } from './ECS';
 
+import { DamageZone } from './ZoneDefs';
+import { DamageLevel } from './DamageStateTree';
+
 export interface Position {
   worldX: number;
   worldY: number;
@@ -10,6 +13,20 @@ export interface Health {
   currentHP: number;
   maxHP: number;
   state: number; // 0 to maxFrame
+}
+
+export interface ZoneState {
+  id: DamageZone;
+  level: DamageLevel;
+  hp: number;
+  maxHp: number;
+}
+
+export interface ZonalHealth {
+  zones: Map<DamageZone, ZoneState>;
+  totalHp: number;
+  maxTotalHp: number;
+  globalDamageLevel: DamageLevel;
 }
 
 export interface Collision {
@@ -43,6 +60,7 @@ export interface RenderState {
 // Global Component Stores
 export const PositionComponent = new Map<Entity, Position>();
 export const HealthComponent = new Map<Entity, Health>();
+export const ZonalHealthComponent = new Map<Entity, ZonalHealth>();
 export const CollisionComponent = new Map<Entity, Collision>();
 export const TargetComponent = new Map<Entity, Target>();
 export const WeaponComponent = new Map<Entity, Weapon>();

@@ -5,6 +5,10 @@ import { SceneManager } from './SceneManager';
 import { AssetLoader } from '../assets/AssetLoader';
 import { RaycasterHelper } from '../input/Raycaster';
 import { UIOverlay } from './UIOverlay';
+import { HitZoneManager } from './HitZoneManager';
+import { BUILDING_ZONES } from '../core/ZoneDefs';
+import { ZonalHealthComponent } from '../core/Components';
+import { DamageCalc } from '../core/DamageCalc';
 
 
 // --- Hit FX micro-transform system ---
@@ -96,6 +100,15 @@ export class BuildingRenderer {
 
       if (!renderState || !pos) continue;
 
+      const zonalHealth = ZonalHealthComponent.get(entity);
+      if (zonalHealth) {
+        // maxFrame for building 3 is 71, building 1 is 19. Let's infer from texturePrefix
+        const prefixMatch = renderState.texturePrefix.match(/building_(\d+)_stage_/);
+        const typeKey = prefixMatch ? prefixMatch[1] : '3';
+        const maxFrame = typeKey === '3' ? 71 : 19;
+        renderState.currentFrame = DamageCalc.computeFrameForZonalState(zonalHealth, maxFrame);
+      }
+
       let sprite = this.sprites.get(entity);
 
       if (!sprite) {
@@ -111,11 +124,18 @@ export class BuildingRenderer {
         // Rotate 45 degrees (Math.PI / 4) around Y to face the isometric camera horizontally
         sprite.rotation.y = Math.PI / 4;
         
-        // Add to scene and register for raycasting
+        // Add to scene and register for raycasting (legacy fallback if needed)
         SceneManager.cityGroup.add(sprite);
         RaycasterHelper.registerObject(sprite, entity);
         
         this.sprites.set(entity, sprite);
+
+        const prefixMatch = renderState.texturePrefix.match(/building_(\d+)_stage_/);
+        const typeKey = prefixMatch ? prefixMatch[1] : '3';
+        const zones = BUILDING_ZONES[typeKey];
+        if (zones) {
+          HitZoneManager.createZonesForBuilding(entity, sprite, zones);
+        }
       }
 
       const material = sprite.material as THREE.MeshBasicMaterial;

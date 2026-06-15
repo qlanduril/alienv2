@@ -76,6 +76,8 @@ export class FXRenderer {
 
       if (event.type === 'blast' || event.type === 'blast360') {
         this.spawnExplosion(event.x, event.y, event.z, event.type, event.data);
+      } else if (event.type === 'blast_zonal') {
+        this.spawnZonalExplosion(event.x, event.y, event.z, event.data);
       } else if (event.type === 'fire') {
         this.spawnFire(event.x, event.y, event.z, event.data);
       } else if (event.type === 'shake') {
@@ -174,11 +176,50 @@ export class FXRenderer {
     // The core synchronization mechanic
     const peakFrame = type === 'blast' ? 2 : 3;
     anim.onFrameChange = (frame) => {
-      if (frame === peakFrame && data && data.entityId !== undefined) {
+      if (frame === peakFrame && data && data.entityId !== undefined && data.targetFrame !== undefined) {
         // Execute the masked texture swap!
         DestructionSystem.executeTextureSwap(data.entityId, data.targetFrame);
       }
     };
+  }
+
+  private static spawnZonalExplosion(x: number, y: number, z: number, data: any) {
+    const textures = this.blast360Textures; // Use 360 blast for zones for now
+    if (textures.length === 0) return;
+
+    const durations = [...BLAST360_FRAME_DURATIONS];
+    const anim = this.getSprite(textures, false, durations);
+    
+    let targetPos = new THREE.Vector3(x, z + 1.2, y);
+    if (data && data.entityId !== undefined) {
+      const bPos = BuildingRenderer.getSpritePosition(data.entityId);
+      const bScale = BuildingRenderer.getSpriteScale(data.entityId);
+      if (bPos && bScale && data.uvCenter) {
+        targetPos.copy(bPos);
+        
+        // Offset by UV center.
+        // UV U (0->1) maps to X (-0.5 -> 0.5) * scaleX
+        // UV V (0->1) maps to Y (0.5 -> -0.5) * scaleY (Assuming V=0 is top)
+        const uvX = data.uvCenter.x - 0.5;
+        const uvY = 0.5 - data.uvCenter.y;
+        
+        targetPos.x += uvX * bScale.x;
+        targetPos.y += uvY * bScale.y;
+        
+        // Push slightly forward to avoid clipping
+        targetPos.z += 0.5;
+      }
+    }
+    
+    anim.mesh.position.copy(targetPos);
+    
+    // Scale based on damage level (level 1 to 4)
+    const baseScale = 8;
+    const levelScale = data.level ? (baseScale + data.level * 2) : 10;
+    anim.mesh.scale.set(levelScale, levelScale, 1);
+    
+    SceneManager.effectsGroup.add(anim.mesh);
+    this.activeSprites.push(anim);
   }
 
   private static spawnFire(x: number, y: number, z: number, data: any) {

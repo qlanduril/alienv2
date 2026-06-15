@@ -1,8 +1,10 @@
 import { ECS, Entity } from '../core/ECS';
 import { PlayerTagComponent, PositionComponent, WeaponComponent, HealthComponent } from '../core/Components';
 import { InputManager } from '../input/InputManager';
-import { RaycasterHelper } from '../input/Raycaster';
+import { HitZoneManager } from '../rendering/HitZoneManager';
+import { SceneManager } from '../rendering/SceneManager';
 import { DestructionSystem } from './DestructionSystem';
+import { DamageZone } from '../core/ZoneDefs';
 
 export class PlayerControlSystem {
   public static init() {
@@ -24,10 +26,11 @@ export class PlayerControlSystem {
         if (InputManager.isKeyDown('KeyA') || InputManager.isKeyDown('ArrowLeft')) pos.worldX -= speed;
         if (InputManager.isKeyDown('KeyD') || InputManager.isKeyDown('ArrowRight')) pos.worldX += speed;
 
-        // Firing logic (PointerDown or Spacebar)
         const canFire = (InputManager.isPointerDown() || InputManager.isKeyDown('Space')) && weapon.heatLevel <= 0;
         if (canFire) {
           let targetEntity: Entity | null = null;
+          let targetZone: DamageZone = DamageZone.CENTER;
+          let targetUV = { x: 0.5, y: 0.5 };
           
           if (InputManager.isKeyDown('Space')) {
             // Decoupled targeting: Auto-lock onto the closest active building
@@ -47,12 +50,17 @@ export class PlayerControlSystem {
               }
             }
           } else {
-            // Classic mouse raycast targeting
-            targetEntity = RaycasterHelper.getIntersectedEntity();
+            // Zone-aware mouse raycast targeting
+            const hit = HitZoneManager.getHitZone(SceneManager.camera);
+            if (hit) {
+              targetEntity = hit.entity;
+              targetZone = hit.zone;
+              targetUV = hit.uvCenter;
+            }
           }
 
           if (targetEntity !== null) {
-            DestructionSystem.applyDamage(targetEntity, 10);
+            DestructionSystem.applyZonalDamage(targetEntity, targetZone, 10, targetUV);
             weapon.heatLevel = weapon.fireRate;
 
             // Trigger visual laser event

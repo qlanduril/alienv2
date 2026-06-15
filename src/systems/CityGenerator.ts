@@ -1,7 +1,8 @@
 import { ECS } from '../core/ECS';
 import { BUILDING_DEFS } from '../core/BuildingDefs';
-import { PositionComponent, HealthComponent, CollisionComponent, RenderStateComponent } from '../core/Components';
+import { PositionComponent, HealthComponent, ZonalHealthComponent, CollisionComponent, RenderStateComponent } from '../core/Components';
 import { AssetLoader } from '../assets/AssetLoader';
+import { BUILDING_ZONES } from '../core/ZoneDefs';
 
 export class CityGenerator {
   public static generateCity() {
@@ -51,6 +52,25 @@ export class CityGenerator {
             currentHP: 100,
             maxHP: 100,
             state: 0
+          });
+
+          // Initialize Zonal Health
+          const zoneMap = new Map();
+          const zonesDef = BUILDING_DEFS[typeKey] ? BUILDING_ZONES[typeKey] : BUILDING_ZONES['3'];
+          for (const zd of zonesDef) {
+            zoneMap.set(zd.id, {
+              id: zd.id,
+              level: 0, // PRISTINE
+              hp: 100,
+              maxHp: 100
+            });
+          }
+          
+          ZonalHealthComponent.set(entity, {
+            zones: zoneMap,
+            totalHp: 100 * zonesDef.length,
+            maxTotalHp: 100 * zonesDef.length,
+            globalDamageLevel: 0
           });
           
           CollisionComponent.set(entity, {

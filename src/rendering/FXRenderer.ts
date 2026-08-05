@@ -184,7 +184,7 @@ export class FXRenderer {
   }
 
   private static spawnZonalExplosion(x: number, y: number, z: number, data: any) {
-    const textures = this.blast360Textures; // Use 360 blast for zones for now
+    const textures = this.blast360Textures;
     if (textures.length === 0) return;
 
     const durations = [...BLAST360_FRAME_DURATIONS];
@@ -197,29 +197,31 @@ export class FXRenderer {
       if (bPos && bScale && data.uvCenter) {
         targetPos.copy(bPos);
         
-        // Offset by UV center.
-        // UV U (0->1) maps to X (-0.5 -> 0.5) * scaleX
-        // UV V (0->1) maps to Y (0.5 -> -0.5) * scaleY (Assuming V=0 is top)
         const uvX = data.uvCenter.x - 0.5;
         const uvY = 0.5 - data.uvCenter.y;
         
         targetPos.x += uvX * bScale.x;
         targetPos.y += uvY * bScale.y;
-        
-        // Push slightly forward to avoid clipping
         targetPos.z += 0.5;
       }
     }
     
     anim.mesh.position.copy(targetPos);
     
-    // Scale based on damage level (level 1 to 4)
     const baseScale = 8;
     const levelScale = data.level ? (baseScale + data.level * 2) : 10;
     anim.mesh.scale.set(levelScale, levelScale, 1);
     
     SceneManager.effectsGroup.add(anim.mesh);
     this.activeSprites.push(anim);
+
+    // Synchronize building texture frame swap to peak explosion frame (frame 2)
+    const peakFrame = 2;
+    anim.onFrameChange = (frame) => {
+      if (frame === peakFrame && data && data.entityId !== undefined && data.targetFrame !== undefined) {
+        DestructionSystem.executeTextureSwap(data.entityId, data.targetFrame);
+      }
+    };
   }
 
   private static spawnFire(x: number, y: number, z: number, data: any) {

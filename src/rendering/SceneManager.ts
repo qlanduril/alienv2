@@ -1,10 +1,14 @@
 import * as THREE from 'three';
-
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
 export class SceneManager {
   public static scene: THREE.Scene;
   public static camera: THREE.OrthographicCamera;
   public static renderer: THREE.WebGLRenderer;
+  public static composer: EffectComposer;
   public static clock: THREE.Clock;
 
   // Groups for easy management
@@ -19,6 +23,7 @@ export class SceneManager {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     canvasContainer.appendChild(this.renderer.domElement);
 
     // 2. Setup Scene
@@ -27,18 +32,18 @@ export class SceneManager {
 
     // 3. Setup Camera (Isometric / Orthographic)
     const aspect = window.innerWidth / window.innerHeight;
-    const frustumSize = 50; // Map scale
+    const frustumSize = 360; // Map scale (zoomed out for 64x64 NYC skyline view)
     this.camera = new THREE.OrthographicCamera(
       frustumSize * aspect / -2,
       frustumSize * aspect / 2,
       frustumSize / 2,
       frustumSize / -2,
       1,
-      1000
+      2000
     );
     
     // Isometric angle setup (30 degree tilt, 45 degree rotation)
-    this.camera.position.set(50, 50, 50);
+    this.camera.position.set(150, 150, 150);
     this.camera.lookAt(0, 0, 0);
 
     // 4. Setup Groups
@@ -57,16 +62,39 @@ export class SceneManager {
     this.scene.add(this.playerGroup);
     this.scene.add(this.effectsGroup);
 
-    // 5. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // 5. Lighting & Atmosphere
+    const ambientLight = new THREE.AmbientLight(0x1a1a24, 1.2);
     this.scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(20, 50, 20);
+    const dirLight = new THREE.DirectionalLight(0xfff5e6, 2.5); // Late afternoon warm sun
+    dirLight.position.set(400, 600, 200); // angled high overhead sun
     dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.left = -800;
+    dirLight.shadow.camera.right = 800;
+    dirLight.shadow.camera.top = 800;
+    dirLight.shadow.camera.bottom = -800;
+    dirLight.shadow.camera.far = 2000;
+    dirLight.shadow.bias = -0.0005;
     this.scene.add(dirLight);
 
+
+    this.scene.fog = new THREE.FogExp2(0x1a1a24, 0.002);
+
     // 6. Clock
+    this.clock = new THREE.Clock();
+
+    // 7. Post-Processing
+    this.composer = new EffectComposer(this.renderer);
+    const renderPass = new RenderPass(this.scene, this.camera);
+    this.composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.85);
+    this.composer.addPass(bloomPass);
+
+    const outputPass = new OutputPass();
+    this.composer.addPass(outputPass);
     this.clock = new THREE.Clock();
 
     window.addEventListener('resize', this.onWindowResize.bind(this));
@@ -74,7 +102,7 @@ export class SceneManager {
 
   private static onWindowResize() {
     const aspect = window.innerWidth / window.innerHeight;
-    const frustumSize = 50;
+    const frustumSize = 360;
     
     this.camera.left = -frustumSize * aspect / 2;
     this.camera.right = frustumSize * aspect / 2;
@@ -82,10 +110,14 @@ export class SceneManager {
     this.camera.bottom = -frustumSize / 2;
     this.camera.updateProjectionMatrix();
 
+
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    if (this.composer) {
+      this.composer.setSize(window.innerWidth, window.innerHeight);
+    }
   }
 
   public static render() {
-    this.renderer.render(this.scene, this.camera);
+    this.composer.render();
   }
 }

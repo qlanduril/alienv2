@@ -7,6 +7,7 @@ import { RaycasterHelper } from '../input/Raycaster';
 import { UIOverlay } from './UIOverlay';
 import { HitZoneManager } from './HitZoneManager';
 import { BUILDING_ZONES } from '../core/ZoneDefs';
+import { BUILDING_DEFS } from '../core/BuildingDefs';
 import { ZonalHealthComponent } from '../core/Components';
 import { DamageCalc } from '../core/DamageCalc';
 
@@ -103,7 +104,7 @@ export class BuildingRenderer {
       const zonalHealth = ZonalHealthComponent.get(entity);
       if (zonalHealth) {
         // maxFrame for building 3 is 71, building 1 is 19. Let's infer from texturePrefix
-        const prefixMatch = renderState.texturePrefix.match(/building_(\d+)_stage_/);
+        const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
         const typeKey = prefixMatch ? prefixMatch[1] : '3';
         const maxFrame = typeKey === '3' ? 71 : 19;
         renderState.currentFrame = DamageCalc.computeFrameForZonalState(zonalHealth, maxFrame);
@@ -113,13 +114,17 @@ export class BuildingRenderer {
 
       if (!sprite) {
         // Use Mesh with PlaneGeometry to keep buildings standing upright vertically
-        const material = new THREE.MeshBasicMaterial({ 
+        const material = new THREE.MeshStandardMaterial({ 
           color: 0xffffff, 
           transparent: true,
           side: THREE.DoubleSide,
-          depthWrite: false
+          depthWrite: true,
+          alphaTest: 0.5,
+          roughness: 0.6
         });
         sprite = new THREE.Mesh(this.sharedGeometry, material);
+        sprite.castShadow = true;
+        sprite.receiveShadow = true;
         
         // Rotate 45 degrees (Math.PI / 4) around Y to face the isometric camera horizontally
         sprite.rotation.y = Math.PI / 4;
@@ -130,7 +135,7 @@ export class BuildingRenderer {
         
         this.sprites.set(entity, sprite);
 
-        const prefixMatch = renderState.texturePrefix.match(/building_(\d+)_stage_/);
+        const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
         const typeKey = prefixMatch ? prefixMatch[1] : '3';
         const zones = BUILDING_ZONES[typeKey];
         if (zones) {
@@ -138,7 +143,7 @@ export class BuildingRenderer {
         }
       }
 
-      const material = sprite.material as THREE.MeshBasicMaterial;
+      const material = sprite.material as THREE.MeshStandardMaterial;
 
       let texture = this.cachedTexture.get(entity);
       let offset = this.cachedOffset.get(entity);
@@ -148,7 +153,7 @@ export class BuildingRenderer {
         const textureName = `${renderState.texturePrefix}${renderState.currentFrame}`;
         texture = AssetLoader.getTexture(textureName);
         
-        const prefixMatch = renderState.texturePrefix.match(/building_(\d+)_stage_/);
+        const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
         const typeKey = prefixMatch ? prefixMatch[1] : '3';
         offset = AssetLoader.getSpriteOffset(typeKey, renderState.currentFrame);
         
@@ -215,10 +220,16 @@ export class BuildingRenderer {
         }
       }
 
-      sprite.scale.set(width * scaleXMult, height * scaleYMult, 1);
+      const prefixMatchType = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+      const typeKeyFinal = prefixMatchType ? prefixMatchType[1] : '3';
+      const def = BUILDING_DEFS[typeKeyFinal];
+      const vScale = def ? def.visualScale || 1.0 : 1.0;
+
+
+      sprite.scale.set(width * scaleXMult * vScale, height * scaleYMult * vScale, 1);
 
       // Horizontal displacement to center the visual weight (centroid)
-      const geom_tx = (dx + (offset ? offset.w : width * 64) / 2) / 64;
+      const geom_tx = ((dx + (offset ? offset.w : width * 64) / 2) / 64) * vScale;
 
       const cos45 = 0.70710678;
       const sin45 = 0.70710678;
@@ -226,23 +237,20 @@ export class BuildingRenderer {
       const world_dx = geom_tx * cos45;
       const world_dz = -geom_tx * sin45;
 
-      // Calculate the vertical offset so the bottom-most active pixel (y_max)
-      // sits exactly on the ground plane (pos.worldZ).
-      let y_mesh = pos.worldZ + height / 2;
-      let dy_base = 0;
-      if (offset && typeof offset.y_max === 'number') {
-        const h_pixels = offset.h;
-        y_mesh = pos.worldZ + (offset.y_max - h_pixels / 2) / 64;
+      // Fix attachment Y altitude so the baseline (base_cy or y_max) rests ON pos.worldZ on the ground
+      const contactY = (offset && typeof offset.base_cy === 'number')
+        ? offset.base_cy
+        : (offset && typeof offset.y_max === 'number' ? offset.y_max : (offset ? offset.h : height * 64));
         
-        if (typeof offset.base_cy === 'number') {
-          dy_base = (offset.y_max - offset.base_cy) / 64;
-        }
-      }
+      const h_pixels = offset ? offset.h : height * 64;
+      const distFromCenter = (contactY - h_pixels / 2) / 64;
+      const y_mesh = pos.worldZ + (distFromCenter * vScale);
 
+      // Ground plane coordinates STAY FIXED at footprint location without sideways displacement
       sprite.position.set(
-        pos.worldX + dy_base + world_dx + shudderDX,
+        pos.worldX + world_dx + shudderDX,
         y_mesh,
-        pos.worldY + dy_base + world_dz + shudderDZ
+        pos.worldY + world_dz + shudderDZ
       );
 
       // --- Hit flash ---

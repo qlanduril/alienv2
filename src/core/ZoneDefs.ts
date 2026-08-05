@@ -36,4 +36,15 @@ export const BUILDING_ZONES: Record<string, ZoneDef[]> = {
   '2': createStandard3x3Grid(), // Mall
   '3': createStandard3x3Grid(), // School
   '4': createStandard3x3Grid(), // Warehouse
+  '5': createStandard3x3Grid(), // Skyscraper
+  'b1': createStandard3x3Grid(),
+  'b2': createStandard3x3Grid(),
+  'b3': createStandard3x3Grid(),
+  'b4': createStandard3x3Grid(),
+  'res_bronze': createStandard3x3Grid(),
+  'res_sky': createStandard3x3Grid(),
+  'sky_artdeco': createStandard3x3Grid(),
+  'sky_biotech': createStandard3x3Grid(),
+  'sky_cyber': createStandard3x3Grid(),
 };
+

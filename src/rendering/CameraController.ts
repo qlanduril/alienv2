@@ -13,7 +13,7 @@ export class CameraController {
   private static targetZ: number = 0;
 
   // The base offset for the isometric view
-  private static readonly offset = 50;
+  private static readonly offset = 150;
 
   public static init(camera: THREE.OrthographicCamera) {
     this.camera = camera;
@@ -31,10 +31,10 @@ export class CameraController {
   }
 
   public static isPointInView(worldX: number, worldZ: number): boolean {
-    // Simple bounding box check around the camera target
-    // 45 units is safely larger than the typical orthographic viewport
-    return Math.abs(worldX - this.targetX) < 45 && Math.abs(worldZ - this.targetZ) < 45;
+    // 350 units fits the wide frustumSize of 360
+    return Math.abs(worldX - this.targetX) < 350 && Math.abs(worldZ - this.targetZ) < 350;
   }
+
 
   public static tick(delta: number) {
     if (!this.camera) return;

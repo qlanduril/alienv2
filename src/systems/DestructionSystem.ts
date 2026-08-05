@@ -3,11 +3,11 @@ import { HealthComponent, RenderStateComponent, PositionComponent, ZonalHealthCo
 import { DamageCalc } from '../core/DamageCalc';
 import { DamageZone } from '../core/ZoneDefs';
 import { DamageStateTree, DamageLevel } from '../core/DamageStateTree';
+import { DecalManager } from '../rendering/TileSystem/DecalManager';
 
-// Events for the rendering layer to pick up and spawn visual effects
 export type FXEvent =
   | { type: 'blast' | 'blast360'; x: number; y: number; z: number; data: { entityId: Entity; targetFrame: number } }
-  | { type: 'blast_zonal'; x: number; y: number; z: number; data: { entityId: Entity; zone: DamageZone; level: DamageLevel; uvCenter: { x: number; y: number } } }
+  | { type: 'blast_zonal'; x: number; y: number; z: number; data: { entityId: Entity; targetFrame: number; zone: DamageZone; level: DamageLevel; uvCenter: { x: number; y: number } } }
   | { type: 'shake'; x: number; y: number; z: number; data: { intensity: number } }
   | { type: 'hit_fx'; x: number; y: number; z: number; data: { entityId: Entity; intensity: 'light' | 'heavy' } }
   | { type: 'debris' | 'dust' | 'smoke' | 'sparks'; x: number; y: number; z: number; data: { count: number; entityId?: Entity; palette?: number[] } }
@@ -16,7 +16,6 @@ export type FXEvent =
 
 export class DestructionSystem {
   public static fxQueue: FXEvent[] = [];
-
   private static ambientTimer: number = 0;
 
   public static init() {
@@ -60,10 +59,23 @@ export class DestructionSystem {
     const newLevel = DamageStateTree.computeZoneLevel(zone.hp / zone.maxHp);
 
     if (newLevel > zone.level) {
-      // It's a stage transition
       zone.level = newLevel;
-      zonalHealth.globalDamageLevel = DamageStateTree.computeGlobalLevel(zonalHealth, Array.from(zonalHealth.zones.values()) as any); // Update global level
+      zonalHealth.globalDamageLevel = DamageStateTree.computeGlobalLevel(zonalHealth, Array.from(zonalHealth.zones.values()) as any);
 
+      // Compute frame index for visual texture swap
+      let maxFrame = 71;
+      if (renderState.texturePrefix.includes('building_1_')) maxFrame = 14;
+      else if (renderState.texturePrefix.includes('building_2_')) maxFrame = 1;
+      else if (renderState.texturePrefix.includes('building_4_')) maxFrame = 13;
+      else if (renderState.texturePrefix.includes('building_5_')) maxFrame = 14;
+
+      const targetFrame = DamageCalc.computeFrameIndex(zonalHealth.totalHp, zonalHealth.maxTotalHp, maxFrame);
+
+      // Spawn Layer 2 scorch / crater decal on ground
+      const decalType = newLevel >= 3 ? 'crater' : 'scorch';
+      DecalManager.spawnDecal(pos.worldX, pos.worldY, decalType, 12 + newLevel * 4);
+
+      // Trigger blast explosion effect and defer texture swap to explosion peak frame
       this.fxQueue.push({
         type: 'blast_zonal',
         x: pos.worldX,
@@ -71,26 +83,22 @@ export class DestructionSystem {
         z: pos.worldZ,
         data: {
           entityId: entity,
+          targetFrame: targetFrame,
           zone: zoneId,
           level: newLevel,
           uvCenter: uvCenter
         }
       });
 
-      // Camera shake
       this.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: newLevel * 2 + 2 } });
 
       const debrisCount = newLevel * 8 + 5;
-      
       const prefixMatch = renderState.texturePrefix.match(/building_(\d+)_stage_/);
       const typeKey = prefixMatch ? prefixMatch[1] : '3';
       
       let palette = [0x884422, 0xaa5533, 0x663311];
-      if (typeKey === '1') {
-        palette = [0xffffff, 0xdddddd, 0xaaaaaa, 0xff4444];
-      } else if (typeKey === '3') {
-        palette = [0xd2b48c, 0xaaaaaa, 0x888888, 0x5c4033];
-      }
+      if (typeKey === '1') palette = [0xffffff, 0xdddddd, 0xaaaaaa, 0xff4444];
+      else if (typeKey === '3') palette = [0xd2b48c, 0xaaaaaa, 0x888888, 0x5c4033];
       
       this.fxQueue.push({ type: 'debris', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: debrisCount, entityId: entity, palette } });
       this.fxQueue.push({ type: 'dust', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 15, entityId: entity } });
@@ -98,14 +106,12 @@ export class DestructionSystem {
       this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 12, entityId: entity } });
       this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: 'heavy' } });
     } else {
-      // Just a spark
       this.fxQueue.push({ type: 'fire', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
       this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 5, entityId: entity } });
       this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: 'light' } });
     }
   }
 
-  // Keeping legacy applyDamage around just in case it's called elsewhere (like by old enemies)
   public static applyDamage(entity: Entity, amount: number) {
     const health = HealthComponent.get(entity);
     const renderState = RenderStateComponent.get(entity);
@@ -115,15 +121,16 @@ export class DestructionSystem {
 
     health.currentHP = Math.max(0, health.currentHP - amount);
     
-    let maxFrame = 71; // School (type 3) — 72 frames from video (0–71)
-    if (renderState.texturePrefix.includes('building_1_')) {
-      maxFrame = 19; // Hospital
-    }
+    let maxFrame = 71;
+    if (renderState.texturePrefix.includes('building_1_')) maxFrame = 14;
 
     const newFrameIndex = DamageCalc.computeFrameIndex(health.currentHP, health.maxHP, maxFrame);
 
     if (newFrameIndex !== health.state) {
       health.state = newFrameIndex;
+
+      DecalManager.spawnDecal(pos.worldX, pos.worldY, 'scorch', 15);
+
       this.fxQueue.push({
         type: newFrameIndex === maxFrame ? 'blast' : 'blast360',
         x: pos.worldX,
@@ -135,7 +142,7 @@ export class DestructionSystem {
       
       const prefixMatch = renderState.texturePrefix.match(/building_(\d+)_stage_/);
       const typeKey = prefixMatch ? prefixMatch[1] : '3';
-      let palette = [0x884422, 0xaa5533, 0x663311]; // default bricks
+      let palette = [0x884422, 0xaa5533, 0x663311];
       if (typeKey === '1') palette = [0xffffff, 0xdddddd, 0xaaaaaa, 0xff4444];
       else if (typeKey === '3') palette = [0xd2b48c, 0xaaaaaa, 0x888888, 0x5c4033];
 
@@ -151,7 +158,7 @@ export class DestructionSystem {
     }
   }
 
-  // Called by the rendering layer when the explosion animation reaches its peak
+  // Executed by FXRenderer at peak explosion frame
   public static executeTextureSwap(entity: Entity, targetFrame: number) {
     const renderState = RenderStateComponent.get(entity);
     if (renderState) {

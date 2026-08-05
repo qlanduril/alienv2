@@ -51,6 +51,7 @@ async function bootstrap() {
 
   // 5. Generate World
   CityGenerator.generateCity();
+  GroundRenderer.finalizeMap();
 
   // 5.5 Spawn Player (UFO)
   const playerEntity = ECS.createEntity();

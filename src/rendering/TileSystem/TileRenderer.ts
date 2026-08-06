@@ -160,8 +160,10 @@ export class TileRenderer {
       }
 
       const tex = new THREE.CanvasTexture(canvas);
-      tex.wrapS = THREE.ClampToEdgeWrapping;
-      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(2, 2);
+      tex.anisotropy = 4;
       return tex;
     };
 

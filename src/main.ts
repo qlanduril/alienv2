@@ -80,6 +80,7 @@ async function bootstrap() {
     PlayerRenderer.tick(delta);
     ParticleRenderer.tick(delta);
     FXRenderer.tick(delta);
+    UIOverlay.tick(SceneManager.camera);
 
     SceneManager.render();
   }

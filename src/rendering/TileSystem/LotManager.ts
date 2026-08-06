@@ -49,8 +49,8 @@ export class LotManager {
     const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS['3'];
     const visualScale = def.visualScale || 1.0;
 
-    const footprintWidth = def.width * visualScale;
-    const footprintLength = def.length * visualScale;
+    const footprintWidth = def.width;
+    const footprintLength = def.length;
 
     const lot: BuildingLot = {
       entityId,

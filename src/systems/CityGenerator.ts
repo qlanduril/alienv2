@@ -8,64 +8,71 @@ import { TileMap, BuildingLot } from '../rendering/TileSystem/TileMap';
 export class CityGenerator {
   public static generateCity() {
     const GRID_DIM = TileMap.GRID_DIM; // 64x64
-    const ROAD_INTERVAL = 6;
+    const AVENUE_INTERVAL = TileMap.AVENUE_INTERVAL; // 14
+    const STREET_INTERVAL = TileMap.STREET_INTERVAL; // 7
     const TILE_SIZE = TileMap.TILE_SIZE; // 16
 
     const occupied: boolean[][] = Array.from({ length: GRID_DIM }, () => Array(GRID_DIM).fill(false));
 
-    // Mark all road tiles as occupied
+    // 1. Mark all road network cells as occupied
     for (let gx = 0; gx < GRID_DIM; gx++) {
       for (let gz = 0; gz < GRID_DIM; gz++) {
-        if (gx % ROAD_INTERVAL === 0 || gz % ROAD_INTERVAL === 0) {
+        if (gx % AVENUE_INTERVAL === 0 || gz % STREET_INTERVAL === 0) {
           occupied[gx][gz] = true;
         }
       }
     }
 
-    const totalBlocksX = Math.floor(GRID_DIM / ROAD_INTERVAL);
-    const totalBlocksZ = Math.floor(GRID_DIM / ROAD_INTERVAL);
-
     let count = 0;
 
-    // Map specific rare landmark civic blocks across the 10x10 city grid
+    // Landmark Map for civic buildings in specific super-blocks
     const landmarkMap = new Map<string, string>([
-      ['2,2', '3'], // 1 School campus in Block (2,2)
-      ['7,3', '1'], // 1 Hospital complex in Block (7,3)
-      ['3,7', '2'], // 1 Shopping Mall in Block (3,7)
-      ['8,8', '4'], // 1 Industrial Warehouse in Block (8,8)
+      ['0,0', '3'], // School campus in Block (0,0)
+      ['2,2', '1'], // Hospital complex in Block (2,2)
+      ['1,4', '2'], // Shopping Mall in Block (1,4)
+      ['3,6', '4'], // Industrial Warehouse in Block (3,6)
     ]);
 
-    for (let bx = 0; bx < totalBlocksX; bx++) {
-      for (let bz = 0; bz < totalBlocksZ; bz++) {
-        const startGx = bx * ROAD_INTERVAL + 1;
-        const startGz = bz * ROAD_INTERVAL + 1;
+    const foregroundPool = ['b1', 'b2'];
+    const midgroundPool = ['b3', 'b4', 'res_bronze', 'res_sky'];
+    const backgroundPool = ['sky_cyber', 'sky_artdeco', 'sky_biotech', '5'];
 
-        const blockKey = `${bx},${bz}`;
+    // 2. Iterate through super-blocks and execute 100% dense lot filling
+    let blockIndexX = 0;
+    for (let startGx = 0; startGx < GRID_DIM; startGx += AVENUE_INTERVAL) {
+      let blockIndexZ = 0;
+      for (let startGz = 0; startGz < GRID_DIM; startGz += STREET_INTERVAL) {
+
+        const blockKey = `${blockIndexX},${blockIndexZ}`;
         const civicTypeKey = landmarkMap.get(blockKey);
 
-        // 1. Spawning Rare 3x3 Landmark Civic Building
+        // Check if block interior fits a 3x3 Landmark Civic Building
         if (civicTypeKey) {
           const def = BUILDING_DEFS[civicTypeKey];
           const wxTiles = Math.max(1, Math.round(def.width / TILE_SIZE));  // 3 tiles
           const wzTiles = Math.max(1, Math.round(def.length / TILE_SIZE)); // 3 tiles
 
-          // Center 3x3 building inside 5x5 block at offset (1,1)
-          const gx = startGx + 1;
-          const gz = startGz + 1;
+          const gx = startGx + 2;
+          const gz = startGz + 2;
 
           let canFit = true;
           for (let dx = 0; dx < wxTiles; dx++) {
             for (let dz = 0; dz < wzTiles; dz++) {
-              if (gx + dx >= startGx + 5 || gz + dz >= startGz + 5 || occupied[gx + dx][gz + dz]) {
+              if (gx + dx >= startGx + AVENUE_INTERVAL || gz + dz >= startGz + STREET_INTERVAL || gx + dx >= GRID_DIM || gz + dz >= GRID_DIM || occupied[gx + dx][gz + dz]) {
                 canFit = false;
               }
             }
           }
 
           if (canFit) {
-            for (let dx = 0; dx < wxTiles; dx++) {
-              for (let dz = 0; dz < wzTiles; dz++) {
-                occupied[gx + dx][gz + dz] = true;
+            // Reserve 3x3 footprint AND clear plaza buffer around landmark so it remains 100% unobstructed
+            for (let dx = -1; dx <= wxTiles; dx++) {
+              for (let dz = -1; dz <= wzTiles; dz++) {
+                const tx = gx + dx;
+                const tz = gz + dz;
+                if (tx >= 0 && tx < GRID_DIM && tz >= 0 && tz < GRID_DIM) {
+                  occupied[tx][tz] = true;
+                }
               }
             }
 
@@ -77,40 +84,33 @@ export class CityGenerator {
           }
         }
 
-
-        // 2. Spawn Single-Tile Buildings with Balanced Density (~50-60% occupancy target)
-        const blockSeed = Math.abs((bx * 1337 + bz * 7331)) % 1000;
-        const foregroundPool = ['b1', 'b2'];
-        const midgroundPool = ['res_bronze', 'res_sky', 'b3', 'b4'];
-        const backgroundPool = ['sky_artdeco', 'sky_biotech', 'sky_cyber', '5'];
-
-
-        for (let offX = 0; offX < 5; offX++) {
-          for (let offZ = 0; offZ < 5; offZ++) {
+        // Fill block interior micro-lots with balanced density & height gradient
+        for (let offX = 1; offX < AVENUE_INTERVAL; offX++) {
+          for (let offZ = 1; offZ < STREET_INTERVAL; offZ++) {
             const gx = startGx + offX;
             const gz = startGz + offZ;
 
-            if (occupied[gx][gz]) continue;
+            if (gx >= GRID_DIM || gz >= GRID_DIM || occupied[gx][gz]) continue;
 
-            const cellSeed = Math.abs((blockSeed * 37 + offX * 97 + offZ * 193)) % 100;
+            const cellSeed = Math.abs((startGx * 1337 + startGz * 7331 + offX * 97 + offZ * 193)) % 1000;
 
-            // Controlled density: skip ~35% of remaining tiles to leave open plazas & green courtyards
-            if (cellSeed < 35) {
+            // Controlled density: skip ~25% of micro-lots to leave open plazas & clear road views
+            if (cellSeed % 100 < 25) {
               continue;
             }
 
-            const distToEdge = Math.min(offX + 1, 5 - offX, offZ + 1, 5 - offZ);
+            occupied[gx][gz] = true;
 
+            // Height Gradient: Low-rises on South/West edges, Skyscrapers sparingly on North/East edges
             let typeKey: string;
-            if (distToEdge === 1) {
-              typeKey = foregroundPool[cellSeed % foregroundPool.length];
-            } else if (distToEdge === 2) {
-              typeKey = midgroundPool[cellSeed % midgroundPool.length];
-            } else {
+            if ((offZ === STREET_INTERVAL - 1 || offX === AVENUE_INTERVAL - 1) && (cellSeed % 100 > 60)) {
               typeKey = backgroundPool[cellSeed % backgroundPool.length];
+            } else if (offZ <= 2 || offX <= 2) {
+              typeKey = foregroundPool[cellSeed % foregroundPool.length];
+            } else {
+              typeKey = midgroundPool[cellSeed % midgroundPool.length];
             }
 
-            occupied[gx][gz] = true;
             const pos = LotManager.computeLotWorldPos(gx, gz, 1, 1);
             const entity = ECS.createEntity();
             const lot = LotManager.calculateAndRegisterLot(entity, pos.x, pos.z, typeKey, 'dense');
@@ -119,10 +119,12 @@ export class CityGenerator {
           }
         }
 
+        blockIndexZ++;
       }
+      blockIndexX++;
     }
 
-    console.log(`Generated ${count} balanced city buildings across ${totalBlocksX}x${totalBlocksZ} grid blocks.`);
+    console.log(`Generated ${count} wall-to-wall Manhattan super-block buildings.`);
   }
 
   private static spawnBuildingEntity(entity: number, lot: BuildingLot, typeKey: string) {

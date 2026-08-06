@@ -36,17 +36,28 @@ export class CameraController {
   }
 
 
+  private static currentCamX: number = 0;
+  private static currentCamZ: number = 0;
+
   public static tick(delta: number) {
     if (!this.camera) return;
 
-    // Follow target smoothly (lerp could be added here)
-    const camX = this.targetX + this.offset;
-    const camZ = this.targetZ + this.offset;
-    const camY = this.offset;
+    const targetCamX = this.targetX + this.offset;
+    const targetCamZ = this.targetZ + this.offset;
 
-    let finalX = camX;
-    let finalZ = camZ;
-    let finalY = camY;
+    if (this.currentCamX === 0 && this.currentCamZ === 0) {
+      this.currentCamX = targetCamX;
+      this.currentCamZ = targetCamZ;
+    }
+
+    // FPS-independent smooth exponential damping
+    const lerpFactor = 1 - Math.exp(-14 * delta);
+    this.currentCamX += (targetCamX - this.currentCamX) * lerpFactor;
+    this.currentCamZ += (targetCamZ - this.currentCamZ) * lerpFactor;
+
+    let finalX = this.currentCamX;
+    let finalZ = this.currentCamZ;
+    let finalY = this.offset;
 
     // Apply shake
     if (this.shakeDuration > 0) {

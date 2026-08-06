@@ -32,7 +32,7 @@ export class SceneManager {
 
     // 3. Setup Camera (Isometric / Orthographic)
     const aspect = window.innerWidth / window.innerHeight;
-    const frustumSize = 360; // Map scale (zoomed out for 64x64 NYC skyline view)
+    const frustumSize = 420; // Map scale (zoomed out for 64x64 NYC skyline view)
     this.camera = new THREE.OrthographicCamera(
       frustumSize * aspect / -2,
       frustumSize * aspect / 2,
@@ -43,7 +43,7 @@ export class SceneManager {
     );
     
     // Isometric angle setup (30 degree tilt, 45 degree rotation)
-    this.camera.position.set(150, 150, 150);
+    this.camera.position.set(200, 200, 200);
     this.camera.lookAt(0, 0, 0);
 
     // 4. Setup Groups
@@ -102,7 +102,7 @@ export class SceneManager {
 
   private static onWindowResize() {
     const aspect = window.innerWidth / window.innerHeight;
-    const frustumSize = 360;
+    const frustumSize = 420;
     
     this.camera.left = -frustumSize * aspect / 2;
     this.camera.right = frustumSize * aspect / 2;

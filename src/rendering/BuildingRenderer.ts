@@ -39,6 +39,7 @@ export class BuildingRenderer {
   private static lastFrameMap = new Map<Entity, number>();
   private static cachedTexture = new Map<Entity, THREE.Texture | null>();
   private static cachedOffset = new Map<Entity, any>();
+  private static foundationPlinths = new Map<Entity, THREE.Mesh>();
 
   public static getSpritePosition(entity: Entity): THREE.Vector3 | null {
     const sprite = this.sprites.get(entity);
@@ -62,14 +63,12 @@ export class BuildingRenderer {
     }
 
     if (intensity === 'heavy') {
-      // Shudder: high-frequency jitter for 200ms
       effects.push({
         type: 'shudder',
         elapsed: 0,
         duration: 0.2,
         amplitude: 0.3
       });
-      // Also squash
       effects.push({
         type: 'squash',
         elapsed: 0,
@@ -77,11 +76,9 @@ export class BuildingRenderer {
         scaleXMult: 1.12,
         scaleYMult: 0.82
       });
-      // White flash
       this.flashMap.set(entity, { timeLeft: 0.06, color: 0xffffff });
       UIOverlay.triggerFlash();
     } else {
-      // Light squash only
       effects.push({
         type: 'squash',
         elapsed: 0,
@@ -89,7 +86,6 @@ export class BuildingRenderer {
         scaleXMult: 1.08,
         scaleYMult: 0.88
       });
-      // Warm flash
       this.flashMap.set(entity, { timeLeft: 0.03, color: 0xffccaa });
     }
   }
@@ -113,7 +109,31 @@ export class BuildingRenderer {
       let sprite = this.sprites.get(entity);
 
       if (!sprite) {
-        // Use Mesh with PlaneGeometry to keep buildings standing upright vertically
+        // 1. Create architectural foundation slab (plinth buffer) under building lot
+        const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+        const typeKey = prefixMatch ? prefixMatch[1] : '3';
+        const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS['3'];
+
+        const padWidth = def.width;
+        const padLength = def.length;
+
+        const padGeo = new THREE.BoxGeometry(padWidth, 0.1, padLength);
+        const padMat = new THREE.MeshStandardMaterial({
+          color: 0x22262e,
+          roughness: 0.8,
+          metalness: 0.1,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -1
+        });
+        const padMesh = new THREE.Mesh(padGeo, padMat);
+        padMesh.position.set(pos.worldX, 0.05, pos.worldY);
+        padMesh.receiveShadow = true;
+
+        SceneManager.groundGroup.add(padMesh);
+        this.foundationPlinths.set(entity, padMesh);
+
+        // 2. Use Mesh with PlaneGeometry to keep buildings standing upright vertically
         const material = new THREE.MeshStandardMaterial({ 
           color: 0xffffff, 
           transparent: true,
@@ -135,8 +155,6 @@ export class BuildingRenderer {
         
         this.sprites.set(entity, sprite);
 
-        const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-        const typeKey = prefixMatch ? prefixMatch[1] : '3';
         const zones = BUILDING_ZONES[typeKey];
         if (zones) {
           HitZoneManager.createZonesForBuilding(entity, sprite, zones);
@@ -167,19 +185,26 @@ export class BuildingRenderer {
         }
       }
 
-      let width = 2.5;
-      let height = 2.5;
-      let dx = -width * 64 / 2;
+      const prefixMatchType = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+      const typeKeyFinal = prefixMatchType ? prefixMatchType[1] : '3';
+      const def = BUILDING_DEFS[typeKeyFinal] || BUILDING_DEFS['3'];
+      const vScale = def.heightScale || def.visualScale || 1.0;
 
-      if (offset) {
-        width = offset.w / 64;
-        height = offset.h / 64;
-        dx = offset.dx;
-      } else if (texture && texture.image) {
-        width = texture.image.width / 64;
-        height = texture.image.height / 64;
-        dx = -texture.image.width / 2;
-      }
+      // 1. Lock pixel density to State 0 so world footprint remains rock-solid
+      const state0Offset = AssetLoader.getSpriteOffset(typeKeyFinal, 0);
+      const state0Width = state0Offset ? state0Offset.w : (offset ? offset.w : (texture?.image?.width || 160));
+
+      const targetWorldWidth = def.width * Math.SQRT2;
+      const PIXELS_PER_WORLD_UNIT = state0Width / targetWorldWidth;
+
+      // 2. Compute current state dimensions & offsets
+      const w = offset ? offset.w : (texture?.image?.width || 160);
+      const h = offset ? offset.h : (texture?.image?.height || 160);
+      const dx = offset ? offset.dx : -w / 2;
+      const base_cy = offset ? (typeof offset.base_cy === 'number' ? offset.base_cy : (offset.y_max || h)) : h;
+
+      const meshWidth = w / PIXELS_PER_WORLD_UNIT;
+      const meshHeight = (h / PIXELS_PER_WORLD_UNIT) * vScale;
 
       // --- Compute scale with HitFX squash-stretch applied ---
       let scaleXMult = 1;
@@ -198,55 +223,40 @@ export class BuildingRenderer {
             continue;
           }
 
-          // Normalized progress 0→1
           const t = fx.elapsed / fx.duration;
 
           if (fx.type === 'squash') {
-            // Ease out: strongest at start, snaps back to 1.0
             const strength = 1 - t;
             scaleXMult *= 1 + (fx.scaleXMult! - 1) * strength;
             scaleYMult *= 1 + (fx.scaleYMult! - 1) * strength;
           } else if (fx.type === 'shudder') {
-            // Exponentially decaying high-frequency random jitter
             const decay = fx.amplitude! * Math.exp(-t * 8);
             shudderDX += (Math.random() - 0.5) * 2 * decay;
             shudderDZ += (Math.random() - 0.5) * 2 * decay;
           }
         }
 
-        // Cleanup empty arrays
         if (effects.length === 0) {
           this.hitFxMap.delete(entity);
         }
       }
 
-      const prefixMatchType = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-      const typeKeyFinal = prefixMatchType ? prefixMatchType[1] : '3';
-      const def = BUILDING_DEFS[typeKeyFinal];
-      const vScale = def ? def.visualScale || 1.0 : 1.0;
+      sprite.scale.set(meshWidth * scaleXMult, meshHeight * scaleYMult, 1);
 
+      // 3. Mathematical Pivot Solution: Lock (-dx, base_cy) to (worldX, 0, worldY)
+      const pivotPxX = -dx - (w / 2.0);
+      const distFromCenterToGroundPx = base_cy - (h / 2.0);
 
-      sprite.scale.set(width * scaleXMult * vScale, height * scaleYMult * vScale, 1);
-
-      // Horizontal displacement to center the visual weight (centroid)
-      const geom_tx = ((dx + (offset ? offset.w : width * 64) / 2) / 64) * vScale;
+      const localOffsetX = pivotPxX / PIXELS_PER_WORLD_UNIT;
+      const localOffsetY = (distFromCenterToGroundPx / PIXELS_PER_WORLD_UNIT) * vScale;
 
       const cos45 = 0.70710678;
       const sin45 = 0.70710678;
 
-      const world_dx = geom_tx * cos45;
-      const world_dz = -geom_tx * sin45;
+      const world_dx = localOffsetX * cos45;
+      const world_dz = -localOffsetX * sin45;
+      const y_mesh = pos.worldZ + localOffsetY;
 
-      // Fix attachment Y altitude so the baseline (base_cy or y_max) rests ON pos.worldZ on the ground
-      const contactY = (offset && typeof offset.base_cy === 'number')
-        ? offset.base_cy
-        : (offset && typeof offset.y_max === 'number' ? offset.y_max : (offset ? offset.h : height * 64));
-        
-      const h_pixels = offset ? offset.h : height * 64;
-      const distFromCenter = (contactY - h_pixels / 2) / 64;
-      const y_mesh = pos.worldZ + (distFromCenter * vScale);
-
-      // Ground plane coordinates STAY FIXED at footprint location without sideways displacement
       sprite.position.set(
         pos.worldX + world_dx + shudderDX,
         y_mesh,
@@ -277,6 +287,17 @@ export class BuildingRenderer {
         } else {
           sprite.material.dispose();
         }
+        const plinth = this.foundationPlinths.get(entity);
+        if (plinth) {
+          SceneManager.groundGroup.remove(plinth);
+          plinth.geometry.dispose();
+          if (Array.isArray(plinth.material)) {
+            plinth.material.forEach(m => m.dispose());
+          } else {
+            plinth.material.dispose();
+          }
+          this.foundationPlinths.delete(entity);
+        }
         this.sprites.delete(entity);
         this.hitFxMap.delete(entity);
         this.flashMap.delete(entity);
@@ -285,5 +306,32 @@ export class BuildingRenderer {
         this.cachedOffset.delete(entity);
       }
     }
+  }
+
+  public static clearAll() {
+    for (const [, sprite] of this.sprites.entries()) {
+      SceneManager.cityGroup.remove(sprite);
+      if (Array.isArray(sprite.material)) {
+        sprite.material.forEach(m => m.dispose());
+      } else {
+        sprite.material.dispose();
+      }
+    }
+    for (const [, plinth] of this.foundationPlinths.entries()) {
+      SceneManager.groundGroup.remove(plinth);
+      plinth.geometry.dispose();
+      if (Array.isArray(plinth.material)) {
+        plinth.material.forEach(m => m.dispose());
+      } else {
+        plinth.material.dispose();
+      }
+    }
+    this.sprites.clear();
+    this.foundationPlinths.clear();
+    this.hitFxMap.clear();
+    this.flashMap.clear();
+    this.lastFrameMap.clear();
+    this.cachedTexture.clear();
+    this.cachedOffset.clear();
   }
 }

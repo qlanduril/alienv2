@@ -6,7 +6,7 @@ import { InputManager } from '../input/InputManager';
 export class HitZoneManager {
   // Maps invisible hit mesh UUID → { entity, zone, uvOffset }
   private static zoneObjects = new Map<string, { entity: Entity, zone: DamageZone, uvCenter: THREE.Vector2 }>();
-  private static allZoneMeshes: THREE.Object3D[] = [];
+  private static allZoneMeshes: THREE.Mesh[] = [];
 
   public static createZonesForBuilding(entity: Entity, sprite: THREE.Mesh, zones: ZoneDef[]) {
 
@@ -53,5 +53,21 @@ export class HitZoneManager {
     
     // return the closest hit's zone info
     return this.zoneObjects.get(hits[0].object.uuid) || null;
+  }
+
+  public static clearAll() {
+    for (const mesh of this.allZoneMeshes) {
+      if (mesh.parent) {
+        mesh.parent.remove(mesh);
+      }
+      mesh.geometry.dispose();
+      if (Array.isArray(mesh.material)) {
+        mesh.material.forEach(m => m.dispose());
+      } else {
+        mesh.material.dispose();
+      }
+    }
+    this.zoneObjects.clear();
+    this.allZoneMeshes = [];
   }
 }

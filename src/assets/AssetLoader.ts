@@ -61,10 +61,10 @@ export class AssetLoader {
     for (let i = 0; i < 15; i++) promises.push(this.loadTexture(`building_5_stage_${i}`, `/building/skyscraper/png/${getFilename(i, true)}`));
 
     // 6. Load New Building Sprites from static/building/
-    promises.push(this.loadTexture('building_b1_stage_0', '/building/1.png'));
-    promises.push(this.loadTexture('building_b2_stage_0', '/building/2.png'));
-    promises.push(this.loadTexture('building_b3_stage_0', '/building/3.png'));
-    promises.push(this.loadTexture('building_b4_stage_0', '/building/4.png'));
+    promises.push(this.loadTexture('building_b1_stage_0', '/building/residential_bronze_penthouses/png/00_pristine.png'));
+    promises.push(this.loadTexture('building_b2_stage_0', '/building/residential_sky_gardens/png/00_pristine.png'));
+    promises.push(this.loadTexture('building_b3_stage_0', '/building/skyscraper/png/00_pristine.png'));
+    promises.push(this.loadTexture('building_b4_stage_0', '/building/skyscraper_artdeco_titan/png/00_pristine.png'));
 
     promises.push(this.loadTexture('building_res_bronze_stage_0', '/building/residential_bronze_penthouses/png/00_pristine.png'));
     promises.push(this.loadTexture('building_res_sky_stage_0', '/building/residential_sky_gardens/png/00_pristine.png'));
@@ -131,6 +131,6 @@ export class AssetLoader {
   public static getSpriteOffset(typeKey: string, frameIndex: number): { w: number, h: number, dx: number, dy: number, y_max?: number, base_cy?: number } | null {
     const typeOffsets = this.spriteOffsets[`building_${typeKey}`];
     if (!typeOffsets) return null;
-    return typeOffsets[frameIndex] || typeOffsets[frameIndex.toString()] || null;
+    return typeOffsets[frameIndex] || typeOffsets[frameIndex.toString()] || typeOffsets['0'] || null;
   }
 }

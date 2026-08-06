@@ -39,6 +39,8 @@ export class TileMap {
   public static readonly TILE_SIZE = 16; // 16x16 units per grid cell
   public static readonly MAP_BOUNDS = 1024;
   public static readonly GRID_DIM = TileMap.MAP_BOUNDS / TileMap.TILE_SIZE; // 64x64 grid
+  public static readonly AVENUE_INTERVAL = 14; // North-South Avenues (X)
+  public static readonly STREET_INTERVAL = 7;   // East-West Cross Streets (Z)
 
   private static cells: TileCell[][] = [];
   private static buildingLots: Map<number, BuildingLot> = new Map();
@@ -48,7 +50,6 @@ export class TileMap {
     this.buildingLots.clear();
 
     const halfBound = this.MAP_BOUNDS / 2;
-    const ROAD_INTERVAL = 6; // Roads every 6 grid cells (leaving 5x5 micro-lot blocks)
 
     for (let gx = 0; gx < this.GRID_DIM; gx++) {
       this.cells[gx] = [];
@@ -56,24 +57,24 @@ export class TileMap {
         const worldX = -halfBound + (gx + 0.5) * this.TILE_SIZE;
         const worldZ = -halfBound + (gz + 0.5) * this.TILE_SIZE;
 
-        const isRoadX = (gx % ROAD_INTERVAL === 0);
-        const isRoadZ = (gz % ROAD_INTERVAL === 0);
+        const isAvenue = (gx % TileMap.AVENUE_INTERVAL === 0);
+        const isStreet = (gz % TileMap.STREET_INTERVAL === 0);
 
         let terrain: TerrainType;
         let overlay = OverlayTileType.NONE;
 
-        if (isRoadX && isRoadZ) {
+        if (isAvenue && isStreet) {
           terrain = TerrainType.ROAD_INTERSECTION;
           overlay = OverlayTileType.ROAD;
-        } else if (isRoadX) {
+        } else if (isAvenue) {
           terrain = TerrainType.ROAD_STRAIGHT_NS;
           overlay = OverlayTileType.ROAD;
-        } else if (isRoadZ) {
+        } else if (isStreet) {
           terrain = TerrainType.ROAD_STRAIGHT_EW;
           overlay = OverlayTileType.ROAD;
         } else {
-          const isNearRoadX = ((gx + 1) % ROAD_INTERVAL === 0) || ((gx - 1) % ROAD_INTERVAL === 0);
-          const isNearRoadZ = ((gz + 1) % ROAD_INTERVAL === 0) || ((gz - 1) % ROAD_INTERVAL === 0);
+          const isNearRoadX = ((gx + 1) % TileMap.AVENUE_INTERVAL === 0) || ((gx - 1) % TileMap.AVENUE_INTERVAL === 0);
+          const isNearRoadZ = ((gz + 1) % TileMap.STREET_INTERVAL === 0) || ((gz - 1) % TileMap.STREET_INTERVAL === 0);
 
           if (isNearRoadX || isNearRoadZ) {
             terrain = TerrainType.SIDEWALK;

@@ -32,11 +32,13 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   'sky_biotech': { width: 16, length: 16, height: 280, name: 'Biotech Helix', visualScale: 4.0, footprintTiles: 1, heightScale: 4.0, tier: 'background' },
   'sky_cyber': { width: 16, length: 16, height: 320, name: 'Cyber Spire', visualScale: 4.2, footprintTiles: 1, heightScale: 4.2, tier: 'background' },
 
-  // --- Tier 4: Mega-Landmarks (Multi-Tile Footprints with Extreme Height & Scale) ---
+  // --- Tier 4: Mega-Landmarks & Special Buildings ---
   'mega_titan': { width: 64, length: 64, height: 800, name: 'Apex Mega-Tower', visualScale: 18.0, footprintTiles: 4, heightScale: 18.0, tier: 'background' },
-  'mega_stadium': { width: 64, length: 48, height: 120, name: 'Metropolitan Arena', visualScale: 3.5, footprintTiles: 4, heightScale: 3.5, tier: 'foreground' }
+  'mega_stadium': { width: 64, length: 48, height: 120, name: 'Metropolitan Arena', visualScale: 3.5, footprintTiles: 4, heightScale: 3.5, tier: 'foreground' },
+  'spaceship_hq': { width: 64, length: 64, height: 400, name: 'Alien Spaceship HQ', visualScale: 5.0, footprintTiles: 4, heightScale: 5.0, tier: 'background' },
+  'statue_liberty': { width: 48, length: 48, height: 350, name: 'Statue of Liberty', visualScale: 3.0, footprintTiles: 3, heightScale: 3.0, tier: 'foreground' },
+  'pentagon_defense': { width: 64, length: 64, height: 150, name: 'Defense Bunker', visualScale: 4.0, footprintTiles: 4, heightScale: 4.0, tier: 'foreground' }
 };
-
 
 export interface CityTileData {
   ratioX: number;  // 0..1 position within a chunk
@@ -44,4 +46,3 @@ export interface CityTileData {
   zone: string;    // "school" | "hospital" etc.
   size: string;    // "3x2" etc.
 }
-

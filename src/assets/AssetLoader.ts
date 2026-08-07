@@ -34,51 +34,62 @@ export class AssetLoader {
       return `${i < 10 ? '0' : ''}${i}_damaged_${i}.png`;
     };
 
-    // 1. Load Hospital Textures (Building Type 1) - 15 frames
-    for (let i = 0; i < 15; i++) promises.push(this.loadTexture(`building_1_stage_${i}`, `/building/hospital/png/${getFilename(i, true)}`));
+    // 1. Load Hospital Textures (Building Type 1) - 15 frames from buildingv2
+    for (let i = 0; i < 15; i++) promises.push(this.loadTexture(`building_1_stage_${i}`, `/buildingv2/hospital/png/${getFilename(i, true)}`));
 
-    // 2. Load Mall Textures (Building Type 2) - 2 frames
-    for (let i = 0; i < 2; i++) promises.push(this.loadTexture(`building_2_stage_${i}`, `/building/mall/png/${getFilename(i, false)}`));
+    // 2. Load Mall Textures (Building Type 2) - 15 frames from buildingv2
+    for (let i = 0; i < 15; i++) promises.push(this.loadTexture(`building_2_stage_${i}`, `/buildingv2/mall/png/${getFilename(i, true)}`));
 
-    // 3. Load School Textures (Building Type 3) — 72 frames from video
-    const SCHOOL_LABELS = [
-      '00_pristine', '01_damaged_1', '02_damaged_2', '03_damaged_3',
-      '04_damaged_4', '05_damaged_5', '06_damaged_6', '07_damaged_7',
-      '08_damaged_8', '09_damaged_9', '10_damaged_10', '11_damaged_11',
-      '12_damaged_12', '13_damaged_13', '14_rubble'
+    // 3. Load School Textures (Building Type 3) - 15 frames from buildingv2
+    for (let i = 0; i < 15; i++) promises.push(this.loadTexture(`building_3_stage_${i}`, `/buildingv2/school/png/${getFilename(i, true)}`));
+
+    // 4. Load Warehouse Textures (Building Type 4) - 14 frames from buildingv2
+    for (let i = 0; i < 14; i++) promises.push(this.loadTexture(`building_4_stage_${i}`, `/buildingv2/warehouse/png/${getFilename(i, false)}`));
+
+    // 5. Load Skyscraper Textures (Building Type 5) - 15 frames from buildingv2
+    for (let i = 0; i < 15; i++) promises.push(this.loadTexture(`building_5_stage_${i}`, `/buildingv2/skyscraper/png/${getFilename(i, true)}`));
+
+    // 6. Load Low-rise Shops & Mid-rises from buildingv2
+    const shopFrames = ['state_000_pristine.png', 'state_033_shattered_front.png', 'state_066_facade_breached.png', 'state_100_rubble.png'];
+    shopFrames.forEach((f, i) => promises.push(this.loadTexture(`building_b1_stage_${i}`, `/buildingv2/shop_lowrise/png/${f}`)));
+
+    promises.push(this.loadTexture('building_b2_stage_0', '/buildingv2/residential_sky_gardens/png/00_pristine.png'));
+    
+    const midriseFrames = ['state_000_pristine.png', 'state_033_roof_hvac_destroyed.png', 'state_066_mid_floors_gutted.png', 'state_100_collapsed_ruins.png'];
+    midriseFrames.forEach((f, i) => promises.push(this.loadTexture(`building_b3_stage_${i}`, `/buildingv2/tower_midrise/png/${f}`)));
+
+    const highriseFrames = ['state_000_pristine.png', 'state_033_spire_blast.png', 'state_066_midsection_crater.png', 'state_100_skeleton_ruin.png'];
+    highriseFrames.forEach((f, i) => promises.push(this.loadTexture(`building_b4_stage_${i}`, `/buildingv2/skyscraper_highrise/png/${f}`)));
+
+    promises.push(this.loadTexture('building_res_bronze_stage_0', '/buildingv2/residential_bronze_penthouses/png/00_pristine.png'));
+    promises.push(this.loadTexture('building_res_sky_stage_0', '/buildingv2/residential_sky_gardens/png/00_pristine.png'));
+
+    promises.push(this.loadTexture('building_sky_artdeco_stage_0', '/buildingv2/skyscraper_artdeco_titan/png/00_pristine.png'));
+    promises.push(this.loadTexture('building_sky_biotech_stage_0', '/buildingv2/skyscraper_biotech_helix/png/00_pristine.png'));
+    
+    const cyberFrames = ['state_000_pristine.png', 'state_033_needle_antenna_snap.png', 'state_066_laser_conduit_overload.png', 'state_100_core_meltdown_rubble.png'];
+    cyberFrames.forEach((f, i) => promises.push(this.loadTexture(`building_sky_cyber_stage_${i}`, `/buildingv2/sky_cyber/png/${f}`)));
+
+    // Tier 4 Mega-Landmarks & Landmark Buildings from buildingv2
+    const megaTitanFrames = ['state_000_pristine.png', 'state_033_setback_tier1_destroyed.png', 'state_066_lobby_facade_shattered.png', 'state_100_titan_split_collapse.png'];
+    megaTitanFrames.forEach((f, i) => promises.push(this.loadTexture(`building_mega_titan_stage_${i}`, `/buildingv2/mega_titan/png/${f}`)));
+
+    const spaceshipFrames = [
+      'state_000_pristine.png', 'state_025_east_ring_breached.png', 'state_025_north_ring_breached.png',
+      'state_025_south_ring_breached.png', 'state_025_west_ring_breached.png', 'state_066_multi_sector_ruin.png',
+      'state_100_ring_rubble.png'
     ];
-    for (let i = 0; i < 72; i++) {
-      const filename = i < SCHOOL_LABELS.length
-        ? `${SCHOOL_LABELS[i]}.png`
-        : `${i}_damaged_${i}.png`;
-      promises.push(this.loadTexture(`building_3_stage_${i}`, `/school/${filename}`));
-    }
+    spaceshipFrames.forEach((f, i) => promises.push(this.loadTexture(`building_spaceship_hq_stage_${i}`, `/buildingv2/spaceship_hq/png/${f}`)));
 
-    // 4. Load Warehouse Textures (Building Type 4) - 14 frames
-    for (let i = 0; i < 14; i++) promises.push(this.loadTexture(`building_4_stage_${i}`, `/building/warehouse/png/${getFilename(i, false)}`));
+    const statueFrames = ['state_000_pristine.png', 'state_050_head_torch_snapped.png', 'state_100_pedestal_shattered.png'];
+    statueFrames.forEach((f, i) => promises.push(this.loadTexture(`building_statue_liberty_stage_${i}`, `/buildingv2/statue_liberty/png/${f}`)));
 
-    // 5. Load Skyscraper Textures (Building Type 5) - 15 frames
-    for (let i = 0; i < 15; i++) promises.push(this.loadTexture(`building_5_stage_${i}`, `/building/skyscraper/png/${getFilename(i, true)}`));
+    const pentagonFrames = ['state_000_pristine.png', 'state_033_helipad_tarmac_crater.png', 'state_033_outer_ring_breach.png', 'state_066_fortress_core_gutted.png', 'state_100_bunker_ruins.png'];
+    pentagonFrames.forEach((f, i) => promises.push(this.loadTexture(`building_pentagon_defense_stage_${i}`, `/buildingv2/pentagon_defense/png/${f}`)));
 
-    // 6. Load New Building Sprites from static/building/
-    promises.push(this.loadTexture('building_b1_stage_0', '/building/residential_bronze_penthouses/png/00_pristine.png'));
-    promises.push(this.loadTexture('building_b2_stage_0', '/building/residential_sky_gardens/png/00_pristine.png'));
-    promises.push(this.loadTexture('building_b3_stage_0', '/building/skyscraper/png/00_pristine.png'));
-    promises.push(this.loadTexture('building_b4_stage_0', '/building/skyscraper_artdeco_titan/png/00_pristine.png'));
-
-    promises.push(this.loadTexture('building_res_bronze_stage_0', '/building/residential_bronze_penthouses/png/00_pristine.png'));
-    promises.push(this.loadTexture('building_res_sky_stage_0', '/building/residential_sky_gardens/png/00_pristine.png'));
-
-    promises.push(this.loadTexture('building_sky_artdeco_stage_0', '/building/skyscraper_artdeco_titan/png/00_pristine.png'));
-    promises.push(this.loadTexture('building_sky_biotech_stage_0', '/building/skyscraper_biotech_helix/png/00_pristine.png'));
-    promises.push(this.loadTexture('building_sky_cyber_stage_0', '/building/skyscraper_cyber_spire/png/00_pristine.png'));
-
-    // Tier 4 Mega-Landmarks
+    // Legacy Stadium mapping fallback
     for (let i = 0; i < 15; i++) {
-      promises.push(this.loadTexture(`building_mega_titan_stage_${i}`, `/building/skyscraper/png/${getFilename(i, true)}`));
-    }
-    for (let i = 0; i < 2; i++) {
-      promises.push(this.loadTexture(`building_mega_stadium_stage_${i}`, `/building/mall/png/${getFilename(i, false)}`));
+      promises.push(this.loadTexture(`building_mega_stadium_stage_${i}`, `/buildingv2/mall/png/${getFilename(i, true)}`));
     }
 
     // 7. Load FX Textures
@@ -126,11 +137,16 @@ export class AssetLoader {
 
   public static getTexture(id: string): THREE.Texture | null {
     if (this.textures.has(id)) return this.textures.get(id)!;
-    // Fallback for single-frame stage textures (e.g. building_res_bronze_stage_5 -> building_res_bronze_stage_0)
+    // Fallback for stage textures (e.g. building_sky_cyber_stage_5 -> highest available stage <= 5)
     const baseMatch = id.match(/^(building_[a-zA-Z0-9_]+_stage_)(\d+)$/);
     if (baseMatch) {
-      const stage0 = `${baseMatch[1]}0`;
-      if (this.textures.has(stage0)) return this.textures.get(stage0)!;
+      const requestedFrame = parseInt(baseMatch[2], 10);
+      const prefix = baseMatch[1];
+      for (let f = requestedFrame; f >= 0; f--) {
+        const candidate = `${prefix}${f}`;
+        if (this.textures.has(candidate)) return this.textures.get(candidate)!;
+      }
+      if (this.textures.has(`${prefix}0`)) return this.textures.get(`${prefix}0`)!;
     }
     return null;
   }

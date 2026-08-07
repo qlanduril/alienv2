@@ -34,7 +34,8 @@ export class ShowcaseManager {
     '1', '2', '3', '4',
     'b1', 'b2', 'b3', 'b4',
     'res_bronze', 'res_sky',
-    '5', 'sky_artdeco', 'sky_biotech', 'sky_cyber'
+    '5', 'sky_artdeco', 'sky_biotech', 'sky_cyber',
+    'mega_titan', 'spaceship_hq', 'statue_liberty', 'pentagon_defense'
   ];
 
   public static toggleMode(): void {

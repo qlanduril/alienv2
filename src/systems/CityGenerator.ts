@@ -61,10 +61,13 @@ export class CityGenerator {
 
     // Civic Landmarks Across Districts
     const civicAnchors = [
-      { key: '3', gx: 43, gz: 22, w: 3, z: 3, name: 'School' },       // Zone B Civic
-      { key: '1', gx: 2, gz: 2, w: 3, z: 3, name: 'Hospital' },       // Zone A Hospital
-      { key: '2', gx: 2, gz: 16, w: 3, z: 3, name: 'Mall' },          // Zone A Shopping
-      { key: '4', gx: 43, gz: 43, w: 3, z: 3, name: 'Warehouse' }     // Zone C Docks
+      { key: '3', gx: 43, gz: 22, w: 3, z: 3, name: 'School' },                  // Zone B Civic
+      { key: '1', gx: 2, gz: 2, w: 3, z: 3, name: 'Hospital' },                  // Zone A Hospital
+      { key: '2', gx: 2, gz: 16, w: 3, z: 3, name: 'Mall' },                     // Zone A Shopping
+      { key: '4', gx: 43, gz: 43, w: 3, z: 3, name: 'Warehouse' },                // Zone C Docks
+      { key: 'statue_liberty', gx: 29, gz: 2, w: 3, z: 3, name: 'Statue of Liberty' }, // Harbor Park Landmark
+      { key: 'pentagon_defense', gx: 29, gz: 43, w: 4, z: 4, name: 'Defense Bunker' },// Defense Perimeter
+      { key: 'spaceship_hq', gx: 2, gz: 43, w: 4, z: 4, name: 'Alien Spaceship HQ' }    // Alien Outpost
     ];
 
     for (const c of civicAnchors) {
@@ -77,9 +80,9 @@ export class CityGenerator {
     }
 
     // 3. District Infill Pools
-    const poolZoneA = ['sky_cyber', 'sky_artdeco', 'sky_biotech', '5'];           // Financial Core Skyscrapers
-    const poolZoneB = ['res_sky', 'b3', 'b4', 'b2'];                              // Civic & Leisure High-Rises
-    const poolZoneC = ['4', 'b1', 'b2', 'b3'];                                    // Waterfront Docks & Warehouses
+    const poolZoneA = ['sky_cyber', 'sky_artdeco', 'sky_biotech', '5', 'b4'];      // Financial Core Skyscrapers
+    const poolZoneB = ['res_sky', 'b3', 'b4', 'b2', 'sky_cyber'];                 // Civic & Leisure High-Rises
+    const poolZoneC = ['4', 'b1', 'b2', 'b3', 'pentagon_defense'];                // Waterfront Docks & Heavy Base
     const poolZoneD = ['b1', 'b2', 'res_bronze', 'b3'];                           // Residential Slums Brownstones
 
     // 4. Iterate Super-Blocks and Infill Micro-Lots by District

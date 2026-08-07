@@ -14,6 +14,10 @@ export class HitZoneManager {
   // Maps invisible hit mesh UUID → { entity, zone, uvOffset }
   private static zoneObjects = new Map<string, { entity: Entity, zone: DamageZone, uvCenter: THREE.Vector2 }>();
   private static allZoneMeshes: THREE.Mesh[] = [];
+  
+  // Reusable static Raycaster & Vector2 to eliminate garbage collection spikes
+  private static raycaster = new THREE.Raycaster();
+  private static pointerVector = new THREE.Vector2();
 
   public static createZonesForBuilding(entity: Entity, sprite: THREE.Mesh, zones: ZoneDef[]) {
     for (const def of zones) {
@@ -44,12 +48,14 @@ export class HitZoneManager {
   }
 
   public static getHitZone(camera: THREE.Camera): { entity: Entity, zone: DamageZone, uvCenter: THREE.Vector2 } | null {
+    if (this.allZoneMeshes.length === ZERO_VALUE) return null;
+
     const ndc = InputManager.getMouseNDC();
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(ndc.x, ndc.y), camera);
+    this.pointerVector.set(ndc.x, ndc.y);
+    this.raycaster.setFromCamera(this.pointerVector, camera);
     
-    // intersectObjects against our invisible meshes
-    const hits = raycaster.intersectObjects(this.allZoneMeshes, false);
+    // intersectObjects against invisible hit meshes
+    const hits = this.raycaster.intersectObjects(this.allZoneMeshes, false);
     if (hits.length === ZERO_VALUE) return null;
     
     // return the closest hit's zone info

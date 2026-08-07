@@ -18,11 +18,16 @@ const INITIAL_SCALE_UNIT = 1.0;
 const DEFAULT_CANVAS_SIZE = 160;
 const DEFAULT_BUILDING_KEY = '3';
 
-// Trigonometry & Transform Constants
-const COS_45_DEG = 0.70710678;
-const SIN_45_DEG = 0.70710678;
-const ISOMETRIC_ROTATION_Y = Math.PI / 4.0;
+// Trigonometry & Transform Constants for 45-degree Cardboard Cutout Alignment
+const COS_45_DEG = Math.SQRT1_2;
+const SIN_45_DEG = Math.SQRT1_2;
+const ISOMETRIC_ROTATION_Y = Math.PI / 4;
+const ISOMETRIC_Y_COMPENSATION = Math.sqrt(1.5); // 1.22474487 - Compensates for orthographic 35.264° camera pitch foreshortening on vertical planes
 const RANDOM_CENTER_OFFSET = 0.5;
+
+// Manual Fine-Tuning Sprite Offsets (pixel offsets)
+const GLOBAL_SPRITE_DX_OFFSET = 0;
+const GLOBAL_SPRITE_DY_OFFSET = -250;
 
 // Foundation Plinth Constants
 const PLINTH_BOX_HEIGHT = 0.1;
@@ -31,6 +36,7 @@ const PLINTH_COLOR_HEX = 0x22262e;
 const PLINTH_ROUGHNESS = 0.8;
 const PLINTH_METALNESS = 0.1;
 const PLINTH_POLYGON_OFFSET = -1;
+const BUILDING_Y_ALTITUDE_OFFSET = 50;
 
 // Sprite Material Constants
 const SPRITE_MATERIAL_COLOR = 0xffffff;
@@ -64,8 +70,6 @@ const LIGHT_FLASH_TIME = 0.04;
 const LIGHT_FLASH_COLOR = 0xffeedd;
 
 const SHUDDER_DECAY_RATE = 8;
-const MAX_FRAME_CIVIC_DEFAULT = 71;
-const MAX_FRAME_STANDARD_DEFAULT = 19;
 
 // --- Hit FX micro-transform system ---
 interface HitFX {
@@ -89,7 +93,7 @@ export class BuildingRenderer {
   // Per-entity active effects
   private static hitFxMap = new Map<Entity, HitFX[]>();
   private static flashMap = new Map<Entity, FlashState>();
-  
+
   // Cache for resolved texture & offsets
   private static lastFrameMap = new Map<Entity, number>();
   private static cachedTexture = new Map<Entity, THREE.Texture | null>();
@@ -177,212 +181,265 @@ export class BuildingRenderer {
 
       if (!renderState || !pos) continue;
 
-      const zonalHealth = ZonalHealthComponent.get(entity);
-      if (zonalHealth) {
-        const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-        const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
-        const maxFrame = typeKey === DEFAULT_BUILDING_KEY ? MAX_FRAME_CIVIC_DEFAULT : MAX_FRAME_STANDARD_DEFAULT;
-        renderState.currentFrame = DamageCalc.computeFrameForZonalState(zonalHealth, maxFrame);
-      }
+      this.updateZonalFrame(entity, renderState);
 
-      let sprite = this.sprites.get(entity);
-
-      if (!sprite) {
-        // 1. Create architectural foundation slab (plinth buffer) under building lot
-        const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-        const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
-        const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
-
-        const padWidth = def.width;
-        const padLength = def.length;
-
-        const padGeo = new THREE.BoxGeometry(padWidth, PLINTH_BOX_HEIGHT, padLength);
-        const padMat = new THREE.MeshStandardMaterial({
-          color: PLINTH_COLOR_HEX,
-          roughness: PLINTH_ROUGHNESS,
-          metalness: PLINTH_METALNESS,
-          polygonOffset: true,
-          polygonOffsetFactor: PLINTH_POLYGON_OFFSET,
-          polygonOffsetUnits: PLINTH_POLYGON_OFFSET
-        });
-        const padMesh = new THREE.Mesh(padGeo, padMat);
-        padMesh.position.set(pos.worldX, PLINTH_Z_ALTITUDE, pos.worldY);
-        padMesh.receiveShadow = true;
-
-        SceneManager.groundGroup.add(padMesh);
-        this.foundationPlinths.set(entity, padMesh);
-
-        // 2. Use Mesh with PlaneGeometry to keep buildings standing upright vertically
-        const material = new THREE.MeshStandardMaterial({ 
-          color: SPRITE_MATERIAL_COLOR, 
-          transparent: true,
-          side: THREE.DoubleSide,
-          depthWrite: true,
-          alphaTest: SPRITE_ALPHA_TEST,
-          roughness: SPRITE_ROUGHNESS
-        });
-        sprite = new THREE.Mesh(this.sharedGeometry, material);
-        sprite.castShadow = true;
-        sprite.receiveShadow = true;
-        
-        // Rotate 45 degrees around Y to face the isometric camera horizontally
-        sprite.rotation.y = ISOMETRIC_ROTATION_Y;
-        
-        // Add to scene and register for raycasting
-        SceneManager.cityGroup.add(sprite);
-        RaycasterHelper.registerObject(sprite, entity);
-        
-        this.sprites.set(entity, sprite);
-
-        const zones = BUILDING_ZONES[typeKey];
-        if (zones) {
-          HitZoneManager.createZonesForBuilding(entity, sprite, zones);
-        }
-      }
-
+      const sprite = this.getOrCreateSprite(entity, renderState, pos);
       const material = sprite.material as THREE.MeshStandardMaterial;
 
-      let texture = this.cachedTexture.get(entity);
-      let offset = this.cachedOffset.get(entity);
-      const lastFrame = this.lastFrameMap.get(entity);
+      const { texture, offset, typeKey } = this.updateTextureAndOffset(entity, renderState, material);
+      const fx = this.processHitEffects(entity, delta);
 
-      if (lastFrame !== renderState.currentFrame || texture === undefined) {
-        const textureName = `${renderState.texturePrefix}${renderState.currentFrame}`;
-        texture = AssetLoader.getTexture(textureName);
-        
-        const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-        const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
-        offset = AssetLoader.getSpriteOffset(typeKey, renderState.currentFrame);
-        
-        this.lastFrameMap.set(entity, renderState.currentFrame);
-        this.cachedTexture.set(entity, texture);
-        this.cachedOffset.set(entity, offset);
-        
-        if (texture && material.map !== texture) {
-          material.map = texture;
-          material.needsUpdate = true;
-        }
-      }
-
-      const prefixMatchType = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-      const typeKeyFinal = prefixMatchType ? prefixMatchType[1] : DEFAULT_BUILDING_KEY;
-      const def = BUILDING_DEFS[typeKeyFinal] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
-      const vScale = def.heightScale || def.visualScale || INITIAL_SCALE_UNIT;
-
-      // 1. Lock pixel density to State 0 so world footprint remains rock-solid
-      const state0Offset = AssetLoader.getSpriteOffset(typeKeyFinal, ZERO_VALUE);
-      const state0Width = state0Offset ? state0Offset.w : (offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE));
-
-      const targetWorldWidth = def.width * Math.SQRT2;
-      const PIXELS_PER_WORLD_UNIT = state0Width / targetWorldWidth;
-
-      // 2. Compute current state dimensions & offsets
-      const w = offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE);
-      const h = offset ? offset.h : (texture?.image?.height || DEFAULT_CANVAS_SIZE);
-      const dx = offset ? offset.dx : -w / HALF_DIVISOR;
-      const base_cy = offset ? (typeof offset.base_cy === 'number' ? offset.base_cy : (offset.y_max || h)) : h;
-
-      const meshWidth = w / PIXELS_PER_WORLD_UNIT;
-      const meshHeight = (h / PIXELS_PER_WORLD_UNIT) * vScale;
-
-      // --- Compute scale with HitFX squash-stretch applied ---
-      let scaleXMult = INITIAL_SCALE_UNIT;
-      let scaleYMult = INITIAL_SCALE_UNIT;
-      let shudderDX = ZERO_VALUE;
-      let shudderDZ = ZERO_VALUE;
-
-      const effects = this.hitFxMap.get(entity);
-      if (effects) {
-        for (let i = effects.length - 1; i >= ZERO_VALUE; i--) {
-          const fx = effects[i];
-          fx.elapsed += delta;
-
-          if (fx.elapsed >= fx.duration) {
-            effects.splice(i, 1);
-            continue;
-          }
-
-          const t = fx.elapsed / fx.duration;
-
-          if (fx.type === 'squash') {
-            const strength = INITIAL_SCALE_UNIT - t;
-            scaleXMult *= INITIAL_SCALE_UNIT + (fx.scaleXMult! - INITIAL_SCALE_UNIT) * strength;
-            scaleYMult *= INITIAL_SCALE_UNIT + (fx.scaleYMult! - INITIAL_SCALE_UNIT) * strength;
-          } else if (fx.type === 'shudder') {
-            const decay = fx.amplitude! * Math.exp(-t * SHUDDER_DECAY_RATE);
-            shudderDX += (Math.random() - RANDOM_CENTER_OFFSET) * HALF_DIVISOR * decay;
-            shudderDZ += (Math.random() - RANDOM_CENTER_OFFSET) * HALF_DIVISOR * decay;
-          }
-        }
-
-        if (effects.length === ZERO_VALUE) {
-          this.hitFxMap.delete(entity);
-        }
-      }
-
-      sprite.scale.set(meshWidth * scaleXMult, meshHeight * scaleYMult, INITIAL_SCALE_UNIT);
-
-      // 3. Mathematical Pivot Solution: Lock (-dx, base_cy) to (worldX, 0, worldY)
-      const pivotPxX = -dx - (w / HALF_DIVISOR);
-      const distFromCenterToGroundPx = base_cy - (h / HALF_DIVISOR);
-
-      const localOffsetX = pivotPxX / PIXELS_PER_WORLD_UNIT;
-      const localOffsetY = (distFromCenterToGroundPx / PIXELS_PER_WORLD_UNIT) * vScale;
-
-      const world_dx = localOffsetX * COS_45_DEG;
-      const world_dz = -localOffsetX * SIN_45_DEG;
-      const y_mesh = pos.worldZ + localOffsetY;
-
-      // --- Collapse & Topple Physics ---
-      const collapse = this.collapseMap.get(entity);
-      if (collapse) {
-        collapse.tiltAngle += delta * COLLAPSE_TILT_SPEED;
-
-        // Rotate building mesh toward impact direction vector
-        sprite.rotation.z = collapse.tiltAngle * collapse.impactVector.x;
-        sprite.rotation.x = collapse.tiltAngle * collapse.impactVector.z;
-
-        // Sink slightly into ground as it falls
-        sprite.position.set(
-          pos.worldX + world_dx + shudderDX,
-          y_mesh - (collapse.tiltAngle * COLLAPSE_SINK_SPEED),
-          pos.worldY + world_dz + shudderDZ
-        );
-
-        if (collapse.tiltAngle >= COLLAPSE_IMPACT_ANGLE) {
-          // IMPACT GROUND: Spawn dust wave, crush surrounding tiles, swap to rubble
-          this.crushBuildingsInTrajectory(pos, collapse.impactVector, CRUSH_RANGE_DEFAULT);
-          this.collapseMap.delete(entity);
-
-          // Force to rubble frame
-          renderState.currentFrame = RUBBLE_STAGE_FRAME;
-        }
-      } else {
-        sprite.rotation.z = ZERO_VALUE;
-        sprite.rotation.x = ZERO_VALUE;
-        sprite.position.set(
-          pos.worldX + world_dx + shudderDX,
-          y_mesh,
-          pos.worldY + world_dz + shudderDZ
-        );
-      }
-
-      // --- Hit flash ---
-      const flash = this.flashMap.get(entity);
-      if (flash) {
-        material.color.setHex(flash.color);
-        flash.timeLeft -= delta;
-        if (flash.timeLeft <= ZERO_VALUE) {
-          material.color.setHex(SPRITE_MATERIAL_COLOR);
-          this.flashMap.delete(entity);
-        }
-      }
+      this.updateTransformAndPhysics(entity, sprite, pos, renderState, typeKey, offset, texture, delta, fx);
+      this.processHitFlash(entity, material, delta);
 
       sprite.visible = renderState.visible;
       material.opacity = renderState.opacity;
     }
 
-    // Cleanup destroyed entities
+    this.cleanupDestroyedEntities();
+  }
+
+  public static BUILDING_MAX_FRAMES: Record<string, number> = {
+    '1': 14,
+    '2': 14,
+    '3': 14,
+    '4': 13,
+    '5': 14,
+    'b1': 3,
+    'b2': 0,
+    'b3': 3,
+    'b4': 3,
+    'res_bronze': 0,
+    'res_sky': 0,
+    'sky_artdeco': 0,
+    'sky_biotech': 0,
+    'sky_cyber': 3,
+    'mega_titan': 3,
+    'spaceship_hq': 6,
+    'statue_liberty': 2,
+    'pentagon_defense': 4,
+    'hospital_civic': 4,
+    'mall_shopping': 4,
+    'school_civic': 4
+  };
+
+  private static updateZonalFrame(entity: Entity, renderState: any) {
+    const zonalHealth = ZonalHealthComponent.get(entity);
+    if (zonalHealth) {
+      const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+      const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
+      const maxFrame = this.BUILDING_MAX_FRAMES[typeKey] ?? 14;
+      renderState.currentFrame = DamageCalc.computeFrameForZonalState(zonalHealth, maxFrame);
+    }
+  }
+
+  private static getOrCreateSprite(entity: Entity, renderState: any, pos: any): THREE.Mesh {
+    let sprite = this.sprites.get(entity);
+
+    if (!sprite) {
+      // 1. Create architectural foundation slab (plinth buffer) under building lot
+      const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+      const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
+      const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
+
+      const padGeo = new THREE.BoxGeometry(def.width, PLINTH_BOX_HEIGHT, def.length);
+      const padMat = new THREE.MeshStandardMaterial({
+        color: PLINTH_COLOR_HEX,
+        roughness: PLINTH_ROUGHNESS,
+        metalness: PLINTH_METALNESS,
+        polygonOffset: true,
+        polygonOffsetFactor: PLINTH_POLYGON_OFFSET,
+        polygonOffsetUnits: PLINTH_POLYGON_OFFSET
+      });
+      const padMesh = new THREE.Mesh(padGeo, padMat);
+      padMesh.position.set(pos.worldX, PLINTH_Z_ALTITUDE, pos.worldY);
+      padMesh.receiveShadow = true;
+
+      SceneManager.groundGroup.add(padMesh);
+      this.foundationPlinths.set(entity, padMesh);
+
+      // 2. Use Mesh with PlaneGeometry to keep buildings standing upright vertically on cityGroup layer
+      const material = new THREE.MeshStandardMaterial({
+        color: SPRITE_MATERIAL_COLOR,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: true,
+        alphaTest: SPRITE_ALPHA_TEST,
+        roughness: SPRITE_ROUGHNESS
+      });
+      sprite = new THREE.Mesh(this.sharedGeometry, material);
+      sprite.castShadow = false;
+      sprite.receiveShadow = false;
+
+      // Rotate 45 degrees around Y to face the isometric camera horizontally
+      sprite.rotation.y = ISOMETRIC_ROTATION_Y;
+
+      // Add to SceneManager.cityGroup (same layer as all buildings)
+      SceneManager.cityGroup.add(sprite);
+      RaycasterHelper.registerObject(sprite, entity);
+
+      this.sprites.set(entity, sprite);
+
+      const zones = BUILDING_ZONES[typeKey];
+      if (zones) {
+        HitZoneManager.createZonesForBuilding(entity, sprite, zones);
+      }
+    }
+
+    return sprite;
+  }
+
+  private static updateTextureAndOffset(entity: Entity, renderState: any, material: THREE.MeshStandardMaterial) {
+    let texture = this.cachedTexture.get(entity);
+    let offset = this.cachedOffset.get(entity);
+    const lastFrame = this.lastFrameMap.get(entity);
+
+    const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+    const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
+
+    if (lastFrame !== renderState.currentFrame || texture === undefined) {
+      const textureName = `${renderState.texturePrefix}${renderState.currentFrame}`;
+      texture = AssetLoader.getTexture(textureName);
+      offset = AssetLoader.getSpriteOffset(typeKey, renderState.currentFrame);
+
+      this.lastFrameMap.set(entity, renderState.currentFrame);
+      this.cachedTexture.set(entity, texture);
+      this.cachedOffset.set(entity, offset);
+
+      if (texture && material.map !== texture) {
+        material.map = texture;
+        material.needsUpdate = true;
+      }
+    }
+
+    return { texture, offset, typeKey };
+  }
+
+  private static processHitEffects(entity: Entity, delta: number) {
+    let scaleXMult = INITIAL_SCALE_UNIT;
+    let scaleYMult = INITIAL_SCALE_UNIT;
+    let shudderDX = ZERO_VALUE;
+    let shudderDZ = ZERO_VALUE;
+
+    const effects = this.hitFxMap.get(entity);
+    if (effects) {
+      for (let i = effects.length - 1; i >= ZERO_VALUE; i--) {
+        const fx = effects[i];
+        fx.elapsed += delta;
+
+        if (fx.elapsed >= fx.duration) {
+          effects.splice(i, 1);
+          continue;
+        }
+
+        const t = fx.elapsed / fx.duration;
+
+        if (fx.type === 'squash') {
+          const strength = INITIAL_SCALE_UNIT - t;
+          scaleXMult *= INITIAL_SCALE_UNIT + (fx.scaleXMult! - INITIAL_SCALE_UNIT) * strength;
+          scaleYMult *= INITIAL_SCALE_UNIT + (fx.scaleYMult! - INITIAL_SCALE_UNIT) * strength;
+        } else if (fx.type === 'shudder') {
+          const decay = fx.amplitude! * Math.exp(-t * SHUDDER_DECAY_RATE);
+          shudderDX += (Math.random() - RANDOM_CENTER_OFFSET) * HALF_DIVISOR * decay;
+          shudderDZ += (Math.random() - RANDOM_CENTER_OFFSET) * HALF_DIVISOR * decay;
+        }
+      }
+
+      if (effects.length === ZERO_VALUE) {
+        this.hitFxMap.delete(entity);
+      }
+    }
+
+    return { scaleXMult, scaleYMult, shudderDX, shudderDZ };
+  }
+
+  private static updateTransformAndPhysics(
+    entity: Entity,
+    sprite: THREE.Mesh,
+    pos: any,
+    renderState: any,
+    typeKey: string,
+    offset: any,
+    texture: THREE.Texture | null | undefined,
+    delta: number,
+    fx: { scaleXMult: number; scaleYMult: number; shudderDX: number; shudderDZ: number }
+  ) {
+    const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
+
+    // 1. Lock pixel density to State 0 so world footprint remains rock-solid
+    const state0Offset = AssetLoader.getSpriteOffset(typeKey, ZERO_VALUE);
+    const state0Width = state0Offset ? state0Offset.w : (offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE));
+
+    const targetWorldWidth = def.width * Math.SQRT2;
+    const PIXELS_PER_WORLD_UNIT = state0Width / targetWorldWidth;
+
+    // 2. Compute current state dimensions & offsets
+    const w = offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE);
+    const h = offset ? offset.h : (texture?.image?.height || DEFAULT_CANVAS_SIZE);
+    const dx = (offset ? offset.dx : -w / HALF_DIVISOR) + GLOBAL_SPRITE_DX_OFFSET;
+    const base_cy = (offset ? (typeof offset.base_cy === 'number' ? offset.base_cy : (offset.y_max || h)) : h) + GLOBAL_SPRITE_DY_OFFSET;
+
+    const meshWidth = w / PIXELS_PER_WORLD_UNIT;
+    const meshHeight = (h / PIXELS_PER_WORLD_UNIT) * ISOMETRIC_Y_COMPENSATION;
+
+    sprite.scale.set(meshWidth * fx.scaleXMult, meshHeight * fx.scaleYMult, INITIAL_SCALE_UNIT);
+
+    // 3. Mathematical Pivot Solution: Lock pixel (-dx, base_cy) to world origin (pos.worldX, 0, pos.worldY)
+    const localPivotX = (-w / HALF_DIVISOR - dx) / PIXELS_PER_WORLD_UNIT;
+    const localPivotY = ((h / HALF_DIVISOR - base_cy) / PIXELS_PER_WORLD_UNIT) * ISOMETRIC_Y_COMPENSATION;
+
+    const world_dx = -localPivotX * COS_45_DEG;
+    const world_dz = localPivotX * SIN_45_DEG;
+    const y_mesh = pos.worldZ - localPivotY + BUILDING_Y_ALTITUDE_OFFSET;
+
+    // 4. Collapse & Topple Physics
+    const collapse = this.collapseMap.get(entity);
+    if (collapse) {
+      collapse.tiltAngle += delta * COLLAPSE_TILT_SPEED;
+
+      // Rotate building mesh toward impact direction vector
+      sprite.rotation.z = collapse.tiltAngle * collapse.impactVector.x;
+      sprite.rotation.x = collapse.tiltAngle * collapse.impactVector.z;
+
+      // Sink slightly into ground as it falls
+      sprite.position.set(
+        pos.worldX + world_dx + fx.shudderDX,
+        y_mesh - (collapse.tiltAngle * COLLAPSE_SINK_SPEED),
+        pos.worldY + world_dz + fx.shudderDZ
+      );
+
+      if (collapse.tiltAngle >= COLLAPSE_IMPACT_ANGLE) {
+        // IMPACT GROUND: Spawn dust wave, crush surrounding tiles, swap to rubble
+        this.crushBuildingsInTrajectory(pos, collapse.impactVector, CRUSH_RANGE_DEFAULT);
+        this.collapseMap.delete(entity);
+
+        // Force to rubble frame
+        renderState.currentFrame = this.BUILDING_MAX_FRAMES[typeKey] ?? RUBBLE_STAGE_FRAME;
+      }
+    } else {
+      sprite.rotation.z = ZERO_VALUE;
+      sprite.rotation.x = ZERO_VALUE;
+      sprite.position.set(
+        pos.worldX + world_dx + fx.shudderDX,
+        y_mesh,
+        pos.worldY + world_dz + fx.shudderDZ
+      );
+    }
+  }
+
+  private static processHitFlash(entity: Entity, material: THREE.MeshStandardMaterial, delta: number) {
+    const flash = this.flashMap.get(entity);
+    if (flash) {
+      material.color.setHex(flash.color);
+      flash.timeLeft -= delta;
+      if (flash.timeLeft <= ZERO_VALUE) {
+        material.color.setHex(SPRITE_MATERIAL_COLOR);
+        this.flashMap.delete(entity);
+      }
+    }
+  }
+
+  private static cleanupDestroyedEntities() {
     for (const [entity, sprite] of this.sprites.entries()) {
       if (!ECS.entities.has(entity) || !RenderStateComponent.has(entity)) {
         SceneManager.cityGroup.remove(sprite);

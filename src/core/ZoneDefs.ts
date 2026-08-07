@@ -46,5 +46,7 @@ export const BUILDING_ZONES: Record<string, ZoneDef[]> = {
   'sky_artdeco': createStandard3x3Grid(),
   'sky_biotech': createStandard3x3Grid(),
   'sky_cyber': createStandard3x3Grid(),
+  'mega_titan': createStandard3x3Grid(),
+  'mega_stadium': createStandard3x3Grid(),
 };
 

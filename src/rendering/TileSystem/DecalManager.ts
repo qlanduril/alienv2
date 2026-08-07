@@ -1,6 +1,30 @@
 import * as THREE from 'three';
 import { SceneManager } from '../SceneManager';
 
+// --- DecalManager Constants ---
+const ZERO_VALUE = 0;
+const INITIAL_OPACITY = 1.0;
+const DECAL_LAYER_Y_ALTITUDE = 0.02;
+const MESH_Y_BASE_ALTITUDE = 0.01;
+const MESH_Y_JITTER_RANGE = 0.005;
+
+const CANVAS_DIMENSION = 128;
+const CANVAS_CENTER = 64;
+const RADIAL_GRADIENT_INNER_R = 5;
+const RADIAL_GRADIENT_OUTER_R = 60;
+const CRATER_GRADIENT_INNER_R = 10;
+const CRATER_GRADIENT_OUTER_R = 55;
+
+const BLAST_RAYS_COUNT = 12;
+const BLAST_RAY_BASE_LEN = 30;
+const BLAST_RAY_RANDOM_LEN = 25;
+
+const DEFAULT_DECAL_SIZE = 15;
+const DECAL_ROTATION_X = -Math.PI / 2;
+const DECAL_ROUGHNESS = 0.95;
+const DECAL_METALNESS = 0.05;
+const MAX_ACTIVE_DECALS = 50;
+
 export interface DecalInstance {
   id: string;
   mesh: THREE.Mesh;
@@ -20,7 +44,7 @@ export class DecalManager {
     this.decalGroup = new THREE.Group();
     this.decalGroup.name = 'DecalLayer_L2';
     // Position layer 2 slightly above ground plane to prevent Z-fighting
-    this.decalGroup.position.y = 0.02;
+    this.decalGroup.position.y = DECAL_LAYER_Y_ALTITUDE;
 
     SceneManager.groundGroup.add(this.decalGroup);
     this.createDecalTextures();
@@ -30,12 +54,12 @@ export class DecalManager {
     // Canvas-generated procedural scorch/crater textures for crisp rendering
     const createScorchTex = (): THREE.CanvasTexture => {
       const canvas = document.createElement('canvas');
-      canvas.width = 128;
-      canvas.height = 128;
+      canvas.width = CANVAS_DIMENSION;
+      canvas.height = CANVAS_DIMENSION;
       const ctx = canvas.getContext('2d')!;
 
       // Radial burn gradient
-      const grad = ctx.createRadialGradient(64, 64, 5, 64, 64, 60);
+      const grad = ctx.createRadialGradient(CANVAS_CENTER, CANVAS_CENTER, RADIAL_GRADIENT_INNER_R, CANVAS_CENTER, CANVAS_CENTER, RADIAL_GRADIENT_OUTER_R);
       grad.addColorStop(0, 'rgba(10, 10, 10, 0.9)');
       grad.addColorStop(0.4, 'rgba(40, 25, 20, 0.7)');
       grad.addColorStop(0.7, 'rgba(80, 50, 30, 0.3)');
@@ -43,18 +67,18 @@ export class DecalManager {
 
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(64, 64, 60, 0, Math.PI * 2);
+      ctx.arc(CANVAS_CENTER, CANVAS_CENTER, RADIAL_GRADIENT_OUTER_R, ZERO_VALUE, Math.PI * 2);
       ctx.fill();
 
       // Irregular blast rays
       ctx.strokeStyle = 'rgba(15, 10, 8, 0.6)';
       ctx.lineWidth = 2;
-      for (let i = 0; i < 12; i++) {
-        const angle = (i / 12) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
-        const len = 30 + Math.random() * 25;
+      for (let i = ZERO_VALUE; i < BLAST_RAYS_COUNT; i++) {
+        const angle = (i / BLAST_RAYS_COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
+        const len = BLAST_RAY_BASE_LEN + Math.random() * BLAST_RAY_RANDOM_LEN;
         ctx.beginPath();
-        ctx.moveTo(64, 64);
-        ctx.lineTo(64 + Math.cos(angle) * len, 64 + Math.sin(angle) * len);
+        ctx.moveTo(CANVAS_CENTER, CANVAS_CENTER);
+        ctx.lineTo(CANVAS_CENTER + Math.cos(angle) * len, CANVAS_CENTER + Math.sin(angle) * len);
         ctx.stroke();
       }
 
@@ -65,12 +89,12 @@ export class DecalManager {
 
     const createCraterTex = (): THREE.CanvasTexture => {
       const canvas = document.createElement('canvas');
-      canvas.width = 128;
-      canvas.height = 128;
+      canvas.width = CANVAS_DIMENSION;
+      canvas.height = CANVAS_DIMENSION;
       const ctx = canvas.getContext('2d')!;
 
       // Impact crater ring
-      const grad = ctx.createRadialGradient(64, 64, 10, 64, 64, 55);
+      const grad = ctx.createRadialGradient(CANVAS_CENTER, CANVAS_CENTER, CRATER_GRADIENT_INNER_R, CANVAS_CENTER, CANVAS_CENTER, CRATER_GRADIENT_OUTER_R);
       grad.addColorStop(0, 'rgba(5, 5, 5, 0.95)');
       grad.addColorStop(0.3, 'rgba(30, 20, 15, 0.85)');
       grad.addColorStop(0.6, 'rgba(70, 50, 35, 0.5)');
@@ -78,7 +102,7 @@ export class DecalManager {
 
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(64, 64, 55, 0, Math.PI * 2);
+      ctx.arc(CANVAS_CENTER, CANVAS_CENTER, CRATER_GRADIENT_OUTER_R, ZERO_VALUE, Math.PI * 2);
       ctx.fill();
 
       const texture = new THREE.CanvasTexture(canvas);
@@ -94,7 +118,7 @@ export class DecalManager {
     worldX: number,
     worldZ: number,
     type: 'scorch' | 'crater' | 'rubble_spill',
-    size: number = 15
+    size: number = DEFAULT_DECAL_SIZE
   ) {
     const texture = this.decalTextures.get(type) || this.decalTextures.get('scorch')!;
 
@@ -103,14 +127,14 @@ export class DecalManager {
       map: texture,
       transparent: true,
       depthWrite: false,
-      roughness: 0.95,
-      metalness: 0.05
+      roughness: DECAL_ROUGHNESS,
+      metalness: DECAL_METALNESS
     });
 
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.rotation.x = -Math.PI / 2;
+    mesh.rotation.x = DECAL_ROTATION_X;
     mesh.rotation.z = Math.random() * Math.PI * 2; // Random rotation for variation
-    mesh.position.set(worldX, 0.01 + Math.random() * 0.005, worldZ);
+    mesh.position.set(worldX, MESH_Y_BASE_ALTITUDE + Math.random() * MESH_Y_JITTER_RANGE, worldZ);
     mesh.receiveShadow = true;
 
     this.decalGroup.add(mesh);
@@ -122,11 +146,11 @@ export class DecalManager {
       worldZ,
       type,
       scale: size,
-      opacity: 1.0
+      opacity: INITIAL_OPACITY
     });
 
     // Cap maximum active decals to prevent memory leaks
-    if (this.decals.length > 50) {
+    if (this.decals.length > MAX_ACTIVE_DECALS) {
       const oldest = this.decals.shift();
       if (oldest) {
         this.decalGroup.remove(oldest.mesh);

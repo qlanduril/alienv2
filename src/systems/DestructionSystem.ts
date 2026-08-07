@@ -4,6 +4,8 @@ import { DamageCalc } from '../core/DamageCalc';
 import { DamageZone } from '../core/ZoneDefs';
 import { DamageStateTree, DamageLevel } from '../core/DamageStateTree';
 import { DecalManager } from '../rendering/TileSystem/DecalManager';
+import { BuildingRenderer } from '../rendering/BuildingRenderer';
+import * as THREE from 'three';
 
 export type FXEvent =
   | { type: 'blast' | 'blast360'; x: number; y: number; z: number; data: { entityId: Entity; targetFrame: number } }
@@ -105,6 +107,11 @@ export class DestructionSystem {
       this.fxQueue.push({ type: 'smoke', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 8, entityId: entity } });
       this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 12, entityId: entity } });
       this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: 'heavy' } });
+
+      if (renderState.texturePrefix.includes('mega_') && (newLevel >= 3 || zoneId.includes('BASE') || zoneId.includes('BOTTOM') || zonalHealth.totalHp <= 0)) {
+        const fallDir = new THREE.Vector3(0.707, 0, 0.707);
+        BuildingRenderer.triggerCollapse(entity, fallDir);
+      }
     } else {
       this.fxQueue.push({ type: 'fire', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
       this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 5, entityId: entity } });

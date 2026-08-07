@@ -2,6 +2,21 @@ import * as THREE from 'three';
 import { TileMap, TerrainType } from './TileMap';
 import { SceneManager } from '../SceneManager';
 
+// --- TileRenderer Constants ---
+const ZERO_VALUE = 0;
+const INITIAL_SCALE_UNIT = 1;
+const GROUND_ALTITUDE = 0;
+const MAX_INSTANCES_PER_TYPE = 5000;
+const CANVAS_DIMENSION = 512;
+const TEXTURE_REPEAT_COUNT = 2;
+const TEXTURE_ANISOTROPY = 4;
+const GROUND_ROTATION_X = -Math.PI / 2;
+
+// Roughness & Metalness Constants
+const SIDEWALK_ROUGHNESS = 0.75;
+const DEFAULT_ROUGHNESS = 0.9;
+const DEFAULT_METALNESS = 0.05;
+
 export class TileRenderer {
   private static layer0Group: THREE.Group; // Base Terrain & Connected Road Network
   private static instancedTerrainMeshes: Map<TerrainType, THREE.InstancedMesh> = new Map();
@@ -18,18 +33,18 @@ export class TileRenderer {
   private static buildTerrainMaterialsAndMeshes() {
     const generateTexture = (type: TerrainType): THREE.CanvasTexture => {
       const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 512;
+      canvas.width = CANVAS_DIMENSION;
+      canvas.height = CANVAS_DIMENSION;
       const ctx = canvas.getContext('2d')!;
 
       // Dark asphalt base
       const drawAsphaltBase = () => {
         ctx.fillStyle = '#1c1f24';
-        ctx.fillRect(0, 0, 512, 512);
+        ctx.fillRect(ZERO_VALUE, ZERO_VALUE, CANVAS_DIMENSION, CANVAS_DIMENSION);
         // Asphalt grain noise
-        for (let i = 0; i < 4000; i++) {
-          const x = Math.random() * 512;
-          const y = Math.random() * 512;
+        for (let i = ZERO_VALUE; i < 4000; i++) {
+          const x = Math.random() * CANVAS_DIMENSION;
+          const y = Math.random() * CANVAS_DIMENSION;
           const val = Math.floor(Math.random() * 35 + 18);
           ctx.fillStyle = `rgb(${val},${val},${val})`;
           ctx.fillRect(x, y, 2, 2);
@@ -41,17 +56,17 @@ export class TileRenderer {
 
         // Outer white curb lines
         ctx.fillStyle = '#d0d7e0';
-        ctx.fillRect(16, 0, 12, 512);
-        ctx.fillRect(484, 0, 12, 512);
+        ctx.fillRect(16, ZERO_VALUE, 12, CANVAS_DIMENSION);
+        ctx.fillRect(484, ZERO_VALUE, 12, CANVAS_DIMENSION);
 
         // Double yellow center line
         ctx.fillStyle = '#f5b800';
-        ctx.fillRect(248, 0, 6, 512);
-        ctx.fillRect(258, 0, 6, 512);
+        ctx.fillRect(248, ZERO_VALUE, 6, CANVAS_DIMENSION);
+        ctx.fillRect(258, ZERO_VALUE, 6, CANVAS_DIMENSION);
 
         // Dashed white lane dividers
         ctx.fillStyle = '#ffffff';
-        for (let y = 16; y < 512; y += 64) {
+        for (let y = 16; y < CANVAS_DIMENSION; y += 64) {
           ctx.fillRect(132, y, 8, 32);
           ctx.fillRect(372, y, 8, 32);
         }
@@ -61,17 +76,17 @@ export class TileRenderer {
 
         // Outer white curb lines
         ctx.fillStyle = '#d0d7e0';
-        ctx.fillRect(0, 16, 512, 12);
-        ctx.fillRect(0, 484, 512, 12);
+        ctx.fillRect(ZERO_VALUE, 16, CANVAS_DIMENSION, 12);
+        ctx.fillRect(ZERO_VALUE, 484, CANVAS_DIMENSION, 12);
 
         // Double yellow center line
         ctx.fillStyle = '#f5b800';
-        ctx.fillRect(0, 248, 512, 6);
-        ctx.fillRect(0, 258, 512, 6);
+        ctx.fillRect(ZERO_VALUE, 248, CANVAS_DIMENSION, 6);
+        ctx.fillRect(ZERO_VALUE, 258, CANVAS_DIMENSION, 6);
 
         // Dashed white lane dividers
         ctx.fillStyle = '#ffffff';
-        for (let x = 16; x < 512; x += 64) {
+        for (let x = 16; x < CANVAS_DIMENSION; x += 64) {
           ctx.fillRect(x, 132, 32, 8);
           ctx.fillRect(x, 372, 32, 8);
         }
@@ -92,34 +107,34 @@ export class TileRenderer {
 
         // Corner sidewalk curb caps
         ctx.fillStyle = '#6a7280';
-        ctx.fillRect(0, 0, 20, 20);
-        ctx.fillRect(492, 0, 20, 20);
-        ctx.fillRect(0, 492, 20, 20);
+        ctx.fillRect(ZERO_VALUE, ZERO_VALUE, 20, 20);
+        ctx.fillRect(492, ZERO_VALUE, 20, 20);
+        ctx.fillRect(ZERO_VALUE, 492, 20, 20);
         ctx.fillRect(492, 492, 20, 20);
 
       } else if (type === TerrainType.SIDEWALK) {
         ctx.fillStyle = '#3a404a';
-        ctx.fillRect(0, 0, 512, 512);
+        ctx.fillRect(ZERO_VALUE, ZERO_VALUE, CANVAS_DIMENSION, CANVAS_DIMENSION);
 
         // Paving joint grid
         ctx.strokeStyle = '#282c33';
         ctx.lineWidth = 6;
-        for (let p = 0; p <= 512; p += 128) {
+        for (let p = ZERO_VALUE; p <= CANVAS_DIMENSION; p += 128) {
           ctx.beginPath();
-          ctx.moveTo(p, 0);
-          ctx.lineTo(p, 512);
+          ctx.moveTo(p, ZERO_VALUE);
+          ctx.lineTo(p, CANVAS_DIMENSION);
           ctx.stroke();
 
           ctx.beginPath();
-          ctx.moveTo(0, p);
-          ctx.lineTo(512, p);
+          ctx.moveTo(ZERO_VALUE, p);
+          ctx.lineTo(CANVAS_DIMENSION, p);
           ctx.stroke();
         }
 
         // Concrete grain texture
-        for (let i = 0; i < 2000; i++) {
-          const x = Math.random() * 512;
-          const y = Math.random() * 512;
+        for (let i = ZERO_VALUE; i < 2000; i++) {
+          const x = Math.random() * CANVAS_DIMENSION;
+          const y = Math.random() * CANVAS_DIMENSION;
           const val = Math.floor(Math.random() * 30 + 55);
           ctx.fillStyle = `rgb(${val},${val},${val})`;
           ctx.fillRect(x, y, 2, 2);
@@ -127,18 +142,18 @@ export class TileRenderer {
 
       } else if (type === TerrainType.PLAZA_STONE) {
         ctx.fillStyle = '#2d323b';
-        ctx.fillRect(0, 0, 512, 512);
+        ctx.fillRect(ZERO_VALUE, ZERO_VALUE, CANVAS_DIMENSION, CANVAS_DIMENSION);
 
         // Architectural slate tiles
         ctx.strokeStyle = '#1e2128';
         ctx.lineWidth = 4;
-        for (let y = 0; y < 512; y += 64) {
+        for (let y = ZERO_VALUE; y < CANVAS_DIMENSION; y += 64) {
           ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(512, y);
+          ctx.moveTo(ZERO_VALUE, y);
+          ctx.lineTo(CANVAS_DIMENSION, y);
           ctx.stroke();
-          const offset = (y / 64) % 2 === 0 ? 0 : 64;
-          for (let x = offset; x < 512; x += 128) {
+          const offset = (y / 64) % 2 === ZERO_VALUE ? ZERO_VALUE : 64;
+          for (let x = offset; x < CANVAS_DIMENSION; x += 128) {
             ctx.beginPath();
             ctx.moveTo(x, y);
             ctx.lineTo(x, y + 64);
@@ -148,11 +163,11 @@ export class TileRenderer {
 
       } else if (type === TerrainType.GRASS) {
         ctx.fillStyle = '#1e381e';
-        ctx.fillRect(0, 0, 512, 512);
+        ctx.fillRect(ZERO_VALUE, ZERO_VALUE, CANVAS_DIMENSION, CANVAS_DIMENSION);
 
-        for (let i = 0; i < 6000; i++) {
-          const x = Math.random() * 512;
-          const y = Math.random() * 512;
+        for (let i = ZERO_VALUE; i < 6000; i++) {
+          const x = Math.random() * CANVAS_DIMENSION;
+          const y = Math.random() * CANVAS_DIMENSION;
           const g = Math.floor(Math.random() * 60 + 50);
           ctx.fillStyle = `rgb(18, ${g}, 18)`;
           ctx.fillRect(x, y, 3, 3);
@@ -162,8 +177,8 @@ export class TileRenderer {
       const tex = new THREE.CanvasTexture(canvas);
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
-      tex.repeat.set(2, 2);
-      tex.anisotropy = 4;
+      tex.repeat.set(TEXTURE_REPEAT_COUNT, TEXTURE_REPEAT_COUNT);
+      tex.anisotropy = TEXTURE_ANISOTROPY;
       return tex;
     };
 
@@ -182,13 +197,13 @@ export class TileRenderer {
       const tex = generateTexture(tType);
       const mat = new THREE.MeshStandardMaterial({
         map: tex,
-        roughness: (tType === TerrainType.SIDEWALK || tType === TerrainType.PLAZA_STONE) ? 0.75 : 0.9,
-        metalness: 0.05
+        roughness: (tType === TerrainType.SIDEWALK || tType === TerrainType.PLAZA_STONE) ? SIDEWALK_ROUGHNESS : DEFAULT_ROUGHNESS,
+        metalness: DEFAULT_METALNESS
       });
 
-      const instancedMesh = new THREE.InstancedMesh(planeGeo, mat, 5000);
+      const instancedMesh = new THREE.InstancedMesh(planeGeo, mat, MAX_INSTANCES_PER_TYPE);
       instancedMesh.receiveShadow = true;
-      instancedMesh.count = 0;
+      instancedMesh.count = ZERO_VALUE;
 
       this.instancedTerrainMeshes.set(tType, instancedMesh);
       this.layer0Group.add(instancedMesh);
@@ -199,21 +214,21 @@ export class TileRenderer {
     const cells = TileMap.getAllCells();
     const counts = new Map<TerrainType, number>();
 
-    this.instancedTerrainMeshes.forEach((_, key) => counts.set(key, 0));
+    this.instancedTerrainMeshes.forEach((_, key) => counts.set(key, ZERO_VALUE));
     const dummy = new THREE.Object3D();
 
     // Render Connected Ground & Road Grid
-    for (let gx = 0; gx < TileMap.GRID_DIM; gx++) {
-      for (let gz = 0; gz < TileMap.GRID_DIM; gz++) {
+    for (let gx = ZERO_VALUE; gx < TileMap.GRID_DIM; gx++) {
+      for (let gz = ZERO_VALUE; gz < TileMap.GRID_DIM; gz++) {
         const cell = cells[gx][gz];
 
         const mesh = this.instancedTerrainMeshes.get(cell.terrainType);
         if (mesh) {
-          const count = counts.get(cell.terrainType) || 0;
+          const count = counts.get(cell.terrainType) || ZERO_VALUE;
 
-          dummy.position.set(cell.worldX, 0, cell.worldZ);
-          dummy.rotation.set(-Math.PI / 2, 0, 0);
-          dummy.scale.set(1, 1, 1);
+          dummy.position.set(cell.worldX, GROUND_ALTITUDE, cell.worldZ);
+          dummy.rotation.set(GROUND_ROTATION_X, ZERO_VALUE, ZERO_VALUE);
+          dummy.scale.set(INITIAL_SCALE_UNIT, INITIAL_SCALE_UNIT, INITIAL_SCALE_UNIT);
           dummy.updateMatrix();
 
           mesh.setMatrixAt(count, dummy.matrix);
@@ -223,7 +238,7 @@ export class TileRenderer {
     }
 
     this.instancedTerrainMeshes.forEach((mesh, tType) => {
-      mesh.count = counts.get(tType) || 0;
+      mesh.count = counts.get(tType) || ZERO_VALUE;
       mesh.instanceMatrix.needsUpdate = true;
     });
   }

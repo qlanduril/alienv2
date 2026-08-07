@@ -2,8 +2,19 @@ import * as THREE from 'three';
 import { ECS, Entity } from '../core/ECS';
 import { PositionComponent, PlayerTagComponent } from '../core/Components';
 import { SceneManager } from './SceneManager';
-
 import { CameraController } from './CameraController';
+
+// --- PlayerRenderer Constants ---
+const SPHERICAL_RADIUS = 1.5;
+const SPHERICAL_WIDTH_SEGMENTS = 16;
+const SPHERICAL_HEIGHT_SEGMENTS = 16;
+
+const PLAYER_COLOR_HEX = 0x00ffff;
+const PLAYER_EMISSIVE_HEX = 0x004444;
+
+const SAUCER_SCALE_X = 1.0;
+const SAUCER_SCALE_Y = 0.3;
+const SAUCER_SCALE_Z = 1.0;
 
 export class PlayerRenderer {
   private static playerMesh: THREE.Mesh | null = null;
@@ -33,10 +44,10 @@ export class PlayerRenderer {
 
   private static initMesh() {
     // UFO filled circle (Sphere flattened)
-    const geometry = new THREE.SphereGeometry(1.5, 16, 16);
-    const material = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x004444 });
+    const geometry = new THREE.SphereGeometry(SPHERICAL_RADIUS, SPHERICAL_WIDTH_SEGMENTS, SPHERICAL_HEIGHT_SEGMENTS);
+    const material = new THREE.MeshStandardMaterial({ color: PLAYER_COLOR_HEX, emissive: PLAYER_EMISSIVE_HEX });
     this.playerMesh = new THREE.Mesh(geometry, material);
-    this.playerMesh.scale.set(1, 0.3, 1); // Flatten it like a saucer
+    this.playerMesh.scale.set(SAUCER_SCALE_X, SAUCER_SCALE_Y, SAUCER_SCALE_Z); // Flatten it like a saucer
     this.playerMesh.castShadow = true;
     SceneManager.playerGroup.add(this.playerMesh);
   }

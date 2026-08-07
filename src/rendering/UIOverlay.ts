@@ -3,6 +3,23 @@ import { ShowcaseManager } from '../systems/ShowcaseManager';
 import { HealthComponent, RenderStateComponent, ZonalHealthComponent } from '../core/Components';
 import { Entity } from '../core/ECS';
 
+// --- UIOverlay Constants ---
+const ZERO_VALUE = 0;
+const FULL_PERCENT = 100;
+const HALF_NDC_FACTOR = 0.5;
+
+// Health Threshold & Color Constants
+const HEALTH_HIGH_THRESHOLD = 60;
+const HEALTH_MEDIUM_THRESHOLD = 25;
+const DEFAULT_FALLBACK_HP = 100;
+
+// Button Action & Showcase Damage Constants
+const SHOWCASE_DAMAGE_PERCENT = 25;
+
+// NDC Projection & Label Offsets
+const LABEL_HEIGHT_FACTOR = 0.8;
+const LABEL_Y_SCREEN_OFFSET_PX = 12;
+
 export class UIOverlay {
   private static scoreElement: HTMLElement;
   private static flashOverlay: HTMLElement;
@@ -82,7 +99,7 @@ export class UIOverlay {
     this.showcaseTools.style.gap = '10px';
 
     const btnReset = this.createActionButton('🔄 Repair All', '#059669', () => ShowcaseManager.resetAllHP());
-    const btnDamage = this.createActionButton('💥 Damage All 25%', '#dc2626', () => ShowcaseManager.damageAll(25));
+    const btnDamage = this.createActionButton('💥 Damage All 25%', '#dc2626', () => ShowcaseManager.damageAll(SHOWCASE_DAMAGE_PERCENT));
 
     this.showcaseTools.appendChild(btnReset);
     this.showcaseTools.appendChild(btnDamage);
@@ -176,8 +193,8 @@ export class UIOverlay {
       return;
     }
     this.targetInfoPanel.style.display = 'block';
-    const hpPercent = Math.round((info.hp / info.maxHp) * 100);
-    const hpColor = hpPercent > 60 ? '#10b981' : (hpPercent > 25 ? '#f59e0b' : '#ef4444');
+    const hpPercent = Math.round((info.hp / info.maxHp) * FULL_PERCENT);
+    const hpColor = hpPercent > HEALTH_HIGH_THRESHOLD ? '#10b981' : (hpPercent > HEALTH_MEDIUM_THRESHOLD ? '#f59e0b' : '#ef4444');
     this.targetInfoPanel.innerHTML = `
       <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px; color: #60a5fa;">TARGET: ${info.name} <span style="opacity: 0.6; font-weight: normal;">[key: ${info.key}]</span></div>
       <div>HP: <span style="color: ${hpColor}; font-weight: bold;">${info.hp}/${info.maxHp} (${hpPercent}%)</span> | Stage Frame: <span style="color: #f472b6;">#${info.frame}</span></div>
@@ -218,7 +235,7 @@ export class UIOverlay {
       }
 
       // Project world coordinate to screen NDC
-      const heightOffset = b.def.height * 0.8;
+      const heightOffset = b.def.height * LABEL_HEIGHT_FACTOR;
       tempVec.set(b.worldX, heightOffset, b.worldY);
       tempVec.project(camera);
 
@@ -228,23 +245,23 @@ export class UIOverlay {
         continue;
       }
 
-      const screenX = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
-      const screenY = (-tempVec.y * 0.5 + 0.5) * window.innerHeight;
+      const screenX = (tempVec.x * HALF_NDC_FACTOR + HALF_NDC_FACTOR) * window.innerWidth;
+      const screenY = (-tempVec.y * HALF_NDC_FACTOR + HALF_NDC_FACTOR) * window.innerHeight;
 
       el.style.left = `${screenX}px`;
-      el.style.top = `${screenY - 12}px`;
+      el.style.top = `${screenY - LABEL_Y_SCREEN_OFFSET_PX}px`;
       el.style.display = 'block';
 
       const health = HealthComponent.get(b.entity);
       const renderState = RenderStateComponent.get(b.entity);
       const zonal = ZonalHealthComponent.get(b.entity);
 
-      const curHp = zonal ? zonal.totalHp : (health ? health.currentHP : 100);
-      const maxHp = zonal ? zonal.maxTotalHp : (health ? health.maxHP : 100);
-      const percent = Math.max(0, Math.round((curHp / maxHp) * 100));
-      const frame = renderState ? renderState.currentFrame : 0;
+      const curHp = zonal ? zonal.totalHp : (health ? health.currentHP : DEFAULT_FALLBACK_HP);
+      const maxHp = zonal ? zonal.maxTotalHp : (health ? health.maxHP : DEFAULT_FALLBACK_HP);
+      const percent = Math.max(ZERO_VALUE, Math.round((curHp / maxHp) * FULL_PERCENT));
+      const frame = renderState ? renderState.currentFrame : ZERO_VALUE;
 
-      const hpColor = percent > 60 ? '#34d399' : (percent > 25 ? '#fbbf24' : '#f87171');
+      const hpColor = percent > HEALTH_HIGH_THRESHOLD ? '#34d399' : (percent > HEALTH_MEDIUM_THRESHOLD ? '#fbbf24' : '#f87171');
 
       el.innerHTML = `<b>${b.def.name}</b> <span style="color:#94a3b8;">[${b.typeKey}]</span><br/><span style="color:${hpColor};">HP ${percent}%</span> · Fr #${frame}`;
     }

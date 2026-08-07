@@ -1,3 +1,10 @@
+// --- TileMap Constants ---
+const ZERO_VALUE = 0;
+const BOUNDS_END_OFFSET = 1;
+const HALF_DIVISOR = 2.0;
+const GRID_CELL_CENTER_OFFSET = 0.5;
+const DEFAULT_ELEVATION = 0;
+
 export enum TerrainType {
   ROAD_STRAIGHT_NS = 0,
   ROAD_STRAIGHT_EW = 1,
@@ -49,16 +56,16 @@ export class TileMap {
     this.cells = [];
     this.buildingLots.clear();
 
-    const halfBound = this.MAP_BOUNDS / 2;
+    const halfBound = this.MAP_BOUNDS / HALF_DIVISOR;
 
-    for (let gx = 0; gx < this.GRID_DIM; gx++) {
+    for (let gx = ZERO_VALUE; gx < this.GRID_DIM; gx++) {
       this.cells[gx] = [];
-      for (let gz = 0; gz < this.GRID_DIM; gz++) {
-        const worldX = -halfBound + (gx + 0.5) * this.TILE_SIZE;
-        const worldZ = -halfBound + (gz + 0.5) * this.TILE_SIZE;
+      for (let gz = ZERO_VALUE; gz < this.GRID_DIM; gz++) {
+        const worldX = -halfBound + (gx + GRID_CELL_CENTER_OFFSET) * this.TILE_SIZE;
+        const worldZ = -halfBound + (gz + GRID_CELL_CENTER_OFFSET) * this.TILE_SIZE;
 
-        const isAvenue = (gx % TileMap.AVENUE_INTERVAL === 0);
-        const isStreet = (gz % TileMap.STREET_INTERVAL === 0);
+        const isAvenue = (gx % TileMap.AVENUE_INTERVAL === ZERO_VALUE);
+        const isStreet = (gz % TileMap.STREET_INTERVAL === ZERO_VALUE);
 
         let terrain: TerrainType;
         let overlay = OverlayTileType.NONE;
@@ -73,8 +80,8 @@ export class TileMap {
           terrain = TerrainType.ROAD_STRAIGHT_EW;
           overlay = OverlayTileType.ROAD;
         } else {
-          const isNearRoadX = ((gx + 1) % TileMap.AVENUE_INTERVAL === 0) || ((gx - 1) % TileMap.AVENUE_INTERVAL === 0);
-          const isNearRoadZ = ((gz + 1) % TileMap.STREET_INTERVAL === 0) || ((gz - 1) % TileMap.STREET_INTERVAL === 0);
+          const isNearRoadX = ((gx + BOUNDS_END_OFFSET) % TileMap.AVENUE_INTERVAL === ZERO_VALUE) || ((gx - BOUNDS_END_OFFSET) % TileMap.AVENUE_INTERVAL === ZERO_VALUE);
+          const isNearRoadZ = ((gz + BOUNDS_END_OFFSET) % TileMap.STREET_INTERVAL === ZERO_VALUE) || ((gz - BOUNDS_END_OFFSET) % TileMap.STREET_INTERVAL === ZERO_VALUE);
 
           if (isNearRoadX || isNearRoadZ) {
             terrain = TerrainType.SIDEWALK;
@@ -91,7 +98,7 @@ export class TileMap {
           gridZ: gz,
           worldX,
           worldZ,
-          elevation: 0,
+          elevation: DEFAULT_ELEVATION,
           terrainType: terrain,
           overlayType: overlay
         };
@@ -99,27 +106,26 @@ export class TileMap {
     }
   }
 
-
   public static worldToGrid(worldX: number, worldZ: number): { gx: number; gz: number } {
-    const halfBound = this.MAP_BOUNDS / 2;
+    const halfBound = this.MAP_BOUNDS / HALF_DIVISOR;
     const gx = Math.floor((worldX + halfBound) / this.TILE_SIZE);
     const gz = Math.floor((worldZ + halfBound) / this.TILE_SIZE);
     return {
-      gx: Math.max(0, Math.min(this.GRID_DIM - 1, gx)),
-      gz: Math.max(0, Math.min(this.GRID_DIM - 1, gz))
+      gx: Math.max(ZERO_VALUE, Math.min(this.GRID_DIM - BOUNDS_END_OFFSET, gx)),
+      gz: Math.max(ZERO_VALUE, Math.min(this.GRID_DIM - BOUNDS_END_OFFSET, gz))
     };
   }
 
   public static getCell(gx: number, gz: number): TileCell | null {
-    if (gx < 0 || gx >= this.GRID_DIM || gz < 0 || gz >= this.GRID_DIM) return null;
+    if (gx < ZERO_VALUE || gx >= this.GRID_DIM || gz < ZERO_VALUE || gz >= this.GRID_DIM) return null;
     return this.cells[gx][gz];
   }
 
   public static registerLot(lot: BuildingLot) {
     this.buildingLots.set(lot.entityId, lot);
 
-    const minGrid = this.worldToGrid(lot.centerWorldX - lot.footprintWidth / 2, lot.centerWorldZ - lot.footprintLength / 2);
-    const maxGrid = this.worldToGrid(lot.centerWorldX + lot.footprintWidth / 2, lot.centerWorldZ + lot.footprintLength / 2);
+    const minGrid = this.worldToGrid(lot.centerWorldX - lot.footprintWidth / HALF_DIVISOR, lot.centerWorldZ - lot.footprintLength / HALF_DIVISOR);
+    const maxGrid = this.worldToGrid(lot.centerWorldX + lot.footprintWidth / HALF_DIVISOR, lot.centerWorldZ + lot.footprintLength / HALF_DIVISOR);
 
     for (let gx = minGrid.gx; gx <= maxGrid.gx; gx++) {
       for (let gz = minGrid.gz; gz <= maxGrid.gz; gz++) {

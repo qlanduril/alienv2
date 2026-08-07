@@ -10,11 +10,10 @@ export class CityGenerator {
     const GRID_DIM = TileMap.GRID_DIM; // 64x64
     const AVENUE_INTERVAL = TileMap.AVENUE_INTERVAL; // 14
     const STREET_INTERVAL = TileMap.STREET_INTERVAL; // 7
-    const TILE_SIZE = TileMap.TILE_SIZE; // 16
 
     const occupied: boolean[][] = Array.from({ length: GRID_DIM }, () => Array(GRID_DIM).fill(false));
 
-    // 1. Mark all road network cells as occupied
+    // 1. Mark all arterial road network cells as occupied
     for (let gx = 0; gx < GRID_DIM; gx++) {
       for (let gz = 0; gz < GRID_DIM; gz++) {
         if (gx % AVENUE_INTERVAL === 0 || gz % STREET_INTERVAL === 0) {
@@ -25,66 +24,68 @@ export class CityGenerator {
 
     let count = 0;
 
-    // Landmark Map for civic buildings in specific super-blocks
-    const landmarkMap = new Map<string, string>([
-      ['0,0', '3'], // School campus in Block (0,0)
-      ['2,2', '1'], // Hospital complex in Block (2,2)
-      ['1,4', '2'], // Shopping Mall in Block (1,4)
-      ['3,6', '4'], // Industrial Warehouse in Block (3,6)
-    ]);
-
-    const foregroundPool = ['b1', 'b2'];
-    const midgroundPool = ['b3', 'b4', 'res_bronze', 'res_sky'];
-    const backgroundPool = ['sky_cyber', 'sky_artdeco', 'sky_biotech', '5'];
-
-    // 2. Iterate through super-blocks and execute 100% dense lot filling
-    let blockIndexX = 0;
-    for (let startGx = 0; startGx < GRID_DIM; startGx += AVENUE_INTERVAL) {
-      let blockIndexZ = 0;
-      for (let startGz = 0; startGz < GRID_DIM; startGz += STREET_INTERVAL) {
-
-        const blockKey = `${blockIndexX},${blockIndexZ}`;
-        const civicTypeKey = landmarkMap.get(blockKey);
-
-        // Check if block interior fits a 3x3 Landmark Civic Building
-        if (civicTypeKey) {
-          const def = BUILDING_DEFS[civicTypeKey];
-          const wxTiles = Math.max(1, Math.round(def.width / TILE_SIZE));  // 3 tiles
-          const wzTiles = Math.max(1, Math.round(def.length / TILE_SIZE)); // 3 tiles
-
-          const gx = startGx + 2;
-          const gz = startGz + 2;
-
-          let canFit = true;
-          for (let dx = 0; dx < wxTiles; dx++) {
-            for (let dz = 0; dz < wzTiles; dz++) {
-              if (gx + dx >= startGx + AVENUE_INTERVAL || gz + dz >= startGz + STREET_INTERVAL || gx + dx >= GRID_DIM || gz + dz >= GRID_DIM || occupied[gx + dx][gz + dz]) {
-                canFit = false;
-              }
-            }
-          }
-
-          if (canFit) {
-            // Reserve 3x3 footprint AND clear plaza buffer around landmark so it remains 100% unobstructed
-            for (let dx = -1; dx <= wxTiles; dx++) {
-              for (let dz = -1; dz <= wzTiles; dz++) {
-                const tx = gx + dx;
-                const tz = gz + dz;
-                if (tx >= 0 && tx < GRID_DIM && tz >= 0 && tz < GRID_DIM) {
-                  occupied[tx][tz] = true;
-                }
-              }
-            }
-
-            const pos = LotManager.computeLotWorldPos(gx, gz, wxTiles, wzTiles);
-            const entity = ECS.createEntity();
-            const lot = LotManager.calculateAndRegisterLot(entity, pos.x, pos.z, civicTypeKey, 'civic_landmark');
-            this.spawnBuildingEntity(entity, lot, civicTypeKey);
-            count++;
+    // Helper to reserve lot area and clear buffer
+    const reserveArea = (gx: number, gz: number, wTiles: number, zTiles: number, buffer: number = 1) => {
+      for (let dx = -buffer; dx < wTiles + buffer; dx++) {
+        for (let dz = -buffer; dz < zTiles + buffer; dz++) {
+          const tx = gx + dx;
+          const tz = gz + dz;
+          if (tx >= 0 && tx < GRID_DIM && tz >= 0 && tz < GRID_DIM) {
+            occupied[tx][tz] = true;
           }
         }
+      }
+    };
 
-        // Fill block interior micro-lots with balanced density & height gradient
+    // 2. District Anchor Placement: Tier 4 Mega-Structures & Civic Landmarks
+
+    // Anchor 1: Apex Mega-Tower (mega_titan) in Zone A (Financial Core)
+    const titanGx = 15;
+    const titanGz = 15;
+    reserveArea(titanGx, titanGz, 4, 4, 1);
+    const titanPos = LotManager.computeLotWorldPos(titanGx, titanGz, 4, 4);
+    const titanEntity = ECS.createEntity();
+    const titanLot = LotManager.calculateAndRegisterLot(titanEntity, titanPos.x, titanPos.z, 'mega_titan', 'mega_anchor');
+    this.spawnBuildingEntity(titanEntity, titanLot, 'mega_titan');
+    count++;
+
+    // Anchor 2: Metropolitan Arena (mega_stadium) in Zone B (Civic & Leisure)
+    const stadiumGx = 43;
+    const stadiumGz = 8;
+    reserveArea(stadiumGx, stadiumGz, 4, 3, 1);
+    const stadiumPos = LotManager.computeLotWorldPos(stadiumGx, stadiumGz, 4, 3);
+    const stadiumEntity = ECS.createEntity();
+    const stadiumLot = LotManager.calculateAndRegisterLot(stadiumEntity, stadiumPos.x, stadiumPos.z, 'mega_stadium', 'mega_anchor');
+    this.spawnBuildingEntity(stadiumEntity, stadiumLot, 'mega_stadium');
+    count++;
+
+    // Civic Landmarks Across Districts
+    const civicAnchors = [
+      { key: '3', gx: 43, gz: 22, w: 3, z: 3, name: 'School' },       // Zone B Civic
+      { key: '1', gx: 2, gz: 2, w: 3, z: 3, name: 'Hospital' },       // Zone A Hospital
+      { key: '2', gx: 2, gz: 16, w: 3, z: 3, name: 'Mall' },          // Zone A Shopping
+      { key: '4', gx: 43, gz: 43, w: 3, z: 3, name: 'Warehouse' }     // Zone C Docks
+    ];
+
+    for (const c of civicAnchors) {
+      reserveArea(c.gx, c.gz, c.w, c.z, 1);
+      const pos = LotManager.computeLotWorldPos(c.gx, c.gz, c.w, c.z);
+      const entity = ECS.createEntity();
+      const lot = LotManager.calculateAndRegisterLot(entity, pos.x, pos.z, c.key, 'civic_landmark');
+      this.spawnBuildingEntity(entity, lot, c.key);
+      count++;
+    }
+
+    // 3. District Infill Pools
+    const poolZoneA = ['sky_cyber', 'sky_artdeco', 'sky_biotech', '5'];           // Financial Core Skyscrapers
+    const poolZoneB = ['res_sky', 'b3', 'b4', 'b2'];                              // Civic & Leisure High-Rises
+    const poolZoneC = ['4', 'b1', 'b2', 'b3'];                                    // Waterfront Docks & Warehouses
+    const poolZoneD = ['b1', 'b2', 'res_bronze', 'b3'];                           // Residential Slums Brownstones
+
+    // 4. Iterate Super-Blocks and Infill Micro-Lots by District
+    for (let startGx = 0; startGx < GRID_DIM; startGx += AVENUE_INTERVAL) {
+      for (let startGz = 0; startGz < GRID_DIM; startGz += STREET_INTERVAL) {
+
         for (let offX = 1; offX < AVENUE_INTERVAL; offX++) {
           for (let offZ = 1; offZ < STREET_INTERVAL; offZ++) {
             const gx = startGx + offX;
@@ -94,22 +95,30 @@ export class CityGenerator {
 
             const cellSeed = Math.abs((startGx * 1337 + startGz * 7331 + offX * 97 + offZ * 193)) % 1000;
 
-            // Controlled density: skip ~25% of micro-lots to leave open plazas & clear road views
-            if (cellSeed % 100 < 25) {
+            // Density Tuning per District
+            let isZoneA = gx < 32 && gz < 32;
+            let isZoneB = gx >= 32 && gz < 32;
+            let isZoneC = gx >= 32 && gz >= 32;
+            
+            // Skip probability for parks / plazas / dock yards
+            let skipProb = 20;
+            if (isZoneB) skipProb = 35; // More open parks in Leisure zone
+            if (isZoneC) skipProb = 30; // Docks open space
+
+            if (cellSeed % 100 < skipProb) {
               continue;
             }
 
             occupied[gx][gz] = true;
 
-            // Height Gradient: Low-rises on South/West edges, Skyscrapers sparingly on North/East edges
-            let typeKey: string;
-            if ((offZ === STREET_INTERVAL - 1 || offX === AVENUE_INTERVAL - 1) && (cellSeed % 100 > 60)) {
-              typeKey = backgroundPool[cellSeed % backgroundPool.length];
-            } else if (offZ <= 2 || offX <= 2) {
-              typeKey = foregroundPool[cellSeed % foregroundPool.length];
-            } else {
-              typeKey = midgroundPool[cellSeed % midgroundPool.length];
-            }
+            // Pick District Pool
+            let pool: string[];
+            if (isZoneA) pool = poolZoneA;
+            else if (isZoneB) pool = poolZoneB;
+            else if (isZoneC) pool = poolZoneC;
+            else pool = poolZoneD;
+
+            const typeKey = pool[cellSeed % pool.length];
 
             const pos = LotManager.computeLotWorldPos(gx, gz, 1, 1);
             const entity = ECS.createEntity();
@@ -119,17 +128,14 @@ export class CityGenerator {
           }
         }
 
-        blockIndexZ++;
       }
-      blockIndexX++;
     }
 
-    console.log(`Generated ${count} wall-to-wall Manhattan super-block buildings.`);
+    console.log(`Generated ${count} district-partitioned city buildings across Financial Core, Civic, Waterfront & Slums.`);
   }
 
   private static spawnBuildingEntity(entity: number, lot: BuildingLot, typeKey: string) {
     const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS['3'];
-
 
     PositionComponent.set(entity, {
       worldX: lot.centerWorldX,
@@ -178,5 +184,3 @@ export class CityGenerator {
     });
   }
 }
-
-

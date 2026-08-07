@@ -7,8 +7,55 @@ import { CameraController } from './CameraController';
 import { BuildingRenderer } from './BuildingRenderer';
 import { ParticleSimSystem } from '../systems/ParticleSimSystem';
 
+// --- FXRenderer Constants ---
+const ZERO_VALUE = 0;
+const HALF_OFFSET_CENTER = 0.5;
+const RANDOM_CENTER_OFFSET = 0.5;
+
+// Sprite Pool & Texture Count Constants
+const BLAST_TEXTURE_COUNT = 11;
+const BLAST360_TEXTURE_COUNT = 7;
+const FIRE_TEXTURE_COUNT = 10;
+const INACTIVE_SPRITE_POOL_SIZE = 50;
+
+// Peak Frame Synchronization Constants
+const PEAK_FRAME_BLAST = 2;
+const PEAK_FRAME_BLAST360 = 3;
+
+// Blast FX Geometry & Scale Constants
+const BLAST_DEFAULT_ALTITUDE_OFFSET = 1.2;
+const BLAST_Y_OFFSET_SCALE_FACTOR = 0.15;
+const BLAST_MAIN_SCALE = 10;
+
+// Sub-Explosion Constants
+const SUB_EXPLOSION_COUNT = 2;
+const SUB_EXPLOSION_XZ_JITTER = 3;
+const SUB_EXPLOSION_Y_JITTER = 2;
+const SUB_EXPLOSION_BASE_SCALE = 4;
+const SUB_EXPLOSION_RANDOM_SCALE = 4;
+const SUB_EXPLOSION_MIN_DELAY = 0.05;
+const SUB_EXPLOSION_RANDOM_DELAY = 0.15;
+
+// Zonal Explosion Constants
+const ZONAL_EXPLOSION_Z_OFFSET = 0.5;
+const ZONAL_BASE_SCALE = 8;
+const ZONAL_LEVEL_SCALE_MULT = 2;
+const ZONAL_DEFAULT_SCALE = 10;
+
+// Fire FX Constants
+const FIRE_DEFAULT_ALTITUDE_OFFSET = 1.0;
+const FIRE_XZ_JITTER = 1.0;
+const FIRE_Y_JITTER = 1.5;
+const FIRE_Y_BASE_JITTER = 0.2;
+const FIRE_BASE_SCALE = 1.0;
+const FIRE_RANDOM_SCALE = 0.8;
+
+// Laser FX Constants
+const LASER_COLOR_HEX = 0x00ffff;
+const LASER_LINE_WIDTH = 2;
+const LASER_DURATION_MS = 80;
+
 // Pre-defined easing curves for explosion animations
-// Fast shockwave burst → slow smoke dissipation
 const BLAST_FRAME_DURATIONS = [
   0.02, 0.02, 0.02,          // frames 0–2: shockwave burst
   0.04,                       // frame 3: transition
@@ -36,20 +83,20 @@ export class FXRenderer {
   private static fireTextures: THREE.Texture[] = [];
 
   public static preloadTextureArrays() {
-    for (let i = 0; i < 11; i++) {
+    for (let i = ZERO_VALUE; i < BLAST_TEXTURE_COUNT; i++) {
       const tex = AssetLoader.getTexture(`fx_blast_${i}`);
       if (tex) this.blastTextures.push(tex);
     }
-    for (let i = 0; i < 7; i++) {
+    for (let i = ZERO_VALUE; i < BLAST360_TEXTURE_COUNT; i++) {
       const tex = AssetLoader.getTexture(`fx_blast360_${i}`);
       if (tex) this.blast360Textures.push(tex);
     }
-    for (let i = 0; i < 10; i++) {
+    for (let i = ZERO_VALUE; i < FIRE_TEXTURE_COUNT; i++) {
       const tex = AssetLoader.getTexture(`fx_fire_${i}`);
       if (tex) this.fireTextures.push(tex);
     }
     
-    for (let i = 0; i < 50; i++) {
+    for (let i = ZERO_VALUE; i < INACTIVE_SPRITE_POOL_SIZE; i++) {
       this.inactiveSprites.push(new AnimatedSprite3D([]));
     }
   }
@@ -65,7 +112,7 @@ export class FXRenderer {
 
   public static tick(delta: number) {
     // 1. Process queued events from Simulation Layer
-    while (DestructionSystem.fxQueue.length > 0) {
+    while (DestructionSystem.fxQueue.length > ZERO_VALUE) {
       const event = DestructionSystem.fxQueue.shift() as FXEvent;
       if (!event) continue;
 
@@ -103,7 +150,7 @@ export class FXRenderer {
     }
 
     // 2. Tick active sprites
-    for (let i = this.activeSprites.length - 1; i >= 0; i--) {
+    for (let i = this.activeSprites.length - 1; i >= ZERO_VALUE; i--) {
       const sprite = this.activeSprites[i];
       sprite.tick(delta);
 
@@ -130,51 +177,50 @@ export class FXRenderer {
 
   private static spawnExplosion(x: number, y: number, z: number, type: 'blast' | 'blast360', data: any) {
     const textures = type === 'blast' ? this.blastTextures : this.blast360Textures;
-    if (textures.length === 0) return;
+    if (textures.length === ZERO_VALUE) return;
 
     const durations = type === 'blast' ? [...BLAST_FRAME_DURATIONS] : [...BLAST360_FRAME_DURATIONS];
     const anim = this.getSprite(textures, false, durations);
     
     // Position centering on the building sprite's visual position
-    let targetPos = new THREE.Vector3(x, z + 1.2, y); // default slightly above ground
+    let targetPos = new THREE.Vector3(x, z + BLAST_DEFAULT_ALTITUDE_OFFSET, y);
     if (data && data.entityId !== undefined) {
       const bPos = BuildingRenderer.getSpritePosition(data.entityId);
       const bScale = BuildingRenderer.getSpriteScale(data.entityId);
       if (bPos) {
         targetPos.copy(bPos);
         if (bScale) {
-          // Lower the blast center from the billboard center to be closer to the actual building center
-          targetPos.y -= bScale.y * 0.15;
+          targetPos.y -= bScale.y * BLAST_Y_OFFSET_SCALE_FACTOR;
         }
       }
     }
     anim.mesh.position.copy(targetPos);
-    anim.mesh.scale.set(10, 10, 1); // Scale explosion
+    anim.mesh.scale.set(BLAST_MAIN_SCALE, BLAST_MAIN_SCALE, 1);
     
     SceneManager.effectsGroup.add(anim.mesh);
     this.activeSprites.push(anim);
 
     // Secondary explosions
-    for (let i = 0; i < 2; i++) {
+    for (let i = ZERO_VALUE; i < SUB_EXPLOSION_COUNT; i++) {
       const subAnim = this.getSprite(textures, false, durations);
-      const offsetX = (Math.random() - 0.5) * 3;
-      const offsetZ = (Math.random() - 0.5) * 3;
-      const offsetY = (Math.random() - 0.5) * 2;
+      const offsetX = (Math.random() - RANDOM_CENTER_OFFSET) * SUB_EXPLOSION_XZ_JITTER;
+      const offsetZ = (Math.random() - RANDOM_CENTER_OFFSET) * SUB_EXPLOSION_XZ_JITTER;
+      const offsetY = (Math.random() - RANDOM_CENTER_OFFSET) * SUB_EXPLOSION_Y_JITTER;
       
       subAnim.mesh.position.set(targetPos.x + offsetX, targetPos.y + offsetY, targetPos.z + offsetZ);
       
-      const subScale = 4 + Math.random() * 4; // smaller scale
+      const subScale = SUB_EXPLOSION_BASE_SCALE + Math.random() * SUB_EXPLOSION_RANDOM_SCALE;
       subAnim.mesh.scale.set(subScale, subScale, 1);
       
       // Delay them
-      subAnim.timer = -(0.05 + Math.random() * 0.15); // delay by 0.05 - 0.2 seconds
+      subAnim.timer = -(SUB_EXPLOSION_MIN_DELAY + Math.random() * SUB_EXPLOSION_RANDOM_DELAY);
       
       SceneManager.effectsGroup.add(subAnim.mesh);
       this.activeSprites.push(subAnim);
     }
 
     // The core synchronization mechanic
-    const peakFrame = type === 'blast' ? 2 : 3;
+    const peakFrame = type === 'blast' ? PEAK_FRAME_BLAST : PEAK_FRAME_BLAST360;
     anim.onFrameChange = (frame) => {
       if (frame === peakFrame && data && data.entityId !== undefined && data.targetFrame !== undefined) {
         // Execute the masked texture swap!
@@ -185,38 +231,38 @@ export class FXRenderer {
 
   private static spawnZonalExplosion(x: number, y: number, z: number, data: any) {
     const textures = this.blast360Textures;
-    if (textures.length === 0) return;
+    if (textures.length === ZERO_VALUE) return;
 
     const durations = [...BLAST360_FRAME_DURATIONS];
     const anim = this.getSprite(textures, false, durations);
     
-    let targetPos = new THREE.Vector3(x, z + 1.2, y);
+    let targetPos = new THREE.Vector3(x, z + BLAST_DEFAULT_ALTITUDE_OFFSET, y);
     if (data && data.entityId !== undefined) {
       const bPos = BuildingRenderer.getSpritePosition(data.entityId);
       const bScale = BuildingRenderer.getSpriteScale(data.entityId);
       if (bPos && bScale && data.uvCenter) {
         targetPos.copy(bPos);
         
-        const uvX = data.uvCenter.x - 0.5;
-        const uvY = 0.5 - data.uvCenter.y;
+        const uvX = data.uvCenter.x - HALF_OFFSET_CENTER;
+        const uvY = HALF_OFFSET_CENTER - data.uvCenter.y;
         
         targetPos.x += uvX * bScale.x;
         targetPos.y += uvY * bScale.y;
-        targetPos.z += 0.5;
+        targetPos.z += ZONAL_EXPLOSION_Z_OFFSET;
       }
     }
     
     anim.mesh.position.copy(targetPos);
     
-    const baseScale = 8;
-    const levelScale = data.level ? (baseScale + data.level * 2) : 10;
+    const baseScale = ZONAL_BASE_SCALE;
+    const levelScale = data.level ? (baseScale + data.level * ZONAL_LEVEL_SCALE_MULT) : ZONAL_DEFAULT_SCALE;
     anim.mesh.scale.set(levelScale, levelScale, 1);
     
     SceneManager.effectsGroup.add(anim.mesh);
     this.activeSprites.push(anim);
 
     // Synchronize building texture frame swap to peak explosion frame (frame 2)
-    const peakFrame = 2;
+    const peakFrame = PEAK_FRAME_BLAST;
     anim.onFrameChange = (frame) => {
       if (frame === peakFrame && data && data.entityId !== undefined && data.targetFrame !== undefined) {
         DestructionSystem.executeTextureSwap(data.entityId, data.targetFrame);
@@ -226,23 +272,22 @@ export class FXRenderer {
 
   private static spawnFire(x: number, y: number, z: number, data: any) {
     const textures = this.fireTextures;
-    if (textures.length === 0) return;
+    if (textures.length === ZERO_VALUE) return;
 
     const anim = this.getSprite(textures, false, [...FIRE_FRAME_DURATIONS]);
     
-    let targetPos = new THREE.Vector3(x, z + 1, y); // default slightly above ground
+    let targetPos = new THREE.Vector3(x, z + FIRE_DEFAULT_ALTITUDE_OFFSET, y);
     if (data && data.entityId !== undefined) {
       const bPos = BuildingRenderer.getSpritePosition(data.entityId);
       if (bPos) {
         targetPos.copy(bPos);
-        // Slightly random jitter around building center
-        targetPos.x += (Math.random() - 0.5) * 1.0;
-        targetPos.y += (Math.random() - 0.2) * 1.5;
-        targetPos.z += (Math.random() - 0.5) * 1.0;
+        targetPos.x += (Math.random() - RANDOM_CENTER_OFFSET) * FIRE_XZ_JITTER;
+        targetPos.y += (Math.random() - FIRE_Y_BASE_JITTER) * FIRE_Y_JITTER;
+        targetPos.z += (Math.random() - RANDOM_CENTER_OFFSET) * FIRE_XZ_JITTER;
       }
     }
     anim.mesh.position.copy(targetPos);
-    const scale = 1.0 + Math.random() * 0.8; // very small size (1.0 to 1.8)
+    const scale = FIRE_BASE_SCALE + Math.random() * FIRE_RANDOM_SCALE;
     anim.mesh.scale.set(scale, scale, 1);
     
     SceneManager.effectsGroup.add(anim.mesh);
@@ -255,7 +300,7 @@ export class FXRenderer {
       new THREE.Vector3(tx, tz, ty)
     ];
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+    const material = new THREE.LineBasicMaterial({ color: LASER_COLOR_HEX, linewidth: LASER_LINE_WIDTH });
     const line = new THREE.Line(geometry, material);
     SceneManager.effectsGroup.add(line);
 
@@ -263,6 +308,6 @@ export class FXRenderer {
       SceneManager.effectsGroup.remove(line);
       geometry.dispose();
       material.dispose();
-    }, 80);
+    }, LASER_DURATION_MS);
   }
 }

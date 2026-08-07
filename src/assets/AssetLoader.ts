@@ -73,6 +73,14 @@ export class AssetLoader {
     promises.push(this.loadTexture('building_sky_biotech_stage_0', '/building/skyscraper_biotech_helix/png/00_pristine.png'));
     promises.push(this.loadTexture('building_sky_cyber_stage_0', '/building/skyscraper_cyber_spire/png/00_pristine.png'));
 
+    // Tier 4 Mega-Landmarks
+    for (let i = 0; i < 15; i++) {
+      promises.push(this.loadTexture(`building_mega_titan_stage_${i}`, `/building/skyscraper/png/${getFilename(i, true)}`));
+    }
+    for (let i = 0; i < 2; i++) {
+      promises.push(this.loadTexture(`building_mega_stadium_stage_${i}`, `/building/mall/png/${getFilename(i, false)}`));
+    }
+
     // 7. Load FX Textures
     for (let i = 0; i < 11; i++) {
       promises.push(this.loadTexture(`fx_blast_${i}`, `/blast/frame_${i}.png`));

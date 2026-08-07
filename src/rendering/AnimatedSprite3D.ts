@@ -1,16 +1,24 @@
 import * as THREE from 'three';
 
+// --- AnimatedSprite3D Constants ---
+const ZERO_VALUE = 0;
+const INITIAL_FRAME_INDEX = 0;
+const DEFAULT_SECONDS_PER_FRAME = 0.25;
+const SPRITE_MATERIAL_COLOR = 0xffffff;
+const SPRITE_ALPHA_TEST_THRESHOLD = 0.1;
+const BOUNDS_END_OFFSET = 1;
+
 export class AnimatedSprite3D {
   public mesh: THREE.Sprite;
   public material: THREE.SpriteMaterial;
   
   public textures: THREE.Texture[];
-  public currentFrame: number = 0;
-  public speed: number = 0.25; // seconds per frame (default / fallback)
+  public currentFrame: number = INITIAL_FRAME_INDEX;
+  public speed: number = DEFAULT_SECONDS_PER_FRAME; // seconds per frame (default / fallback)
   public frameDurations?: number[]; // per-frame timing override for non-linear easing
   public loop: boolean = true;
   
-  public timer: number = 0;
+  public timer: number = ZERO_VALUE;
   public playing: boolean = true;
   public active: boolean = true;
 
@@ -21,23 +29,23 @@ export class AnimatedSprite3D {
   constructor(textures: THREE.Texture[]) {
     this.textures = textures;
     this.material = new THREE.SpriteMaterial({ 
-      map: this.textures[0] || null,
-      color: 0xffffff,
+      map: this.textures[INITIAL_FRAME_INDEX] || null,
+      color: SPRITE_MATERIAL_COLOR,
       transparent: true,
-      alphaTest: 0.1
+      alphaTest: SPRITE_ALPHA_TEST_THRESHOLD
     });
     this.mesh = new THREE.Sprite(this.material);
   }
 
   public reset(textures: THREE.Texture[], loop: boolean, durations?: number[]) {
     this.textures = textures;
-    this.currentFrame = 0;
-    this.timer = 0;
+    this.currentFrame = INITIAL_FRAME_INDEX;
+    this.timer = ZERO_VALUE;
     this.loop = loop;
     this.frameDurations = durations;
     this.playing = true;
     this.active = true;
-    this.material.map = textures[0] || null;
+    this.material.map = textures[INITIAL_FRAME_INDEX] || null;
     this.material.needsUpdate = true;
     this.onComplete = undefined;
     this.onFrameChange = undefined;
@@ -45,9 +53,9 @@ export class AnimatedSprite3D {
   }
 
   public gotoFrame(n: number) {
-    if (this.textures.length === 0) return;
-    this.currentFrame = Math.max(0, Math.min(n, this.textures.length - 1));
-    this.timer = 0;
+    if (this.textures.length === ZERO_VALUE) return;
+    this.currentFrame = Math.max(INITIAL_FRAME_INDEX, Math.min(n, this.textures.length - BOUNDS_END_OFFSET));
+    this.timer = ZERO_VALUE;
     this.material.map = this.textures[this.currentFrame];
     this.material.needsUpdate = true;
   }
@@ -61,11 +69,11 @@ export class AnimatedSprite3D {
   }
 
   public tick(delta: number) {
-    if (!this.active || !this.playing || this.textures.length === 0) return;
+    if (!this.active || !this.playing || this.textures.length === ZERO_VALUE) return;
 
     this.timer += delta;
     
-    if (this.timer < 0) {
+    if (this.timer < ZERO_VALUE) {
       this.mesh.visible = false;
       return;
     } else if (!this.mesh.visible) {
@@ -81,9 +89,9 @@ export class AnimatedSprite3D {
 
       if (this.currentFrame >= this.textures.length) {
         if (this.loop) {
-          this.currentFrame = 0;
+          this.currentFrame = INITIAL_FRAME_INDEX;
         } else {
-          this.currentFrame = this.textures.length - 1;
+          this.currentFrame = this.textures.length - BOUNDS_END_OFFSET;
           this.playing = false;
           this.active = false;
           if (this.onComplete) this.onComplete();

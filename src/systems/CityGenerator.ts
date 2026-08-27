@@ -3,7 +3,7 @@ import { BUILDING_DEFS } from '../core/BuildingDefs';
 import { PositionComponent, HealthComponent, ZonalHealthComponent, CollisionComponent, RenderStateComponent } from '../core/Components';
 import { BUILDING_ZONES } from '../core/ZoneDefs';
 import { LotManager } from '../rendering/TileSystem/LotManager';
-import { TileMap, BuildingLot } from '../rendering/TileSystem/TileMap';
+import { TileMap, BuildingLot, TerrainType } from '../rendering/TileSystem/TileMap';
 
 export class CityGenerator {
   public static generateCity() {
@@ -37,53 +37,43 @@ export class CityGenerator {
       }
     };
 
-    // 2. District Anchor Placement: Tier 4 Mega-Structures & Civic Landmarks
+    // 2. Map Layout Anchor Placement (Mimicking reference image)
 
-    // Anchor 1: Apex Mega-Tower (mega_titan) in Zone A (Financial Core)
-    const titanGx = 15;
-    const titanGz = 15;
-    reserveArea(titanGx, titanGz, 4, 4, 1);
-    const titanPos = LotManager.computeLotWorldPos(titanGx, titanGz, 4, 4);
-    const titanEntity = ECS.createEntity();
-    const titanLot = LotManager.calculateAndRegisterLot(titanEntity, titanPos.x, titanPos.z, 'mega_titan', 'mega_anchor');
-    this.spawnBuildingEntity(titanEntity, titanLot, 'mega_titan');
-    count++;
+    const anchors = [
+      // Center: Mega Titan surrounded by dense area
+      { key: 'mega_titan', gx: 30, gz: 30, w: 4, z: 4 },
 
-    // Anchor 2: Metropolitan Arena (mega_stadium) in Zone B (Civic & Leisure)
-    const stadiumGx = 43;
-    const stadiumGz = 8;
-    reserveArea(stadiumGx, stadiumGz, 4, 3, 1);
-    const stadiumPos = LotManager.computeLotWorldPos(stadiumGx, stadiumGz, 4, 3);
-    const stadiumEntity = ECS.createEntity();
-    const stadiumLot = LotManager.calculateAndRegisterLot(stadiumEntity, stadiumPos.x, stadiumPos.z, 'mega_stadium', 'mega_anchor');
-    this.spawnBuildingEntity(stadiumEntity, stadiumLot, 'mega_stadium');
-    count++;
+      // South-East (Harbor/Water area)
+      { key: 'statue_liberty', gx: 52, gz: 52, w: 3, z: 3 },
+      { key: '4', gx: 45, gz: 55, w: 3, z: 3 }, // Warehouse near harbor
 
-    // Civic Landmarks Across Districts
-    const civicAnchors = [
-      { key: '3', gx: 43, gz: 22, w: 3, z: 3, name: 'School' },                  // Zone B Civic
-      { key: '1', gx: 2, gz: 2, w: 3, z: 3, name: 'Hospital' },                  // Zone A Hospital
-      { key: '2', gx: 2, gz: 16, w: 3, z: 3, name: 'Mall' },                     // Zone A Shopping
-      { key: '4', gx: 43, gz: 43, w: 3, z: 3, name: 'Warehouse' },                // Zone C Docks
-      { key: 'statue_liberty', gx: 29, gz: 2, w: 3, z: 3, name: 'Statue of Liberty' }, // Harbor Park Landmark
-      { key: 'pentagon_defense', gx: 29, gz: 43, w: 4, z: 4, name: 'Defense Bunker' },// Defense Perimeter
-      { key: 'spaceship_hq', gx: 2, gz: 43, w: 4, z: 4, name: 'Alien Spaceship HQ' }    // Alien Outpost
+      // West (Airport area)
+      { key: 'spaceship_hq', gx: 10, gz: 20, w: 4, z: 4 },
+
+      // Stadiums
+      { key: 'mega_stadium', gx: 10, gz: 50, w: 4, z: 3 }, // SW Stadium
+      { key: 'mega_stadium', gx: 50, gz: 15, w: 4, z: 3 }, // East Stadium
+
+      // Other Civic Landmarks
+      { key: '3', gx: 40, gz: 10, w: 3, z: 3 }, // School
+      { key: '1', gx: 20, gz: 10, w: 3, z: 3 }, // Hospital
+      { key: '2', gx: 20, gz: 45, w: 3, z: 3 }, // Mall
+      { key: 'pentagon_defense', gx: 30, gz: 10, w: 4, z: 4 } // Defense Bunker
     ];
 
-    for (const c of civicAnchors) {
+    for (const c of anchors) {
       reserveArea(c.gx, c.gz, c.w, c.z, 1);
       const pos = LotManager.computeLotWorldPos(c.gx, c.gz, c.w, c.z);
       const entity = ECS.createEntity();
-      const lot = LotManager.calculateAndRegisterLot(entity, pos.x, pos.z, c.key, 'civic_landmark');
+      const lot = LotManager.calculateAndRegisterLot(entity, pos.x, pos.z, c.key, 'landmark');
       this.spawnBuildingEntity(entity, lot, c.key);
       count++;
     }
 
     // 3. District Infill Pools
-    const poolZoneA = ['sky_cyber', 'sky_artdeco', 'sky_biotech', '5', 'b4'];      // Financial Core Skyscrapers
-    const poolZoneB = ['res_sky', 'b3', 'b4', 'b2', 'sky_cyber'];                 // Civic & Leisure High-Rises
-    const poolZoneC = ['4', 'b1', 'b2', 'b3', 'pentagon_defense'];                // Waterfront Docks & Heavy Base
-    const poolZoneD = ['b1', 'b2', 'res_bronze', 'b3'];                           // Residential Slums Brownstones
+    const poolCenter = ['sky_cyber', 'sky_artdeco', 'sky_biotech', '5', 'b4'];   // Dense high-rises
+    const poolSuburb = ['res_sky', 'b3', 'b2', 'res_bronze'];                     // Residential
+    const poolIndustrial = ['b1', 'b2', 'b3'];                                    // Docks/Industrial
 
     // 4. Iterate Super-Blocks and Infill Micro-Lots by District
     for (let startGx = 0; startGx < GRID_DIM; startGx += AVENUE_INTERVAL) {
@@ -98,15 +88,27 @@ export class CityGenerator {
 
             const cellSeed = Math.abs((startGx * 1337 + startGz * 7331 + offX * 97 + offZ * 193)) % 1000;
 
-            // Density Tuning per District
-            let isZoneA = gx < 32 && gz < 32;
-            let isZoneB = gx >= 32 && gz < 32;
-            let isZoneC = gx >= 32 && gz >= 32;
-            
-            // Skip probability for parks / plazas / dock yards
-            let skipProb = 20;
-            if (isZoneB) skipProb = 35; // More open parks in Leisure zone
-            if (isZoneC) skipProb = 30; // Docks open space
+            let skipProb = 20; // Default density
+            let isWaterArea = gx > 40 && gz > 40;
+            let isAirportArea = gx < 20 && gz > 15 && gz < 45;
+            let isParkArea = gx > 40 && gz < 30;
+
+            if (isWaterArea) {
+              const cell = TileMap.getCell(gx, gz);
+              if (cell) cell.terrainType = TerrainType.WATER;
+              skipProb = 100; // No buildings in water
+            } else if (isAirportArea) {
+              const cell = TileMap.getCell(gx, gz);
+              // Make it look like runway/tarmac
+              if (cell) cell.terrainType = (gx % 2 === 0) ? TerrainType.ROAD_STRAIGHT_NS : TerrainType.ROAD_STRAIGHT_EW;
+              skipProb = 100; // No buildings on runway
+            } else if (isParkArea) {
+              const cell = TileMap.getCell(gx, gz);
+              if (cell && cell.terrainType !== TerrainType.ROAD_STRAIGHT_NS && cell.terrainType !== TerrainType.ROAD_STRAIGHT_EW && cell.terrainType !== TerrainType.ROAD_INTERSECTION) {
+                cell.terrainType = TerrainType.GRASS;
+              }
+              skipProb = 70; // Very sparse buildings in park area
+            }
 
             if (cellSeed % 100 < skipProb) {
               continue;
@@ -114,12 +116,17 @@ export class CityGenerator {
 
             occupied[gx][gz] = true;
 
-            // Pick District Pool
+            // Pick District Pool based on distance to center
+            const distToCenter = Math.sqrt(Math.pow(gx - 32, 2) + Math.pow(gz - 32, 2));
+
             let pool: string[];
-            if (isZoneA) pool = poolZoneA;
-            else if (isZoneB) pool = poolZoneB;
-            else if (isZoneC) pool = poolZoneC;
-            else pool = poolZoneD;
+            if (distToCenter < 15) {
+              pool = poolCenter;
+            } else if (distToCenter < 30) {
+              pool = poolSuburb;
+            } else {
+              pool = poolIndustrial;
+            }
 
             const typeKey = pool[cellSeed % pool.length];
 
@@ -134,7 +141,7 @@ export class CityGenerator {
       }
     }
 
-    console.log(`Generated ${count} district-partitioned city buildings across Financial Core, Civic, Waterfront & Slums.`);
+    console.log(`Generated ${count} city buildings matching reference map layout.`);
   }
 
   private static spawnBuildingEntity(entity: number, lot: BuildingLot, typeKey: string) {

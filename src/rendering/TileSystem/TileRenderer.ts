@@ -172,6 +172,22 @@ export class TileRenderer {
           ctx.fillStyle = `rgb(18, ${g}, 18)`;
           ctx.fillRect(x, y, 3, 3);
         }
+      } else if (type === TerrainType.WATER) {
+        ctx.fillStyle = '#1ca3ec'; // Deep harbor blue
+        ctx.fillRect(ZERO_VALUE, ZERO_VALUE, CANVAS_DIMENSION, CANVAS_DIMENSION);
+
+        // Light wave patterns
+        ctx.strokeStyle = '#23b5f7';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 150; i++) {
+          const x = Math.random() * CANVAS_DIMENSION;
+          const y = Math.random() * CANVAS_DIMENSION;
+          const len = Math.random() * 30 + 10;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + len, y);
+          ctx.stroke();
+        }
       }
 
       const tex = new THREE.CanvasTexture(canvas);
@@ -190,15 +206,26 @@ export class TileRenderer {
       TerrainType.ROAD_INTERSECTION,
       TerrainType.SIDEWALK,
       TerrainType.PLAZA_STONE,
-      TerrainType.GRASS
+      TerrainType.GRASS,
+      TerrainType.WATER
     ];
 
     terrainTypes.forEach(tType => {
       const tex = generateTexture(tType);
+
+      let r = DEFAULT_ROUGHNESS;
+      let m = DEFAULT_METALNESS;
+      if (tType === TerrainType.SIDEWALK || tType === TerrainType.PLAZA_STONE) {
+        r = SIDEWALK_ROUGHNESS;
+      } else if (tType === TerrainType.WATER) {
+        r = 0.1; // Low roughness for water reflection
+        m = 0.8; // High metalness
+      }
+
       const mat = new THREE.MeshStandardMaterial({
         map: tex,
-        roughness: (tType === TerrainType.SIDEWALK || tType === TerrainType.PLAZA_STONE) ? SIDEWALK_ROUGHNESS : DEFAULT_ROUGHNESS,
-        metalness: DEFAULT_METALNESS
+        roughness: r,
+        metalness: m
       });
 
       const instancedMesh = new THREE.InstancedMesh(planeGeo, mat, MAX_INSTANCES_PER_TYPE);

@@ -11,7 +11,8 @@ export enum TerrainType {
   ROAD_INTERSECTION = 2,
   SIDEWALK = 3,
   PLAZA_STONE = 4,
-  GRASS = 5
+  GRASS = 5,
+  WATER = 6
 }
 
 export enum OverlayTileType {

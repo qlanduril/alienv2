@@ -388,8 +388,8 @@ export class BuildingRenderer {
     const localPivotX = (-w / HALF_DIVISOR - dx) / PIXELS_PER_WORLD_UNIT;
     const localPivotY = ((h / HALF_DIVISOR - base_cy) / PIXELS_PER_WORLD_UNIT) * ISOMETRIC_Y_COMPENSATION;
 
-    const world_dx = -localPivotX * COS_45_DEG;
-    const world_dz = localPivotX * SIN_45_DEG;
+    const world_dx = localPivotX * COS_45_DEG;
+    const world_dz = -localPivotX * SIN_45_DEG;
     const y_mesh = pos.worldZ - localPivotY + BUILDING_Y_ALTITUDE_OFFSET;
 
     // 4. Collapse & Topple Physics

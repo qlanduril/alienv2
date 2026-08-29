@@ -34,10 +34,10 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
 
   // --- Tier 4: Mega-Landmarks & Special Buildings ---
   'mega_titan': { width: 64, length: 64, height: 800, name: 'Apex Mega-Tower', visualScale: 18.0, footprintTiles: 4, heightScale: 18.0, tier: 'background' },
-  'mega_stadium': { width: 64, length: 48, height: 120, name: 'Metropolitan Arena', visualScale: 3.5, footprintTiles: 4, heightScale: 3.5, tier: 'foreground' },
-  'spaceship_hq': { width: 64, length: 64, height: 400, name: 'Alien Spaceship HQ', visualScale: 5.0, footprintTiles: 4, heightScale: 5.0, tier: 'background' },
-  'statue_liberty': { width: 48, length: 48, height: 350, name: 'Statue of Liberty', visualScale: 3.0, footprintTiles: 3, heightScale: 3.0, tier: 'foreground' },
-  'pentagon_defense': { width: 64, length: 64, height: 150, name: 'Defense Bunker', visualScale: 4.0, footprintTiles: 4, heightScale: 4.0, tier: 'foreground' }
+  'mega_stadium': { width: 64, length: 48, height: 120, name: 'Metropolitan Arena', visualScale: 4.5, footprintTiles: 4, heightScale: 4.5, tier: 'foreground' },
+  'spaceship_hq': { width: 64, length: 64, height: 400, name: 'Alien Spaceship HQ', visualScale: 8.0, footprintTiles: 4, heightScale: 8.0, tier: 'background' },
+  'statue_liberty': { width: 48, length: 48, height: 350, name: 'Statue of Liberty', visualScale: 4.5, footprintTiles: 3, heightScale: 4.5, tier: 'foreground' },
+  'pentagon_defense': { width: 64, length: 64, height: 150, name: 'Defense Bunker', visualScale: 6.5, footprintTiles: 4, heightScale: 6.5, tier: 'foreground' }
 };
 
 export interface CityTileData {

@@ -107,7 +107,7 @@ export class ShowcaseManager {
       PositionComponent.set(entity, {
         worldX,
         worldY,
-        worldZ: 0.05
+        worldZ: 0.0 // Ground level
       });
 
       HealthComponent.set(entity, {

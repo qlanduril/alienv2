@@ -11,9 +11,9 @@ const MAX_PIXEL_RATIO = 2.0;
 const SCENE_BACKGROUND_HEX = 0x0d1b2a;
 
 // Camera Orthographic Projection Constants
-const DEFAULT_FRUSTUM_SIZE = 420;
+const DEFAULT_FRUSTUM_SIZE = 560;
 const CAMERA_NEAR_PLANE = 1;
-const CAMERA_FAR_PLANE = 2000;
+const CAMERA_FAR_PLANE = 3500;
 const CAMERA_INIT_X = 200;
 const CAMERA_INIT_Y = 200;
 const CAMERA_INIT_Z = 200;
@@ -33,13 +33,13 @@ const DIR_LIGHT_POS_X = 400;
 const DIR_LIGHT_POS_Y = 600;
 const DIR_LIGHT_POS_Z = 200;
 const SHADOW_MAP_SIZE = 2048;
-const SHADOW_CAM_BOUNDS = 800;
-const SHADOW_CAM_FAR = 2000;
+const SHADOW_CAM_BOUNDS = 1000;
+const SHADOW_CAM_FAR = 3500;
 const SHADOW_BIAS = -0.0005;
 
 // Atmosphere & FX Post-Processing Constants
 const FOG_COLOR_HEX = 0x1a1a24;
-const FOG_DENSITY = 0.002;
+const FOG_DENSITY = 0.0002;
 const BLOOM_STRENGTH = 1.2;
 const BLOOM_RADIUS = 0.8;
 const BLOOM_THRESHOLD = 0.85;
@@ -51,11 +51,32 @@ export class SceneManager {
   public static composer: EffectComposer;
   public static clock: THREE.Clock;
 
-  // Groups for easy management
+  public static currentFrustumSize: number = DEFAULT_FRUSTUM_SIZE;
   public static groundGroup: THREE.Group;
   public static cityGroup: THREE.Group;
   public static effectsGroup: THREE.Group;
   public static playerGroup: THREE.Group;
+
+  public static setFrustumSize(size: number) {
+    this.currentFrustumSize = size;
+    this.updateCameraProjection();
+  }
+
+  public static getFrustumSize(): number {
+    return this.currentFrustumSize;
+  }
+
+  public static updateCameraProjection() {
+    if (!this.camera) return;
+    const aspect = window.innerWidth / window.innerHeight;
+    const frustumSize = this.currentFrustumSize;
+
+    this.camera.left = (-frustumSize * aspect) / HALF_DIVISOR;
+    this.camera.right = (frustumSize * aspect) / HALF_DIVISOR;
+    this.camera.top = frustumSize / HALF_DIVISOR;
+    this.camera.bottom = -frustumSize / HALF_DIVISOR;
+    this.camera.updateProjectionMatrix();
+  }
 
   public static init(canvasContainer: HTMLElement) {
     // 1. Setup Renderer
@@ -72,7 +93,7 @@ export class SceneManager {
 
     // 3. Setup Camera (Isometric / Orthographic)
     const aspect = window.innerWidth / window.innerHeight;
-    const frustumSize = DEFAULT_FRUSTUM_SIZE;
+    const frustumSize = this.currentFrustumSize;
     this.camera = new THREE.OrthographicCamera(
       (frustumSize * aspect) / -HALF_DIVISOR,
       (frustumSize * aspect) / HALF_DIVISOR,
@@ -140,14 +161,7 @@ export class SceneManager {
   }
 
   private static onWindowResize() {
-    const aspect = window.innerWidth / window.innerHeight;
-    const frustumSize = DEFAULT_FRUSTUM_SIZE;
-    
-    this.camera.left = (-frustumSize * aspect) / HALF_DIVISOR;
-    this.camera.right = (frustumSize * aspect) / HALF_DIVISOR;
-    this.camera.top = frustumSize / HALF_DIVISOR;
-    this.camera.bottom = -frustumSize / HALF_DIVISOR;
-    this.camera.updateProjectionMatrix();
+    this.updateCameraProjection();
 
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     if (this.composer) {

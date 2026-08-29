@@ -25,26 +25,24 @@ export const GLOBAL_PPM = 25.0;
 const COS_45_DEG = Math.SQRT1_2;
 const SIN_45_DEG = Math.SQRT1_2;
 const ISOMETRIC_ROTATION_Y = Math.PI / 4;
-const ISOMETRIC_Y_COMPENSATION = Math.sqrt(1.5); // 1.22474487 - Compensates for orthographic 35.264° camera pitch foreshortening on vertical planes
+// Compensates for the orthographic 35.264° camera pitch foreshortening on vertical sprite planes.
+// Without this, the pivot math places building bases below the ground plane.
+const ISOMETRIC_Y_COMPENSATION = Math.sqrt(1.5); // 1.22474487 ≈ 1/cos(35.264°)
 const RANDOM_CENTER_OFFSET = 0.5;
 
 // Manual Fine-Tuning Sprite Offsets (pixel offsets)
 const GLOBAL_SPRITE_DX_OFFSET = 0;
 const GLOBAL_SPRITE_DY_OFFSET = 0;
 
-// Foundation Plinth Constants
-const PLINTH_BOX_HEIGHT = 0.1;
-const PLINTH_Z_ALTITUDE = 0.05;
-const PLINTH_COLOR_HEX = 0x22262e;
-const PLINTH_ROUGHNESS = 0.8;
-const PLINTH_METALNESS = 0.1;
-const PLINTH_POLYGON_OFFSET = -1;
+// Vertical Lift to keep sprite base strictly above ground tiles (preventing GPU depth clipping)
+const BUILDING_BASE_LIFT = 0.2;
 
 // Sprite Material Constants
 const SPRITE_MATERIAL_COLOR = 0xffffff;
-const SPRITE_ALPHA_TEST = 0.5;
+const SPRITE_ALPHA_TEST = 0.1;
 const SPRITE_ROUGHNESS = 0.6;
 const SPRITE_PLANE_SIZE = 1.0;
+
 
 // Trajectory & Collapse Physics Constants
 const CRUSH_RANGE_DEFAULT = 64;
@@ -101,7 +99,6 @@ export class BuildingRenderer {
   private static cachedOffset = new Map<Entity, any>();
   private static cachedTypeKey = new Map<Entity, string>();
   private static cachedDef = new Map<Entity, any>();
-  private static foundationPlinths = new Map<Entity, THREE.Mesh>();
   private static collapseMap = new Map<Entity, { tiltAngle: number; impactVector: THREE.Vector3 }>();
 
   /**
@@ -259,32 +256,18 @@ export class BuildingRenderer {
     let sprite = this.sprites.get(entity);
 
     if (!sprite) {
-      // 1. Create architectural foundation slab (plinth buffer) under building lot
-      const { typeKey, def } = this.getTypeInfo(entity, renderState.texturePrefix);
+      const { typeKey } = this.getTypeInfo(entity, renderState.texturePrefix);
 
-      const padGeo = new THREE.BoxGeometry(def.width, PLINTH_BOX_HEIGHT, def.length);
-      const padMat = new THREE.MeshStandardMaterial({
-        color: PLINTH_COLOR_HEX,
-        roughness: PLINTH_ROUGHNESS,
-        metalness: PLINTH_METALNESS,
-        polygonOffset: true,
-        polygonOffsetFactor: PLINTH_POLYGON_OFFSET,
-        polygonOffsetUnits: PLINTH_POLYGON_OFFSET
-      });
-      const padMesh = new THREE.Mesh(padGeo, padMat);
-      padMesh.position.set(pos.worldX, PLINTH_Z_ALTITUDE, pos.worldY);
-      padMesh.receiveShadow = true;
-
-      SceneManager.groundGroup.add(padMesh);
-      this.foundationPlinths.set(entity, padMesh);
-
-      // 2. Use Mesh with PlaneGeometry to keep buildings standing upright vertically on cityGroup layer
+      // 1. Use Mesh with PlaneGeometry to keep buildings standing upright vertically on cityGroup layer
+      // IMPORTANT: Use depthWrite: false + depthTest: false cutout mode with painter's order sorting.
+      // This prevents the 3D ground tile plane from depth-clipping or slicing the base of building sprites.
       const material = new THREE.MeshStandardMaterial({
         color: SPRITE_MATERIAL_COLOR,
-        transparent: true,
+        transparent: false,
         side: THREE.DoubleSide,
-        depthWrite: true,
         alphaTest: SPRITE_ALPHA_TEST,
+        depthWrite: false,
+        depthTest: false,
         roughness: SPRITE_ROUGHNESS
       });
       sprite = new THREE.Mesh(this.sharedGeometry, material);
@@ -293,6 +276,10 @@ export class BuildingRenderer {
 
       // Rotate 45 degrees around Y to face the isometric camera horizontally
       sprite.rotation.y = ISOMETRIC_ROTATION_Y;
+
+      // Painter's order: in isometric view, objects further from camera (smaller worldX+worldY) render first.
+      // Render order 100+ ensures all buildings render AFTER ground tiles (renderOrder 0).
+      sprite.renderOrder = 100 + Math.round(pos.worldX + pos.worldY);
 
       // Add to SceneManager.cityGroup (same layer as all buildings)
       SceneManager.cityGroup.add(sprite);
@@ -390,58 +377,62 @@ export class BuildingRenderer {
     // 1. Universal Texel Density (GLOBAL_PPM): derive world size from pixel dimensions
     const PIXELS_PER_WORLD_UNIT = GLOBAL_PPM;
 
+    // Resolve definition visual scale for landmark sizing (Pentagon, Apple HQ, etc.)
+    const { def } = this.getTypeInfo(entity, renderState.texturePrefix);
+    const vScale = def ? (def.visualScale || 1.0) : 1.0;
+
     // 2. Compute current state dimensions & offsets dynamically from sprite metadata
     const w = offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE);
     const h = offset ? offset.h : (texture?.image?.height || DEFAULT_CANVAS_SIZE);
     const dx = (offset ? offset.dx : -w / HALF_DIVISOR) + GLOBAL_SPRITE_DX_OFFSET;
     const base_cy = (offset ? (typeof offset.base_cy === 'number' ? offset.base_cy : (offset.y_max || h)) : h) + GLOBAL_SPRITE_DY_OFFSET;
 
-    const meshWidth = w / PIXELS_PER_WORLD_UNIT;
-    const meshHeight = (h / PIXELS_PER_WORLD_UNIT) * ISOMETRIC_Y_COMPENSATION;
+    const meshWidth = (w / PIXELS_PER_WORLD_UNIT) * vScale;
+    const meshHeight = ((h / PIXELS_PER_WORLD_UNIT) * ISOMETRIC_Y_COMPENSATION) * vScale;
 
-    sprite.scale.set(meshWidth * fx.scaleXMult, meshHeight * fx.scaleYMult, INITIAL_SCALE_UNIT);
+    const sx = meshWidth * fx.scaleXMult;
+    const sy = meshHeight * fx.scaleYMult;
 
     // 3. Mathematical Pivot & Zero Floating Policy:
     // Anchor bottom-center ground contact line (base_cy) strictly to Y = 0 (or pos.worldZ if elevated).
-    const localPivotX = (-w / HALF_DIVISOR - dx) / PIXELS_PER_WORLD_UNIT;
-    const localPivotY = ((h / HALF_DIVISOR - base_cy) / PIXELS_PER_WORLD_UNIT) * ISOMETRIC_Y_COMPENSATION;
+    const localPivotX = ((-w / HALF_DIVISOR - dx) / PIXELS_PER_WORLD_UNIT) * vScale;
+    const localPivotY = (((h / HALF_DIVISOR - base_cy) / PIXELS_PER_WORLD_UNIT) * ISOMETRIC_Y_COMPENSATION) * vScale;
 
     const world_dx = localPivotX * COS_45_DEG;
     const world_dz = -localPivotX * SIN_45_DEG;
-    const y_mesh = (pos.worldZ || 0) - localPivotY;
+    const y_mesh = (pos.worldZ || 0) - localPivotY + BUILDING_BASE_LIFT;
+
+    const tx = pos.worldX + world_dx + fx.shudderDX;
+    const tz = pos.worldY + world_dz + fx.shudderDZ;
 
     // 4. Collapse & Topple Physics
     const collapse = this.collapseMap.get(entity);
     if (collapse) {
+      sprite.matrixAutoUpdate = true;
       collapse.tiltAngle += delta * COLLAPSE_TILT_SPEED;
 
-      // Rotate building mesh toward impact direction vector
+      sprite.scale.set(sx, sy, INITIAL_SCALE_UNIT);
+      sprite.rotation.y = ISOMETRIC_ROTATION_Y;
       sprite.rotation.z = collapse.tiltAngle * collapse.impactVector.x;
       sprite.rotation.x = collapse.tiltAngle * collapse.impactVector.z;
 
-      // Sink slightly into ground as it falls
       sprite.position.set(
-        pos.worldX + world_dx + fx.shudderDX,
+        tx,
         y_mesh - (collapse.tiltAngle * COLLAPSE_SINK_SPEED),
-        pos.worldY + world_dz + fx.shudderDZ
+        tz
       );
 
       if (collapse.tiltAngle >= COLLAPSE_IMPACT_ANGLE) {
-        // IMPACT GROUND: Spawn dust wave, crush surrounding tiles, swap to rubble
         this.crushBuildingsInTrajectory(pos, collapse.impactVector, CRUSH_RANGE_DEFAULT);
         this.collapseMap.delete(entity);
-
-        // Force to rubble frame
         renderState.currentFrame = this.BUILDING_MAX_FRAMES[typeKey] ?? RUBBLE_STAGE_FRAME;
       }
     } else {
-      sprite.rotation.z = ZERO_VALUE;
-      sprite.rotation.x = ZERO_VALUE;
-      sprite.position.set(
-        pos.worldX + world_dx + fx.shudderDX,
-        y_mesh,
-        pos.worldY + world_dz + fx.shudderDZ
-      );
+      // Clean upright vertical placement facing isometric camera
+      sprite.matrixAutoUpdate = true;
+      sprite.scale.set(sx, sy, INITIAL_SCALE_UNIT);
+      sprite.rotation.set(0, ISOMETRIC_ROTATION_Y, 0);
+      sprite.position.set(tx, y_mesh, tz);
     }
   }
 
@@ -466,17 +457,6 @@ export class BuildingRenderer {
         } else {
           sprite.material.dispose();
         }
-        const plinth = this.foundationPlinths.get(entity);
-        if (plinth) {
-          SceneManager.groundGroup.remove(plinth);
-          plinth.geometry.dispose();
-          if (Array.isArray(plinth.material)) {
-            plinth.material.forEach(m => m.dispose());
-          } else {
-            plinth.material.dispose();
-          }
-          this.foundationPlinths.delete(entity);
-        }
         this.sprites.delete(entity);
         this.hitFxMap.delete(entity);
         this.flashMap.delete(entity);
@@ -498,17 +478,7 @@ export class BuildingRenderer {
         sprite.material.dispose();
       }
     }
-    for (const [, plinth] of this.foundationPlinths.entries()) {
-      SceneManager.groundGroup.remove(plinth);
-      plinth.geometry.dispose();
-      if (Array.isArray(plinth.material)) {
-        plinth.material.forEach(m => m.dispose());
-      } else {
-        plinth.material.dispose();
-      }
-    }
     this.sprites.clear();
-    this.foundationPlinths.clear();
     this.hitFxMap.clear();
     this.flashMap.clear();
     this.lastFrameMap.clear();

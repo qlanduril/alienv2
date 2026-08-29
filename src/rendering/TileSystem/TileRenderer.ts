@@ -6,7 +6,7 @@ import { SceneManager } from '../SceneManager';
 const ZERO_VALUE = 0;
 const INITIAL_SCALE_UNIT = 1;
 const GROUND_ALTITUDE = 0;
-const MAX_INSTANCES_PER_TYPE = 5000;
+const MAX_INSTANCES_PER_TYPE = 8000;
 const CANVAS_DIMENSION = 512;
 const TEXTURE_REPEAT_COUNT = 2;
 const TEXTURE_ANISOTROPY = 4;
@@ -243,23 +243,38 @@ export class TileRenderer {
 
     this.instancedTerrainMeshes.forEach((_, key) => counts.set(key, ZERO_VALUE));
     const dummy = new THREE.Object3D();
+    const BORDER_MARGIN = 8;
+    const halfBound = TileMap.MAP_BOUNDS / 2.0;
 
-    // Render Connected Ground & Road Grid
-    for (let gx = ZERO_VALUE; gx < TileMap.GRID_DIM; gx++) {
-      for (let gz = ZERO_VALUE; gz < TileMap.GRID_DIM; gz++) {
-        const cell = cells[gx][gz];
+    // Render Connected Ground & Road Grid + Surrounding Terrain Skirt
+    for (let gx = -BORDER_MARGIN; gx < TileMap.GRID_DIM + BORDER_MARGIN; gx++) {
+      for (let gz = -BORDER_MARGIN; gz < TileMap.GRID_DIM + BORDER_MARGIN; gz++) {
+        let tType: TerrainType;
 
-        const mesh = this.instancedTerrainMeshes.get(cell.terrainType);
+        if (gx >= ZERO_VALUE && gx < TileMap.GRID_DIM && gz >= ZERO_VALUE && gz < TileMap.GRID_DIM) {
+          tType = cells[gx][gz].terrainType;
+        } else {
+          // Border terrain skirt
+          if (gx > 40 && gz > 40) {
+            tType = TerrainType.WATER;
+          } else {
+            tType = TerrainType.GRASS;
+          }
+        }
+
+        const mesh = this.instancedTerrainMeshes.get(tType);
         if (mesh) {
-          const count = counts.get(cell.terrainType) || ZERO_VALUE;
+          const count = counts.get(tType) || ZERO_VALUE;
+          const worldX = -halfBound + (gx + 0.5) * TileMap.TILE_SIZE;
+          const worldZ = -halfBound + (gz + 0.5) * TileMap.TILE_SIZE;
 
-          dummy.position.set(cell.worldX, GROUND_ALTITUDE, cell.worldZ);
+          dummy.position.set(worldX, GROUND_ALTITUDE, worldZ);
           dummy.rotation.set(GROUND_ROTATION_X, ZERO_VALUE, ZERO_VALUE);
           dummy.scale.set(INITIAL_SCALE_UNIT, INITIAL_SCALE_UNIT, INITIAL_SCALE_UNIT);
           dummy.updateMatrix();
 
           mesh.setMatrixAt(count, dummy.matrix);
-          counts.set(cell.terrainType, count + 1);
+          counts.set(tType, count + 1);
         }
       }
     }

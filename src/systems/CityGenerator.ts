@@ -152,7 +152,7 @@ export class CityGenerator {
     PositionComponent.set(entity, {
       worldX: lot.centerWorldX,
       worldY: lot.centerWorldZ, // Three.js ground depth (Z)
-      worldZ: 0.05 // Altitude above foundation
+      worldZ: 0.0 // Ground level
     });
 
     HealthComponent.set(entity, {

@@ -18,6 +18,9 @@ const INITIAL_SCALE_UNIT = 1.0;
 const DEFAULT_CANVAS_SIZE = 160;
 const DEFAULT_BUILDING_KEY = '3';
 
+// Universal Texel Density Constant (Pixels Per Meter / World Unit)
+export const GLOBAL_PPM = 25.0;
+
 // Trigonometry & Transform Constants for 45-degree Cardboard Cutout Alignment
 const COS_45_DEG = Math.SQRT1_2;
 const SIN_45_DEG = Math.SQRT1_2;
@@ -27,7 +30,7 @@ const RANDOM_CENTER_OFFSET = 0.5;
 
 // Manual Fine-Tuning Sprite Offsets (pixel offsets)
 const GLOBAL_SPRITE_DX_OFFSET = 0;
-const GLOBAL_SPRITE_DY_OFFSET = -250;
+const GLOBAL_SPRITE_DY_OFFSET = 0;
 
 // Foundation Plinth Constants
 const PLINTH_BOX_HEIGHT = 0.1;
@@ -36,7 +39,6 @@ const PLINTH_COLOR_HEX = 0x22262e;
 const PLINTH_ROUGHNESS = 0.8;
 const PLINTH_METALNESS = 0.1;
 const PLINTH_POLYGON_OFFSET = -1;
-const BUILDING_Y_ALTITUDE_OFFSET = 50;
 
 // Sprite Material Constants
 const SPRITE_MATERIAL_COLOR = 0xffffff;
@@ -54,22 +56,21 @@ const COLLAPSE_SINK_SPEED = 2.0;
 const COLLAPSE_IMPACT_ANGLE = Math.PI / 2.5;
 const RUBBLE_STAGE_FRAME = 14;
 
-// Hit FX Micro-Transform Constants
-const HEAVY_SHUDDER_DURATION = 0.2;
+// 150ms Visual Juice & Flinch Pipeline Constants
+const FLINCH_DURATION = 0.15;           // 150ms transition pipeline
+const HEAVY_FLINCH_SCALE_X = 1.05;       // Expand X by 5%
+const HEAVY_FLINCH_SCALE_Y = 0.92;       // Compress Y by 8%
 const HEAVY_SHUDDER_AMPLITUDE = 0.45;
-const HEAVY_SQUASH_DURATION = 0.15;
-const HEAVY_SQUASH_SCALE_X = 1.05;
-const HEAVY_SQUASH_SCALE_Y = 0.92;
-const HEAVY_FLASH_TIME = 0.075;
+const HEAVY_FLASH_TIME = 0.15;           // Emissive flash synced to 150ms pipeline
 const HEAVY_FLASH_COLOR = 0xffffff;
 
-const LIGHT_SQUASH_DURATION = 0.15;
-const LIGHT_SQUASH_SCALE_X = 1.03;
-const LIGHT_SQUASH_SCALE_Y = 0.95;
-const LIGHT_FLASH_TIME = 0.04;
+const LIGHT_FLINCH_SCALE_X = 1.025;
+const LIGHT_FLINCH_SCALE_Y = 0.96;
+const LIGHT_FLASH_TIME = 0.08;
 const LIGHT_FLASH_COLOR = 0xffeedd;
 
 const SHUDDER_DECAY_RATE = 8;
+const SPRING_BOUNCE_FREQUENCY = Math.PI * 2 * 3; // Spring bounce frequency
 
 // --- Hit FX micro-transform system ---
 interface HitFX {
@@ -172,15 +173,15 @@ export class BuildingRenderer {
       effects.push({
         type: 'shudder',
         elapsed: ZERO_VALUE,
-        duration: HEAVY_SHUDDER_DURATION,
+        duration: FLINCH_DURATION,
         amplitude: HEAVY_SHUDDER_AMPLITUDE
       });
       effects.push({
         type: 'squash',
         elapsed: ZERO_VALUE,
-        duration: HEAVY_SQUASH_DURATION,
-        scaleXMult: HEAVY_SQUASH_SCALE_X,
-        scaleYMult: HEAVY_SQUASH_SCALE_Y
+        duration: FLINCH_DURATION,
+        scaleXMult: HEAVY_FLINCH_SCALE_X,
+        scaleYMult: HEAVY_FLINCH_SCALE_Y
       });
       this.flashMap.set(entity, { timeLeft: HEAVY_FLASH_TIME, color: HEAVY_FLASH_COLOR });
       UIOverlay.triggerFlash();
@@ -188,9 +189,9 @@ export class BuildingRenderer {
       effects.push({
         type: 'squash',
         elapsed: ZERO_VALUE,
-        duration: LIGHT_SQUASH_DURATION,
-        scaleXMult: LIGHT_SQUASH_SCALE_X,
-        scaleYMult: LIGHT_SQUASH_SCALE_Y
+        duration: FLINCH_DURATION,
+        scaleXMult: LIGHT_FLINCH_SCALE_X,
+        scaleYMult: LIGHT_FLINCH_SCALE_Y
       });
       this.flashMap.set(entity, { timeLeft: LIGHT_FLASH_TIME, color: LIGHT_FLASH_COLOR });
     }
@@ -353,9 +354,13 @@ export class BuildingRenderer {
         const t = fx.elapsed / fx.duration;
 
         if (fx.type === 'squash') {
-          const strength = INITIAL_SCALE_UNIT - t;
-          scaleXMult *= INITIAL_SCALE_UNIT + (fx.scaleXMult! - INITIAL_SCALE_UNIT) * strength;
-          scaleYMult *= INITIAL_SCALE_UNIT + (fx.scaleYMult! - INITIAL_SCALE_UNIT) * strength;
+          // 150ms pipeline: Micro-flinch + damped spring-bounce recovery curve
+          const springDamp = Math.exp(-t * 6.0) * Math.cos(t * SPRING_BOUNCE_FREQUENCY);
+          const flinchCurve = Math.sin(t * Math.PI);
+          const totalEffect = flinchCurve * springDamp;
+
+          scaleXMult *= INITIAL_SCALE_UNIT + (fx.scaleXMult! - INITIAL_SCALE_UNIT) * totalEffect;
+          scaleYMult *= INITIAL_SCALE_UNIT + (fx.scaleYMult! - INITIAL_SCALE_UNIT) * totalEffect;
         } else if (fx.type === 'shudder') {
           const decay = fx.amplitude! * Math.exp(-t * SHUDDER_DECAY_RATE);
           shudderDX += (Math.random() - RANDOM_CENTER_OFFSET) * HALF_DIVISOR * decay;
@@ -382,17 +387,10 @@ export class BuildingRenderer {
     delta: number,
     fx: { scaleXMult: number; scaleYMult: number; shudderDX: number; shudderDZ: number }
   ) {
-    // def is cached per entity in cachedDef map
-    const def = this.cachedDef.get(entity) || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
+    // 1. Universal Texel Density (GLOBAL_PPM): derive world size from pixel dimensions
+    const PIXELS_PER_WORLD_UNIT = GLOBAL_PPM;
 
-    // 1. Lock pixel density to State 0 so world footprint remains rock-solid
-    const state0Offset = AssetLoader.getSpriteOffset(typeKey, ZERO_VALUE);
-    const state0Width = state0Offset ? state0Offset.w : (offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE));
-
-    const targetWorldWidth = def.width * Math.SQRT2;
-    const PIXELS_PER_WORLD_UNIT = state0Width / targetWorldWidth;
-
-    // 2. Compute current state dimensions & offsets
+    // 2. Compute current state dimensions & offsets dynamically from sprite metadata
     const w = offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE);
     const h = offset ? offset.h : (texture?.image?.height || DEFAULT_CANVAS_SIZE);
     const dx = (offset ? offset.dx : -w / HALF_DIVISOR) + GLOBAL_SPRITE_DX_OFFSET;
@@ -403,13 +401,14 @@ export class BuildingRenderer {
 
     sprite.scale.set(meshWidth * fx.scaleXMult, meshHeight * fx.scaleYMult, INITIAL_SCALE_UNIT);
 
-    // 3. Mathematical Pivot Solution: Lock pixel (-dx, base_cy) to world origin (pos.worldX, 0, pos.worldY)
+    // 3. Mathematical Pivot & Zero Floating Policy:
+    // Anchor bottom-center ground contact line (base_cy) strictly to Y = 0 (or pos.worldZ if elevated).
     const localPivotX = (-w / HALF_DIVISOR - dx) / PIXELS_PER_WORLD_UNIT;
     const localPivotY = ((h / HALF_DIVISOR - base_cy) / PIXELS_PER_WORLD_UNIT) * ISOMETRIC_Y_COMPENSATION;
 
     const world_dx = localPivotX * COS_45_DEG;
     const world_dz = -localPivotX * SIN_45_DEG;
-    const y_mesh = pos.worldZ - localPivotY + BUILDING_Y_ALTITUDE_OFFSET;
+    const y_mesh = (pos.worldZ || 0) - localPivotY;
 
     // 4. Collapse & Topple Physics
     const collapse = this.collapseMap.get(entity);

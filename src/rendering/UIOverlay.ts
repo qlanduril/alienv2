@@ -195,10 +195,37 @@ export class UIOverlay {
     this.targetInfoPanel.style.display = 'block';
     const hpPercent = Math.round((info.hp / info.maxHp) * FULL_PERCENT);
     const hpColor = hpPercent > HEALTH_HIGH_THRESHOLD ? '#10b981' : (hpPercent > HEALTH_MEDIUM_THRESHOLD ? '#f59e0b' : '#ef4444');
-    this.targetInfoPanel.innerHTML = `
-      <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px; color: #60a5fa;">TARGET: ${info.name} <span style="opacity: 0.6; font-weight: normal;">[key: ${info.key}]</span></div>
-      <div>HP: <span style="color: ${hpColor}; font-weight: bold;">${info.hp}/${info.maxHp} (${hpPercent}%)</span> | Stage Frame: <span style="color: #f472b6;">#${info.frame}</span></div>
-    `;
+
+    const header = document.createElement('div');
+    header.style.fontWeight = 'bold';
+    header.style.fontSize = '15px';
+    header.style.marginBottom = '4px';
+    header.style.color = '#60a5fa';
+
+    const targetLabel = document.createTextNode('TARGET: ');
+    const nameText = document.createTextNode(info.name);
+    const keySpan = document.createElement('span');
+    keySpan.style.opacity = '0.6';
+    keySpan.style.fontWeight = 'normal';
+    keySpan.textContent = ` [key: ${info.key}]`;
+
+    header.append(targetLabel, nameText, keySpan);
+
+    const stats = document.createElement('div');
+    stats.textContent = 'HP: ';
+
+    const hpSpan = document.createElement('span');
+    hpSpan.style.color = hpColor;
+    hpSpan.style.fontWeight = 'bold';
+    hpSpan.textContent = `${info.hp}/${info.maxHp} (${hpPercent}%)`;
+
+    const frameSpan = document.createElement('span');
+    frameSpan.style.color = '#f472b6';
+    frameSpan.textContent = `#${info.frame}`;
+
+    stats.append(hpSpan, document.createTextNode(' | Stage Frame: '), frameSpan);
+
+    this.targetInfoPanel.replaceChildren(header, stats);
   }
 
   public static tick(camera: THREE.Camera): void {
@@ -263,7 +290,22 @@ export class UIOverlay {
 
       const hpColor = percent > HEALTH_HIGH_THRESHOLD ? '#34d399' : (percent > HEALTH_MEDIUM_THRESHOLD ? '#fbbf24' : '#f87171');
 
-      el.innerHTML = `<b>${b.def.name}</b> <span style="color:#94a3b8;">[${b.typeKey}]</span><br/><span style="color:${hpColor};">HP ${percent}%</span> · Fr #${frame}`;
+      const nameElem = document.createElement('b');
+      nameElem.textContent = b.def.name;
+
+      const typeSpan = document.createElement('span');
+      typeSpan.style.color = '#94a3b8';
+      typeSpan.textContent = ` [${b.typeKey}]`;
+
+      const br = document.createElement('br');
+
+      const hpSpan = document.createElement('span');
+      hpSpan.style.color = hpColor;
+      hpSpan.textContent = `HP ${percent}%`;
+
+      const frameText = document.createTextNode(` · Fr #${frame}`);
+
+      el.replaceChildren(nameElem, typeSpan, br, hpSpan, frameText);
     }
 
     // Clean stale labels

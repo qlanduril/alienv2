@@ -6,6 +6,7 @@ import { AssetLoader } from '../assets/AssetLoader';
 import { CameraController } from './CameraController';
 import { BuildingRenderer } from './BuildingRenderer';
 import { ParticleSimSystem } from '../systems/ParticleSimSystem';
+import { DecalManager } from './TileSystem/DecalManager';
 
 // --- FXRenderer Constants ---
 const ZERO_VALUE = 0;
@@ -74,9 +75,25 @@ const FIRE_FRAME_DURATIONS = [
   0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02  // frames 2–9: fast fade out
 ];
 
+interface ImpactLight {
+  light: THREE.PointLight;
+  elapsed: number;
+  duration: number;
+}
+
+interface Shockwave {
+  mesh: THREE.Mesh;
+  material: THREE.MeshBasicMaterial;
+  elapsed: number;
+  duration: number;
+  maxRadius: number;
+}
+
 export class FXRenderer {
   private static activeSprites: AnimatedSprite3D[] = [];
   private static inactiveSprites: AnimatedSprite3D[] = [];
+  private static activeImpactFlashes: ImpactLight[] = [];
+  private static activeShockwaves: Shockwave[] = [];
   
   private static blastTextures: THREE.Texture[] = [];
   private static blast360Textures: THREE.Texture[] = [];
@@ -149,7 +166,37 @@ export class FXRenderer {
       }
     }
 
-    // 2. Tick active sprites
+    // 2. Tick dynamic impact lights (dimming over 100-200ms)
+    for (let i = this.activeImpactFlashes.length - 1; i >= ZERO_VALUE; i--) {
+      const flash = this.activeImpactFlashes[i];
+      flash.elapsed += delta;
+      if (flash.elapsed >= flash.duration) {
+        SceneManager.effectsGroup.remove(flash.light);
+        this.activeImpactFlashes.splice(i, 1);
+      } else {
+        const factor = 1.0 - (flash.elapsed / flash.duration);
+        flash.light.intensity = factor * 10.0;
+      }
+    }
+
+    // 3. Tick expanding ground shockwave rings (RingGeometry)
+    for (let i = this.activeShockwaves.length - 1; i >= ZERO_VALUE; i--) {
+      const sw = this.activeShockwaves[i];
+      sw.elapsed += delta;
+      if (sw.elapsed >= sw.duration) {
+        SceneManager.effectsGroup.remove(sw.mesh);
+        sw.mesh.geometry.dispose();
+        sw.material.dispose();
+        this.activeShockwaves.splice(i, 1);
+      } else {
+        const t = sw.elapsed / sw.duration;
+        const radius = Math.max(0.1, t * sw.maxRadius);
+        sw.mesh.scale.set(radius, radius, 1);
+        sw.material.opacity = (1.0 - t) * 0.8;
+      }
+    }
+
+    // 4. Tick active sprites
     for (let i = this.activeSprites.length - 1; i >= ZERO_VALUE; i--) {
       const sprite = this.activeSprites[i];
       sprite.tick(delta);
@@ -199,6 +246,31 @@ export class FXRenderer {
     
     SceneManager.effectsGroup.add(anim.mesh);
     this.activeSprites.push(anim);
+
+    // Impact FX Composite 1: Dynamic Point Light Flash (dimming over 100-200ms)
+    const light = new THREE.PointLight(0xffaa44, 10, 20);
+    light.position.copy(targetPos);
+    SceneManager.effectsGroup.add(light);
+    this.activeImpactFlashes.push({ light, elapsed: ZERO_VALUE, duration: 0.15 });
+
+    // Impact FX Composite 2: Expanding Ground Shockwave Ring (RingGeometry)
+    const ringGeo = new THREE.RingGeometry(0.8, 1.2, 16);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xffcc88,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.8
+    });
+    const shockwaveMesh = new THREE.Mesh(ringGeo, ringMat);
+    shockwaveMesh.rotation.x = -Math.PI / 2;
+    shockwaveMesh.position.set(targetPos.x, 0.05, targetPos.z);
+    SceneManager.effectsGroup.add(shockwaveMesh);
+    this.activeShockwaves.push({ mesh: shockwaveMesh, material: ringMat, elapsed: ZERO_VALUE, duration: 0.2, maxRadius: 12 });
+
+    // Impact FX Composite 3 & 4: Instanced Debris Spray (THREE.InstancedMesh) & Permanent Ground Decal
+    ParticleSimSystem.spawnBrickBurst(targetPos.x, targetPos.y, targetPos.z, 15);
+    ParticleSimSystem.spawnSparkBurst(targetPos.x, targetPos.y, targetPos.z, 10);
+    DecalManager.spawnDecal(targetPos.x, targetPos.z, 'scorch', 12);
 
     // Secondary explosions
     for (let i = ZERO_VALUE; i < SUB_EXPLOSION_COUNT; i++) {

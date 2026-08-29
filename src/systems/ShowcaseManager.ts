@@ -171,8 +171,6 @@ export class ShowcaseManager {
         }
       }
     }
-
-    console.log(`Showcase generated with ${this.showcaseEntities.length} unique building definitions.`);
   }
 
   public static resetAllHP(): void {

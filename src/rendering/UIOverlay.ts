@@ -20,6 +20,15 @@ const SHOWCASE_DAMAGE_PERCENT = 25;
 const LABEL_HEIGHT_FACTOR = 0.8;
 const LABEL_Y_SCREEN_OFFSET_PX = 12;
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export class UIOverlay {
   private static scoreElement: HTMLElement;
   private static flashOverlay: HTMLElement;
@@ -195,8 +204,10 @@ export class UIOverlay {
     this.targetInfoPanel.style.display = 'block';
     const hpPercent = Math.round((info.hp / info.maxHp) * FULL_PERCENT);
     const hpColor = hpPercent > HEALTH_HIGH_THRESHOLD ? '#10b981' : (hpPercent > HEALTH_MEDIUM_THRESHOLD ? '#f59e0b' : '#ef4444');
+    const safeName = escapeHtml(info.name);
+    const safeKey = escapeHtml(info.key);
     this.targetInfoPanel.innerHTML = `
-      <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px; color: #60a5fa;">TARGET: ${info.name} <span style="opacity: 0.6; font-weight: normal;">[key: ${info.key}]</span></div>
+      <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px; color: #60a5fa;">TARGET: ${safeName} <span style="opacity: 0.6; font-weight: normal;">[key: ${safeKey}]</span></div>
       <div>HP: <span style="color: ${hpColor}; font-weight: bold;">${info.hp}/${info.maxHp} (${hpPercent}%)</span> | Stage Frame: <span style="color: #f472b6;">#${info.frame}</span></div>
     `;
   }
@@ -262,8 +273,10 @@ export class UIOverlay {
       const frame = renderState ? renderState.currentFrame : ZERO_VALUE;
 
       const hpColor = percent > HEALTH_HIGH_THRESHOLD ? '#34d399' : (percent > HEALTH_MEDIUM_THRESHOLD ? '#fbbf24' : '#f87171');
+      const safeName = escapeHtml(b.def.name);
+      const safeTypeKey = escapeHtml(b.typeKey);
 
-      el.innerHTML = `<b>${b.def.name}</b> <span style="color:#94a3b8;">[${b.typeKey}]</span><br/><span style="color:${hpColor};">HP ${percent}%</span> · Fr #${frame}`;
+      el.innerHTML = `<b>${safeName}</b> <span style="color:#94a3b8;">[${safeTypeKey}]</span><br/><span style="color:${hpColor};">HP ${percent}%</span> · Fr #${frame}`;
     }
 
     // Clean stale labels

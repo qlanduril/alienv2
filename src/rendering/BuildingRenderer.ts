@@ -130,7 +130,7 @@ export class BuildingRenderer {
   }
 
   public static crushBuildingsInTrajectory(originPos: any, impactDir: THREE.Vector3, range: number = CRUSH_RANGE_DEFAULT) {
-    for (const entity of ECS.entities) {
+    for (const entity of RenderStateComponent.keys()) {
       const pos = PositionComponent.get(entity);
       const health = HealthComponent.get(entity);
       if (!pos || !health || health.currentHP <= ZERO_VALUE) continue;
@@ -197,7 +197,7 @@ export class BuildingRenderer {
   }
 
   public static tick(delta: number) {
-    for (const entity of ECS.entities) {
+    for (const entity of RenderStateComponent.keys()) {
       const renderState = RenderStateComponent.get(entity);
       const pos = PositionComponent.get(entity);
 

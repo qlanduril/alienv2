@@ -17,6 +17,7 @@ import { HitZoneManager } from '../rendering/HitZoneManager';
 import { CityGenerator } from './CityGenerator';
 import { GroundRenderer } from '../rendering/GroundRenderer';
 import { DestructionSystem } from './DestructionSystem';
+import { SpatialGrid } from '../core/SpatialGrid';
 
 export interface ShowcaseBuildingInfo {
   entity: Entity;
@@ -79,6 +80,7 @@ export class ShowcaseManager {
     BuildingRenderer.clearAll();
     HitZoneManager.clearAll();
     TileMap.init();
+    SpatialGrid.clear();
     this.showcaseEntities = [];
   }
 
@@ -159,6 +161,7 @@ export class ShowcaseManager {
     }
 
     GroundRenderer.finalizeMap();
+    SpatialGrid.rebuild();
 
     // Reposition Player UFO in front of showcase
     for (const entity of ECS.entities) {

@@ -8,6 +8,7 @@ import { DestructionSystem } from './DestructionSystem';
 import { DamageZone } from '../core/ZoneDefs';
 import { UIOverlay } from '../rendering/UIOverlay';
 import { BUILDING_DEFS } from '../core/BuildingDefs';
+import { SpatialGrid } from '../core/SpatialGrid';
 
 // --- System Constants ---
 const GROUND_PROXIMITY_RADIUS = 40;
@@ -168,26 +169,6 @@ export class PlayerControlSystem {
   }
 
   private static findClosestBuildingNear(wx: number, wz: number, maxRadiusSq: number): Entity | null {
-    let minDistanceSq = maxRadiusSq;
-    let closestEntity: Entity | null = null;
-
-    for (const otherEntity of ECS.entities) {
-      if (PlayerTagComponent.has(otherEntity)) continue;
-      const otherPos = PositionComponent.get(otherEntity);
-      const otherHealth = HealthComponent.get(otherEntity);
-
-      if (otherPos && otherHealth && otherHealth.currentHP > 0) {
-        const dx = otherPos.worldX - wx;
-        const dy = otherPos.worldY - wz;
-        const distSq = dx * dx + dy * dy;
-
-        if (distSq < minDistanceSq) {
-          minDistanceSq = distSq;
-          closestEntity = otherEntity;
-        }
-      }
-    }
-
-    return closestEntity;
+    return SpatialGrid.findClosest(wx, wz, maxRadiusSq);
   }
 }

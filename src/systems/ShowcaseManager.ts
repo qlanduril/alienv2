@@ -164,14 +164,12 @@ export class ShowcaseManager {
     SpatialGrid.rebuild();
 
     // Reposition Player UFO in front of showcase
-    for (const entity of ECS.entities) {
-      if (PlayerTagComponent.has(entity)) {
-        const pos = PositionComponent.get(entity);
-        if (pos) {
-          pos.worldX = 0;
-          pos.worldY = -120; // South of row 1
-          pos.worldZ = 10;   // Flight altitude
-        }
+    for (const entity of PlayerTagComponent) {
+      const pos = PositionComponent.get(entity);
+      if (pos) {
+        pos.worldX = 0;
+        pos.worldY = -120; // South of row 1
+        pos.worldZ = 10;   // Flight altitude
       }
     }
   }

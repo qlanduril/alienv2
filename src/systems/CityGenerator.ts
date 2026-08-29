@@ -4,6 +4,7 @@ import { PositionComponent, HealthComponent, ZonalHealthComponent, CollisionComp
 import { BUILDING_ZONES } from '../core/ZoneDefs';
 import { LotManager } from '../rendering/TileSystem/LotManager';
 import { TileMap, BuildingLot, TerrainType } from '../rendering/TileSystem/TileMap';
+import { SpatialGrid } from '../core/SpatialGrid';
 
 export class CityGenerator {
   public static generateCity() {
@@ -142,6 +143,7 @@ export class CityGenerator {
     }
 
     console.log(`Generated ${count} city buildings matching reference map layout.`);
+    SpatialGrid.rebuild();
   }
 
   private static spawnBuildingEntity(entity: number, lot: BuildingLot, typeKey: string) {

@@ -98,8 +98,43 @@ export class BuildingRenderer {
   private static lastFrameMap = new Map<Entity, number>();
   private static cachedTexture = new Map<Entity, THREE.Texture | null>();
   private static cachedOffset = new Map<Entity, any>();
+  private static typeKeyCache = new Map<Entity, string>();
+  private static pixelsPerWorldUnitCache = new Map<string, number>();
   private static foundationPlinths = new Map<Entity, THREE.Mesh>();
   private static collapseMap = new Map<Entity, { tiltAngle: number; impactVector: THREE.Vector3 }>();
+
+  /**
+   * Memoize typeKey extraction per entity to avoid regex execution every frame.
+   */
+  private static getTypeKey(entity: Entity, texturePrefix: string): string {
+    let typeKey = this.typeKeyCache.get(entity);
+    if (!typeKey) {
+      const prefixMatch = texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+      typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
+      this.typeKeyCache.set(entity, typeKey);
+    }
+    return typeKey;
+  }
+
+  /**
+   * Memoize PIXELS_PER_WORLD_UNIT per building typeKey once asset offsets are loaded.
+   */
+  private static getPixelsPerWorldUnit(typeKey: string, offset: any, texture: THREE.Texture | null | undefined): number {
+    let ppwu = this.pixelsPerWorldUnitCache.get(typeKey);
+    if (ppwu === undefined) {
+      const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
+      const state0Offset = AssetLoader.getSpriteOffset(typeKey, ZERO_VALUE);
+      const targetWorldWidth = def.width * Math.SQRT2;
+      if (state0Offset) {
+        ppwu = state0Offset.w / targetWorldWidth;
+        this.pixelsPerWorldUnitCache.set(typeKey, ppwu);
+      } else {
+        const fallbackWidth = offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE);
+        return fallbackWidth / targetWorldWidth;
+      }
+    }
+    return ppwu;
+  }
 
   public static triggerCollapse(entity: Entity, impactDir: THREE.Vector3) {
     if (!this.collapseMap.has(entity)) {
@@ -175,18 +210,20 @@ export class BuildingRenderer {
   }
 
   public static tick(delta: number) {
-    for (const entity of ECS.entities) {
-      const renderState = RenderStateComponent.get(entity);
+    // Iterate RenderStateComponent directly to skip non-building entities and map lookups
+    for (const [entity, renderState] of RenderStateComponent.entries()) {
       const pos = PositionComponent.get(entity);
 
       if (!renderState || !pos) continue;
 
-      this.updateZonalFrame(entity, renderState);
+      const typeKey = this.getTypeKey(entity, renderState.texturePrefix);
 
-      const sprite = this.getOrCreateSprite(entity, renderState, pos);
+      this.updateZonalFrame(entity, renderState, typeKey);
+
+      const sprite = this.getOrCreateSprite(entity, pos, typeKey);
       const material = sprite.material as THREE.MeshStandardMaterial;
 
-      const { texture, offset, typeKey } = this.updateTextureAndOffset(entity, renderState, material);
+      const { texture, offset } = this.updateTextureAndOffset(entity, renderState, material, typeKey);
       const fx = this.processHitEffects(entity, delta);
 
       this.updateTransformAndPhysics(entity, sprite, pos, renderState, typeKey, offset, texture, delta, fx);
@@ -223,23 +260,19 @@ export class BuildingRenderer {
     'school_civic': 4
   };
 
-  private static updateZonalFrame(entity: Entity, renderState: any) {
+  private static updateZonalFrame(entity: Entity, renderState: any, typeKey: string) {
     const zonalHealth = ZonalHealthComponent.get(entity);
     if (zonalHealth) {
-      const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-      const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
       const maxFrame = this.BUILDING_MAX_FRAMES[typeKey] ?? 14;
       renderState.currentFrame = DamageCalc.computeFrameForZonalState(zonalHealth, maxFrame);
     }
   }
 
-  private static getOrCreateSprite(entity: Entity, renderState: any, pos: any): THREE.Mesh {
+  private static getOrCreateSprite(entity: Entity, pos: any, typeKey: string): THREE.Mesh {
     let sprite = this.sprites.get(entity);
 
     if (!sprite) {
       // 1. Create architectural foundation slab (plinth buffer) under building lot
-      const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-      const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
       const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
 
       const padGeo = new THREE.BoxGeometry(def.width, PLINTH_BOX_HEIGHT, def.length);
@@ -289,13 +322,10 @@ export class BuildingRenderer {
     return sprite;
   }
 
-  private static updateTextureAndOffset(entity: Entity, renderState: any, material: THREE.MeshStandardMaterial) {
+  private static updateTextureAndOffset(entity: Entity, renderState: any, material: THREE.MeshStandardMaterial, typeKey: string) {
     let texture = this.cachedTexture.get(entity);
     let offset = this.cachedOffset.get(entity);
     const lastFrame = this.lastFrameMap.get(entity);
-
-    const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-    const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
 
     if (lastFrame !== renderState.currentFrame || texture === undefined) {
       const textureName = `${renderState.texturePrefix}${renderState.currentFrame}`;
@@ -312,7 +342,7 @@ export class BuildingRenderer {
       }
     }
 
-    return { texture, offset, typeKey };
+    return { texture, offset };
   }
 
   private static processHitEffects(entity: Entity, delta: number) {
@@ -364,14 +394,8 @@ export class BuildingRenderer {
     delta: number,
     fx: { scaleXMult: number; scaleYMult: number; shudderDX: number; shudderDZ: number }
   ) {
-    const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
-
-    // 1. Lock pixel density to State 0 so world footprint remains rock-solid
-    const state0Offset = AssetLoader.getSpriteOffset(typeKey, ZERO_VALUE);
-    const state0Width = state0Offset ? state0Offset.w : (offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE));
-
-    const targetWorldWidth = def.width * Math.SQRT2;
-    const PIXELS_PER_WORLD_UNIT = state0Width / targetWorldWidth;
+    // 1. Lock pixel density to State 0 so world footprint remains rock-solid (memoized per typeKey)
+    const PIXELS_PER_WORLD_UNIT = this.getPixelsPerWorldUnit(typeKey, offset, texture);
 
     // 2. Compute current state dimensions & offsets
     const w = offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE);
@@ -465,6 +489,7 @@ export class BuildingRenderer {
         this.lastFrameMap.delete(entity);
         this.cachedTexture.delete(entity);
         this.cachedOffset.delete(entity);
+        this.typeKeyCache.delete(entity);
       }
     }
   }
@@ -494,5 +519,7 @@ export class BuildingRenderer {
     this.lastFrameMap.clear();
     this.cachedTexture.clear();
     this.cachedOffset.clear();
+    this.typeKeyCache.clear();
+    this.pixelsPerWorldUnitCache.clear();
   }
 }

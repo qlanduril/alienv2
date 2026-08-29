@@ -29,8 +29,8 @@ export class DestructionSystem {
     if (this.ambientTimer < 0.5) return;
     this.ambientTimer = 0;
 
-    for (const entity of ECS.entities) {
-      const health = HealthComponent.get(entity);
+    // Iterate HealthComponent directly to skip entities without health component
+    for (const [entity, health] of HealthComponent.entries()) {
       const pos = PositionComponent.get(entity);
       if (!health || !pos || health.currentHP >= health.maxHP) continue;
       

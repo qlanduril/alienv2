@@ -94,12 +94,34 @@ export class BuildingRenderer {
   private static hitFxMap = new Map<Entity, HitFX[]>();
   private static flashMap = new Map<Entity, FlashState>();
 
-  // Cache for resolved texture & offsets
+  // Cache for resolved texture, offsets, and building type info
   private static lastFrameMap = new Map<Entity, number>();
   private static cachedTexture = new Map<Entity, THREE.Texture | null>();
   private static cachedOffset = new Map<Entity, any>();
+  private static cachedTypeKey = new Map<Entity, string>();
+  private static cachedDef = new Map<Entity, any>();
   private static foundationPlinths = new Map<Entity, THREE.Mesh>();
   private static collapseMap = new Map<Entity, { tiltAngle: number; impactVector: THREE.Vector3 }>();
+
+  /**
+   * Helper to resolve typeKey and def with caching per entity.
+   * Avoids running regex match on texturePrefix every frame in tick().
+   */
+  private static getTypeInfo(entity: Entity, texturePrefix: string): { typeKey: string; def: any } {
+    let typeKey = this.cachedTypeKey.get(entity);
+    let def = this.cachedDef.get(entity);
+
+    if (!typeKey || !def) {
+      const prefixMatch = texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+      typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
+      def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
+
+      this.cachedTypeKey.set(entity, typeKey);
+      this.cachedDef.set(entity, def);
+    }
+
+    return { typeKey, def };
+  }
 
   public static triggerCollapse(entity: Entity, impactDir: THREE.Vector3) {
     if (!this.collapseMap.has(entity)) {
@@ -226,8 +248,7 @@ export class BuildingRenderer {
   private static updateZonalFrame(entity: Entity, renderState: any) {
     const zonalHealth = ZonalHealthComponent.get(entity);
     if (zonalHealth) {
-      const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-      const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
+      const { typeKey } = this.getTypeInfo(entity, renderState.texturePrefix);
       const maxFrame = this.BUILDING_MAX_FRAMES[typeKey] ?? 14;
       renderState.currentFrame = DamageCalc.computeFrameForZonalState(zonalHealth, maxFrame);
     }
@@ -238,9 +259,7 @@ export class BuildingRenderer {
 
     if (!sprite) {
       // 1. Create architectural foundation slab (plinth buffer) under building lot
-      const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-      const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
-      const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
+      const { typeKey, def } = this.getTypeInfo(entity, renderState.texturePrefix);
 
       const padGeo = new THREE.BoxGeometry(def.width, PLINTH_BOX_HEIGHT, def.length);
       const padMat = new THREE.MeshStandardMaterial({
@@ -294,8 +313,7 @@ export class BuildingRenderer {
     let offset = this.cachedOffset.get(entity);
     const lastFrame = this.lastFrameMap.get(entity);
 
-    const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-    const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
+    const { typeKey } = this.getTypeInfo(entity, renderState.texturePrefix);
 
     if (lastFrame !== renderState.currentFrame || texture === undefined) {
       const textureName = `${renderState.texturePrefix}${renderState.currentFrame}`;
@@ -364,7 +382,8 @@ export class BuildingRenderer {
     delta: number,
     fx: { scaleXMult: number; scaleYMult: number; shudderDX: number; shudderDZ: number }
   ) {
-    const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
+    // def is cached per entity in cachedDef map
+    const def = this.cachedDef.get(entity) || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
 
     // 1. Lock pixel density to State 0 so world footprint remains rock-solid
     const state0Offset = AssetLoader.getSpriteOffset(typeKey, ZERO_VALUE);
@@ -465,6 +484,8 @@ export class BuildingRenderer {
         this.lastFrameMap.delete(entity);
         this.cachedTexture.delete(entity);
         this.cachedOffset.delete(entity);
+        this.cachedTypeKey.delete(entity);
+        this.cachedDef.delete(entity);
       }
     }
   }
@@ -494,5 +515,7 @@ export class BuildingRenderer {
     this.lastFrameMap.clear();
     this.cachedTexture.clear();
     this.cachedOffset.clear();
+    this.cachedTypeKey.clear();
+    this.cachedDef.clear();
   }
 }

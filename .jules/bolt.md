@@ -1,0 +1,3 @@
+## 2026-08-28 - BuildingRenderer Regex & Definition Lookup Bottleneck in Render Loop
+**Learning:** In Three.js / ECS render loops processing hundreds of entity sprites per frame, avoid string pattern matching (regex) or dict lookups in per-frame tick functions. Caching entity building type keys (`typeKey`) and building definitions (`def`) in a `Map<Entity, T>` eliminates regex evaluation overhead completely.
+**Action:** When inspecting animation or renderer tick loops, check if string parsing or definition dictionary lookups are executed per frame for active entities, and cache them on initial resolution.

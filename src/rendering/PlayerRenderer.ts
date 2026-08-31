@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ECS, Entity } from '../core/ECS';
+import { Entity } from '../core/ECS';
 import { PositionComponent, PlayerTagComponent } from '../core/Components';
 import { SceneManager } from './SceneManager';
 import { CameraController } from './CameraController';
@@ -22,12 +22,11 @@ export class PlayerRenderer {
 
   public static tick(_delta: number) {
     if (this.playerEntity === null) {
-      for (const entity of ECS.entities) {
-        if (PlayerTagComponent.has(entity)) {
-          this.playerEntity = entity;
-          this.initMesh();
-          break;
-        }
+      // Iterate directly over PlayerTagComponent Set to avoid sweeping all ECS entities
+      for (const entity of PlayerTagComponent) {
+        this.playerEntity = entity;
+        this.initMesh();
+        break;
       }
     }
 

@@ -29,10 +29,11 @@ export class DestructionSystem {
     if (this.ambientTimer < 0.5) return;
     this.ambientTimer = 0;
 
-    for (const entity of ECS.entities) {
-      const health = HealthComponent.get(entity);
+    // Iterate directly over HealthComponent store instead of sweeping global ECS.entities
+    for (const [entity, health] of HealthComponent.entries()) {
+      if (health.currentHP >= health.maxHP) continue;
       const pos = PositionComponent.get(entity);
-      if (!health || !pos || health.currentHP >= health.maxHP) continue;
+      if (!pos) continue;
       
       const dmgRatio = 1 - health.currentHP / health.maxHP;
       if (dmgRatio > 0.3 && Math.random() < dmgRatio) {

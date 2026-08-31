@@ -64,14 +64,6 @@ export class CityGenerator {
 
     for (const c of anchors) {
       reserveArea(c.gx, c.gz, c.w, c.z, 1);
-      if (c.key === 'statue_liberty') {
-        for (let dx = 0; dx < c.w; dx++) {
-          for (let dz = 0; dz < c.z; dz++) {
-            const cell = TileMap.getCell(c.gx + dx, c.gz + dz);
-            if (cell) cell.terrainType = TerrainType.WATER;
-          }
-        }
-      }
       const pos = LotManager.computeLotWorldPos(c.gx, c.gz, c.w, c.z);
       const entity = ECS.createEntity();
       const lot = LotManager.calculateAndRegisterLot(entity, pos.x, pos.z, c.key, 'landmark');

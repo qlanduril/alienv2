@@ -76,8 +76,7 @@ export class UIOverlay {
 
     // Mode Switcher Button
     this.modeToggleButton = document.createElement('button');
-    this.modeToggleButton.type = 'button';
-    this.modeToggleButton.setAttribute('aria-label', 'Toggle test showcase mode');
+    this.modeToggleButton.setAttribute('aria-label', 'Enter test showcase mode');
     this.modeToggleButton.setAttribute('aria-pressed', 'false');
     this.modeToggleButton.style.padding = '10px 20px';
     this.modeToggleButton.style.borderRadius = '12px';
@@ -104,10 +103,12 @@ export class UIOverlay {
     };
 
     this.modeToggleButton.onfocus = () => {
-      this.modeToggleButton.style.outline = '2px solid #60a5fa';
+      this.modeToggleButton.style.transform = 'scale(1.05)';
+      this.modeToggleButton.style.outline = '3px solid rgba(147, 197, 253, 0.8)';
       this.modeToggleButton.style.outlineOffset = '2px';
     };
     this.modeToggleButton.onblur = () => {
+      this.modeToggleButton.style.transform = 'scale(1.0)';
       this.modeToggleButton.style.outline = 'none';
     };
 
@@ -118,8 +119,8 @@ export class UIOverlay {
     this.showcaseTools.style.display = 'none';
     this.showcaseTools.style.gap = '10px';
 
-    const btnReset = this.createActionButton('🔄 Repair All', '#059669', () => ShowcaseManager.resetAllHP());
-    const btnDamage = this.createActionButton('💥 Damage All 25%', '#dc2626', () => ShowcaseManager.damageAll(SHOWCASE_DAMAGE_PERCENT));
+    const btnReset = this.createActionButton('🔄 Repair All', '#059669', 'Repair all showcase buildings', () => ShowcaseManager.resetAllHP());
+    const btnDamage = this.createActionButton('💥 Damage All 25%', '#dc2626', 'Damage all showcase buildings by 25 percent', () => ShowcaseManager.damageAll(SHOWCASE_DAMAGE_PERCENT));
 
     this.showcaseTools.appendChild(btnReset);
     this.showcaseTools.appendChild(btnDamage);
@@ -173,11 +174,9 @@ export class UIOverlay {
     document.body.appendChild(this.flashOverlay);
   }
 
-  private static createActionButton(text: string, bgColor: string, onClick: () => void): HTMLButtonElement {
+  private static createActionButton(text: string, bgColor: string, ariaLabel: string, onClick: () => void): HTMLButtonElement {
     const btn = document.createElement('button');
-    btn.type = 'button';
-    const cleanLabel = text.replace(/^[^\w\s]+\s*/, '');
-    btn.setAttribute('aria-label', cleanLabel);
+    btn.setAttribute('aria-label', ariaLabel);
     btn.style.padding = '8px 16px';
     btn.style.borderRadius = '10px';
     btn.style.border = 'none';
@@ -192,10 +191,12 @@ export class UIOverlay {
     btn.onmouseover = () => btn.style.transform = 'scale(1.05)';
     btn.onmouseout = () => btn.style.transform = 'scale(1.0)';
     btn.onfocus = () => {
-      btn.style.outline = '2px solid #60a5fa';
+      btn.style.transform = 'scale(1.05)';
+      btn.style.outline = '3px solid rgba(255, 255, 255, 0.8)';
       btn.style.outlineOffset = '2px';
     };
     btn.onblur = () => {
+      btn.style.transform = 'scale(1.0)';
       btn.style.outline = 'none';
     };
     return btn;
@@ -206,11 +207,13 @@ export class UIOverlay {
     this.modeToggleButton.setAttribute('aria-pressed', isShowcase ? 'true' : 'false');
     if (isShowcase) {
       this.modeToggleButton.innerText = '🌆 RETURN TO CITY MODE';
+      this.modeToggleButton.setAttribute('aria-label', 'Return to city mode');
       this.modeToggleButton.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
       this.modeToggleButton.style.borderColor = 'rgba(16, 185, 129, 0.5)';
       this.showcaseTools.style.display = 'flex';
     } else {
       this.modeToggleButton.innerText = '🔬 ENTER TEST SHOWCASE MODE';
+      this.modeToggleButton.setAttribute('aria-label', 'Enter test showcase mode');
       this.modeToggleButton.style.background = 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)';
       this.modeToggleButton.style.borderColor = 'rgba(59, 130, 246, 0.5)';
       this.showcaseTools.style.display = 'none';

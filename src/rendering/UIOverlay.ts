@@ -76,6 +76,9 @@ export class UIOverlay {
 
     // Mode Switcher Button
     this.modeToggleButton = document.createElement('button');
+    this.modeToggleButton.type = 'button';
+    this.modeToggleButton.setAttribute('aria-label', 'Toggle test showcase mode');
+    this.modeToggleButton.setAttribute('aria-pressed', 'false');
     this.modeToggleButton.style.padding = '10px 20px';
     this.modeToggleButton.style.borderRadius = '12px';
     this.modeToggleButton.style.border = '1px solid rgba(59, 130, 246, 0.5)';
@@ -98,6 +101,14 @@ export class UIOverlay {
     };
     this.modeToggleButton.onmouseout = () => {
       this.modeToggleButton.style.transform = 'scale(1.0)';
+    };
+
+    this.modeToggleButton.onfocus = () => {
+      this.modeToggleButton.style.outline = '2px solid #60a5fa';
+      this.modeToggleButton.style.outlineOffset = '2px';
+    };
+    this.modeToggleButton.onblur = () => {
+      this.modeToggleButton.style.outline = 'none';
     };
 
     this.controlPanel.appendChild(this.modeToggleButton);
@@ -164,6 +175,9 @@ export class UIOverlay {
 
   private static createActionButton(text: string, bgColor: string, onClick: () => void): HTMLButtonElement {
     const btn = document.createElement('button');
+    btn.type = 'button';
+    const cleanLabel = text.replace(/^[^\w\s]+\s*/, '');
+    btn.setAttribute('aria-label', cleanLabel);
     btn.style.padding = '8px 16px';
     btn.style.borderRadius = '10px';
     btn.style.border = 'none';
@@ -177,11 +191,19 @@ export class UIOverlay {
     btn.onclick = onClick;
     btn.onmouseover = () => btn.style.transform = 'scale(1.05)';
     btn.onmouseout = () => btn.style.transform = 'scale(1.0)';
+    btn.onfocus = () => {
+      btn.style.outline = '2px solid #60a5fa';
+      btn.style.outlineOffset = '2px';
+    };
+    btn.onblur = () => {
+      btn.style.outline = 'none';
+    };
     return btn;
   }
 
   public static updateModeUI(): void {
     const isShowcase = ShowcaseManager.isShowcaseMode;
+    this.modeToggleButton.setAttribute('aria-pressed', isShowcase ? 'true' : 'false');
     if (isShowcase) {
       this.modeToggleButton.innerText = '🌆 RETURN TO CITY MODE';
       this.modeToggleButton.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';

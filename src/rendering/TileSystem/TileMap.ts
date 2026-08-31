@@ -133,6 +133,9 @@ export class TileMap {
         const cell = this.getCell(gx, gz);
         if (cell && cell.overlayType !== OverlayTileType.ROAD) {
           cell.occupiedByBuildingId = lot.entityId;
+          if (cell.terrainType !== TerrainType.WATER) {
+            cell.terrainType = TerrainType.PLAZA_STONE;
+          }
         }
       }
     }

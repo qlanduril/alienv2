@@ -169,7 +169,7 @@ export class ShowcaseManager {
       if (pos) {
         pos.worldX = 0;
         pos.worldY = -120; // South of row 1
-        pos.worldZ = 10;   // Flight altitude
+        pos.worldZ = 75;   // High mothership flight altitude
       }
     }
   }

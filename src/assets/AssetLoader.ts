@@ -155,6 +155,10 @@ export class AssetLoader {
   public static getSpriteOffset(typeKey: string, frameIndex: number): { w: number, h: number, dx: number, dy: number, y_max?: number, base_cy?: number } | null {
     const typeOffsets = this.spriteOffsets[`building_${typeKey}`];
     if (!typeOffsets) return null;
-    return typeOffsets[frameIndex] || typeOffsets[frameIndex.toString()] || typeOffsets['0'] || null;
+    for (let f = frameIndex; f >= 0; f--) {
+      const off = typeOffsets[f] || typeOffsets[f.toString()];
+      if (off) return off;
+    }
+    return typeOffsets['0'] || null;
   }
 }

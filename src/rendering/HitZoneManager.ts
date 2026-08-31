@@ -10,6 +10,13 @@ const HALF_OFFSET_CENTER = 0.5;
 const INVISIBLE_MESH_OPACITY = 0;
 const MESH_Z_OFFSET = 0.01;
 
+export interface HitZoneResult {
+  entity: Entity;
+  zone: DamageZone;
+  uvCenter: THREE.Vector2;
+  point: THREE.Vector3;
+}
+
 export class HitZoneManager {
   // Maps invisible hit mesh UUID → { entity, zone, uvOffset }
   private static zoneObjects = new Map<string, { entity: Entity, zone: DamageZone, uvCenter: THREE.Vector2 }>();
@@ -47,7 +54,7 @@ export class HitZoneManager {
     }
   }
 
-  public static getHitZone(camera: THREE.Camera): { entity: Entity, zone: DamageZone, uvCenter: THREE.Vector2 } | null {
+  public static getHitZone(camera: THREE.Camera): HitZoneResult | null {
     if (this.allZoneMeshes.length === ZERO_VALUE) return null;
 
     const ndc = InputManager.getMouseNDC();
@@ -58,8 +65,13 @@ export class HitZoneManager {
     const hits = this.raycaster.intersectObjects(this.allZoneMeshes, false);
     if (hits.length === ZERO_VALUE) return null;
     
-    // return the closest hit's zone info
-    return this.zoneObjects.get(hits[FIRST_HIT_INDEX].object.uuid) || null;
+    const info = this.zoneObjects.get(hits[FIRST_HIT_INDEX].object.uuid);
+    if (!info) return null;
+
+    return {
+      ...info,
+      point: hits[FIRST_HIT_INDEX].point.clone()
+    };
   }
 
   public static clearAll() {

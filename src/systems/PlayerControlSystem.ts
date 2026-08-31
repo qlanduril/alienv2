@@ -9,6 +9,8 @@ import { DamageZone } from '../core/ZoneDefs';
 import { UIOverlay } from '../rendering/UIOverlay';
 import { BUILDING_DEFS } from '../core/BuildingDefs';
 import { SpatialGrid } from '../core/SpatialGrid';
+import { PlayerRenderer } from '../rendering/PlayerRenderer';
+import { BuildingRenderer } from '../rendering/BuildingRenderer';
 
 // --- System Constants ---
 const GROUND_PROXIMITY_RADIUS = 40;
@@ -32,7 +34,7 @@ export class PlayerControlSystem {
 
   // Throttled hover inspection timer
   private static lastHoverCheckTime = 0;
-  private static cachedHoveredHit: { entity: Entity; zone: DamageZone; uvCenter: THREE.Vector2 } | null = null;
+  private static cachedHoveredHit: HitZoneResult | null = null;
   private static cachedHoveredEntity: Entity | null = null;
   private static HOVER_CHECK_INTERVAL = 0.033; // ~30 FPS inspection throttling
 
@@ -123,33 +125,49 @@ export class PlayerControlSystem {
           let targetEntity: Entity | null = null;
           let targetZone: DamageZone = DamageZone.CENTER;
           let targetUV = { x: 0.5, y: 0.5 };
-          
+          let impactPoint: THREE.Vector3 | null = null;
+
           if (InputManager.isKeyDown('Space')) {
             targetEntity = this.findClosestBuildingNear(pos.worldX, pos.worldY, Infinity);
+            if (targetEntity) {
+              impactPoint = BuildingRenderer.getSpritePosition(targetEntity);
+            }
           } else {
             if (this.cachedHoveredHit) {
               targetEntity = this.cachedHoveredHit.entity;
               targetZone = this.cachedHoveredHit.zone;
               targetUV = this.cachedHoveredHit.uvCenter;
-            } else if (this.cachedHoveredEntity) {
-              targetEntity = this.cachedHoveredEntity;
+              impactPoint = this.cachedHoveredHit.point;
+            } else {
+              const groundPoint = this.getMouseGroundPosition();
+              if (groundPoint) {
+                impactPoint = groundPoint;
+                if (this.cachedHoveredEntity) {
+                  targetEntity = this.cachedHoveredEntity;
+                } else {
+                  targetEntity = this.findClosestBuildingNear(groundPoint.x, groundPoint.z, SQUARED_PROXIMITY_RADIUS);
+                }
+              }
             }
           }
 
-          if (targetEntity !== null) {
+          if (targetEntity !== null && impactPoint !== null) {
             DestructionSystem.applyZonalDamage(targetEntity, targetZone, ZONAL_DAMAGE_AMOUNT, targetUV);
             weapon.heatLevel = weapon.fireRate;
 
-            const targetPos = PositionComponent.get(targetEntity);
-            if (targetPos) {
-              DestructionSystem.fxQueue.push({
-                type: 'laser' as any,
-                x: pos.worldX,
-                y: pos.worldY,
-                z: pos.worldZ,
-                data: { tx: targetPos.worldX, ty: targetPos.worldY, tz: targetPos.worldZ }
-              });
-            }
+            const ufoPos = PlayerRenderer.getPlayerMeshPosition() || new THREE.Vector3(pos.worldX, 75, pos.worldY);
+
+            DestructionSystem.fxQueue.push({
+              type: 'laser' as any,
+              x: ufoPos.x,
+              y: ufoPos.y - 3, // slightly below mothership body at beam port
+              z: ufoPos.z,
+              data: {
+                tx: impactPoint.x,
+                ty: impactPoint.y,
+                tz: impactPoint.z
+              }
+            });
           }
         }
 

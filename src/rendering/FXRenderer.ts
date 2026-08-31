@@ -26,22 +26,20 @@ const PEAK_FRAME_BLAST360 = 3;
 // Blast FX Geometry & Scale Constants
 const BLAST_DEFAULT_ALTITUDE_OFFSET = 1.2;
 const BLAST_Y_OFFSET_SCALE_FACTOR = 0.15;
-const BLAST_MAIN_SCALE = 10;
+const BLAST_MAIN_SCALE = 18;
 
 // Sub-Explosion Constants
 const SUB_EXPLOSION_COUNT = 2;
 const SUB_EXPLOSION_XZ_JITTER = 3;
 const SUB_EXPLOSION_Y_JITTER = 2;
-const SUB_EXPLOSION_BASE_SCALE = 4;
-const SUB_EXPLOSION_RANDOM_SCALE = 4;
-const SUB_EXPLOSION_MIN_DELAY = 0.05;
-const SUB_EXPLOSION_RANDOM_DELAY = 0.15;
+const SUB_EXPLOSION_BASE_SCALE = 7;
+const SUB_EXPLOSION_RANDOM_SCALE = 6;
 
 // Zonal Explosion Constants
 const ZONAL_EXPLOSION_Z_OFFSET = 0.5;
-const ZONAL_BASE_SCALE = 8;
-const ZONAL_LEVEL_SCALE_MULT = 2;
-const ZONAL_DEFAULT_SCALE = 10;
+const ZONAL_BASE_SCALE = 14;
+const ZONAL_LEVEL_SCALE_MULT = 3;
+const ZONAL_DEFAULT_SCALE = 18;
 
 // Fire FX Constants
 const FIRE_DEFAULT_ALTITUDE_OFFSET = 1.0;
@@ -265,7 +263,7 @@ export class FXRenderer {
     shockwaveMesh.rotation.x = -Math.PI / 2;
     shockwaveMesh.position.set(targetPos.x, 0.05, targetPos.z);
     SceneManager.effectsGroup.add(shockwaveMesh);
-    this.activeShockwaves.push({ mesh: shockwaveMesh, material: ringMat, elapsed: ZERO_VALUE, duration: 0.2, maxRadius: 12 });
+    this.activeShockwaves.push({ mesh: shockwaveMesh, material: ringMat, elapsed: ZERO_VALUE, duration: 0.25, maxRadius: 18 });
 
     // Impact FX Composite 3 & 4: Instanced Debris Spray (THREE.InstancedMesh) & Permanent Ground Decal
     ParticleSimSystem.spawnBrickBurst(targetPos.x, targetPos.y, targetPos.z, 15);
@@ -368,8 +366,8 @@ export class FXRenderer {
 
   private static spawnLaser(sx: number, sy: number, sz: number, tx: number, ty: number, tz: number) {
     const points = [
-      new THREE.Vector3(sx, sz, sy),
-      new THREE.Vector3(tx, tz, ty)
+      new THREE.Vector3(sx, sy, sz),
+      new THREE.Vector3(tx, ty, tz)
     ];
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const material = new THREE.LineBasicMaterial({ color: LASER_COLOR_HEX, linewidth: LASER_LINE_WIDTH });

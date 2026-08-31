@@ -411,10 +411,10 @@ export class BuildingRenderer {
       sprite.matrixAutoUpdate = true;
       collapse.tiltAngle += delta * COLLAPSE_TILT_SPEED;
 
+      // Keep billboard Y-rotation facing camera (ISOMETRIC_ROTATION_Y) and apply subtle in-plane Z lean
+      const inPlaneTilt = collapse.tiltAngle * 0.3 * (collapse.impactVector.x >= 0 ? 1 : -1);
       sprite.scale.set(sx, sy, INITIAL_SCALE_UNIT);
-      sprite.rotation.y = ISOMETRIC_ROTATION_Y;
-      sprite.rotation.z = collapse.tiltAngle * collapse.impactVector.x;
-      sprite.rotation.x = collapse.tiltAngle * collapse.impactVector.z;
+      sprite.rotation.set(0, ISOMETRIC_ROTATION_Y, inPlaneTilt);
 
       sprite.position.set(
         tx,

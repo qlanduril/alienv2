@@ -64,12 +64,9 @@ export class DestructionSystem {
       zone.level = newLevel;
       zonalHealth.globalDamageLevel = DamageStateTree.computeGlobalLevel(zonalHealth, Array.from(zonalHealth.zones.values()) as any);
 
-      // Compute frame index for visual texture swap
-      let maxFrame = 71;
-      if (renderState.texturePrefix.includes('building_1_')) maxFrame = 14;
-      else if (renderState.texturePrefix.includes('building_2_')) maxFrame = 1;
-      else if (renderState.texturePrefix.includes('building_4_')) maxFrame = 13;
-      else if (renderState.texturePrefix.includes('building_5_')) maxFrame = 14;
+      const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+      const typeKey = prefixMatch ? prefixMatch[1] : '3';
+      const maxFrame = BuildingRenderer.BUILDING_MAX_FRAMES[typeKey] ?? 14;
 
       const targetFrame = DamageCalc.computeFrameIndex(zonalHealth.totalHp, zonalHealth.maxTotalHp, maxFrame);
 
@@ -95,8 +92,6 @@ export class DestructionSystem {
       this.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: newLevel * 2 + 2 } });
 
       const debrisCount = newLevel * 8 + 5;
-      const prefixMatch = renderState.texturePrefix.match(/building_(\d+)_stage_/);
-      const typeKey = prefixMatch ? prefixMatch[1] : '3';
       
       let palette = [0x884422, 0xaa5533, 0x663311];
       if (typeKey === '1') palette = [0xffffff, 0xdddddd, 0xaaaaaa, 0xff4444];
@@ -108,7 +103,7 @@ export class DestructionSystem {
       this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 12, entityId: entity } });
       this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: 'heavy' } });
 
-      if (renderState.texturePrefix.includes('mega_') && (newLevel >= 3 || zoneId.includes('BASE') || zoneId.includes('BOTTOM') || zonalHealth.totalHp <= 0)) {
+      if (renderState.texturePrefix.includes('mega_') && zonalHealth.totalHp <= 0) {
         const fallDir = new THREE.Vector3(0.707, 0, 0.707);
         BuildingRenderer.triggerCollapse(entity, fallDir);
       }
@@ -128,8 +123,9 @@ export class DestructionSystem {
 
     health.currentHP = Math.max(0, health.currentHP - amount);
     
-    let maxFrame = 71;
-    if (renderState.texturePrefix.includes('building_1_')) maxFrame = 14;
+    const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+    const typeKey = prefixMatch ? prefixMatch[1] : '3';
+    const maxFrame = BuildingRenderer.BUILDING_MAX_FRAMES[typeKey] ?? 14;
 
     const newFrameIndex = DamageCalc.computeFrameIndex(health.currentHP, health.maxHP, maxFrame);
 

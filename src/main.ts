@@ -56,7 +56,7 @@ async function bootstrap() {
   // 5.5 Spawn Player (UFO)
   const playerEntity = ECS.createEntity();
   PlayerTagComponent.add(playerEntity);
-  PositionComponent.set(playerEntity, { worldX: 0, worldY: 0, worldZ: 5 }); // worldZ is altitude, worldY is ground depth
+  PositionComponent.set(playerEntity, { worldX: 0, worldY: 0, worldZ: 75 }); // High mothership altitude hovering over buildings
   WeaponComponent.set(playerEntity, { currentSelected: 'laser', heatLevel: 0, fireRate: 0.2 });
 
   // 6. Start Game Loop

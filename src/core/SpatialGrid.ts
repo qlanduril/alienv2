@@ -1,4 +1,4 @@
-import { ECS, Entity } from './ECS';
+import { Entity } from './ECS';
 import { PlayerTagComponent, PositionComponent, HealthComponent } from './Components';
 
 export class SpatialGrid {
@@ -22,12 +22,14 @@ export class SpatialGrid {
 
   public static rebuild(): void {
     this.grid.clear();
-    for (const entity of ECS.entities) {
-      if (PlayerTagComponent.has(entity)) continue;
+    // Optimization: Iterate directly over HealthComponent map entries instead of sweeping global ECS.entities.
+    // Also inline cell coordinate calculation to avoid temporary object allocations ({ gx, gz }) per entity.
+    for (const [entity, health] of HealthComponent.entries()) {
+      if (health.currentHP <= 0 || PlayerTagComponent.has(entity)) continue;
       const pos = PositionComponent.get(entity);
-      const health = HealthComponent.get(entity);
-      if (pos && health && health.currentHP > 0) {
-        const { gx, gz } = this.getCellCoords(pos.worldX, pos.worldY);
+      if (pos) {
+        const gx = Math.floor(pos.worldX * this.invCellSize);
+        const gz = Math.floor(pos.worldY * this.invCellSize);
         const key = this.getKey(gx, gz);
         let cell = this.grid.get(key);
         if (!cell) {

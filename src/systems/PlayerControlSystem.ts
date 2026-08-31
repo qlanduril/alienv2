@@ -41,12 +41,12 @@ export class PlayerControlSystem {
   }
 
   public static tick(delta: number) {
-    for (const entity of ECS.entities) {
-      if (PlayerTagComponent.has(entity)) {
-        const pos = PositionComponent.get(entity);
-        const weapon = WeaponComponent.get(entity);
-        
-        if (!pos || !weapon) continue;
+    // Iterate directly over PlayerTagComponent Set to avoid sweeping all ECS entities every frame
+    for (const entity of PlayerTagComponent) {
+      const pos = PositionComponent.get(entity);
+      const weapon = WeaponComponent.get(entity);
+
+      if (!pos || !weapon) continue;
 
         // Initialize target on spawn
         if (!this.initializedTarget) {
@@ -157,7 +157,6 @@ export class PlayerControlSystem {
         if (weapon.heatLevel > WEAPON_HEAT_DEFAULT) {
           weapon.heatLevel -= delta;
         }
-      }
     }
   }
 

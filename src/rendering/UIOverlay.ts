@@ -101,6 +101,15 @@ export class UIOverlay {
     this.modeToggleButton.onmouseout = () => {
       this.modeToggleButton.style.transform = 'scale(1.0)';
     };
+    this.modeToggleButton.onfocus = () => {
+      this.modeToggleButton.style.transform = 'scale(1.05)';
+      this.modeToggleButton.style.outline = '3px solid rgba(147, 197, 253, 0.8)';
+      this.modeToggleButton.style.outlineOffset = '2px';
+    };
+    this.modeToggleButton.onblur = () => {
+      this.modeToggleButton.style.transform = 'scale(1.0)';
+      this.modeToggleButton.style.outline = 'none';
+    };
 
     this.modeToggleButton.onfocus = () => {
       this.modeToggleButton.style.transform = 'scale(1.05)';

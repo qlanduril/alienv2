@@ -11,7 +11,7 @@ const MAX_PIXEL_RATIO = 2.0;
 const SCENE_BACKGROUND_HEX = 0x0d1b2a;
 
 // Camera Orthographic Projection Constants
-const DEFAULT_FRUSTUM_SIZE = 560;
+const DEFAULT_FRUSTUM_SIZE = 320;
 const CAMERA_NEAR_PLANE = 1;
 const CAMERA_FAR_PLANE = 3500;
 const CAMERA_INIT_X = 200;
@@ -20,13 +20,13 @@ const CAMERA_INIT_Z = 200;
 
 // Render Order Constants
 const GROUND_RENDER_ORDER = 0;
-const CITY_RENDER_ORDER = 1;
-const PLAYER_RENDER_ORDER = 2;
-const EFFECTS_RENDER_ORDER = 3;
+const CITY_RENDER_ORDER = 10;
+const PLAYER_RENDER_ORDER = 1000;
+const EFFECTS_RENDER_ORDER = 2000;
 
 // Lighting Constants
-const AMBIENT_LIGHT_COLOR = 0x1a1a24;
-const AMBIENT_LIGHT_INTENSITY = 1.2;
+const AMBIENT_LIGHT_COLOR = 0x4a5568;
+const AMBIENT_LIGHT_INTENSITY = 1.6;
 const DIR_LIGHT_COLOR = 0xfff5e6;
 const DIR_LIGHT_INTENSITY = 2.5;
 const DIR_LIGHT_POS_X = 400;
@@ -40,9 +40,9 @@ const SHADOW_BIAS = -0.0005;
 // Atmosphere & FX Post-Processing Constants
 const FOG_COLOR_HEX = 0x1a1a24;
 const FOG_DENSITY = 0.0002;
-const BLOOM_STRENGTH = 1.2;
-const BLOOM_RADIUS = 0.8;
-const BLOOM_THRESHOLD = 0.85;
+const BLOOM_STRENGTH = 0.4;
+const BLOOM_RADIUS = 0.35;
+const BLOOM_THRESHOLD = 0.9;
 
 export class SceneManager {
   public static scene: THREE.Scene;

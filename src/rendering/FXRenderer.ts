@@ -34,6 +34,8 @@ const SUB_EXPLOSION_XZ_JITTER = 3;
 const SUB_EXPLOSION_Y_JITTER = 2;
 const SUB_EXPLOSION_BASE_SCALE = 7;
 const SUB_EXPLOSION_RANDOM_SCALE = 6;
+const SUB_EXPLOSION_MIN_DELAY = 0.05;
+const SUB_EXPLOSION_RANDOM_DELAY = 0.1;
 
 // Zonal Explosion Constants
 const ZONAL_EXPLOSION_Z_OFFSET = 0.5;
@@ -50,8 +52,6 @@ const FIRE_BASE_SCALE = 1.0;
 const FIRE_RANDOM_SCALE = 0.8;
 
 // Laser FX Constants
-const LASER_COLOR_HEX = 0x00ffff;
-const LASER_LINE_WIDTH = 2;
 const LASER_DURATION_MS = 80;
 
 // Pre-defined easing curves for explosion animations
@@ -251,19 +251,20 @@ export class FXRenderer {
     SceneManager.effectsGroup.add(light);
     this.activeImpactFlashes.push({ light, elapsed: ZERO_VALUE, duration: 0.15 });
 
-    // Impact FX Composite 2: Expanding Ground Shockwave Ring (RingGeometry)
-    const ringGeo = new THREE.RingGeometry(0.8, 1.2, 16);
+    // Impact FX Composite 2: Expanding Ground Shockwave Ring (RingGeometry + AdditiveBlending)
+    const ringGeo = new THREE.RingGeometry(0.8, 1.4, 32);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xffcc88,
+      color: 0x00f3ff,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.8
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending
     });
     const shockwaveMesh = new THREE.Mesh(ringGeo, ringMat);
     shockwaveMesh.rotation.x = -Math.PI / 2;
     shockwaveMesh.position.set(targetPos.x, 0.05, targetPos.z);
     SceneManager.effectsGroup.add(shockwaveMesh);
-    this.activeShockwaves.push({ mesh: shockwaveMesh, material: ringMat, elapsed: ZERO_VALUE, duration: 0.25, maxRadius: 18 });
+    this.activeShockwaves.push({ mesh: shockwaveMesh, material: ringMat, elapsed: ZERO_VALUE, duration: 0.35, maxRadius: 28 });
 
     // Impact FX Composite 3 & 4: Instanced Debris Spray (THREE.InstancedMesh) & Permanent Ground Decal
     ParticleSimSystem.spawnBrickBurst(targetPos.x, targetPos.y, targetPos.z, 15);
@@ -365,19 +366,65 @@ export class FXRenderer {
   }
 
   private static spawnLaser(sx: number, sy: number, sz: number, tx: number, ty: number, tz: number) {
-    const points = [
-      new THREE.Vector3(sx, sy, sz),
-      new THREE.Vector3(tx, ty, tz)
-    ];
+    const startVec = new THREE.Vector3(sx, sy, sz);
+    const endVec = new THREE.Vector3(tx, ty, tz);
+    const points = [startVec, endVec];
+
+    // 1. Outer Cyan Beam Line (Render order 600, depthTest=false so laser beam is never obscured by buildings)
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({ color: LASER_COLOR_HEX, linewidth: LASER_LINE_WIDTH });
+    const material = new THREE.LineBasicMaterial({
+      color: 0x00ffff,
+      linewidth: 3,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false
+    });
     const line = new THREE.Line(geometry, material);
+    line.renderOrder = 600;
     SceneManager.effectsGroup.add(line);
+
+    // 2. Inner Intense White Core Line
+    const coreMat = new THREE.LineBasicMaterial({
+      color: 0xffffff,
+      linewidth: 1,
+      transparent: true,
+      opacity: 1.0,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false
+    });
+    const coreLine = new THREE.Line(geometry, coreMat);
+    coreLine.renderOrder = 601;
+    SceneManager.effectsGroup.add(coreLine);
+
+    // 3. Impact Flash Ring at target hit point
+    const hitGeo = new THREE.RingGeometry(0.3, 1.8, 16);
+    const hitMat = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 1.0,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false
+    });
+    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+    hitMesh.position.copy(endVec);
+    hitMesh.rotation.x = -Math.PI / 4; // Face isometric camera pitch
+    hitMesh.renderOrder = 602;
+    SceneManager.effectsGroup.add(hitMesh);
 
     setTimeout(() => {
       SceneManager.effectsGroup.remove(line);
+      SceneManager.effectsGroup.remove(coreLine);
+      SceneManager.effectsGroup.remove(hitMesh);
       geometry.dispose();
       material.dispose();
+      coreMat.dispose();
+      hitGeo.dispose();
+      hitMat.dispose();
     }, LASER_DURATION_MS);
   }
 }

@@ -145,4 +145,32 @@ export class SpatialGrid {
 
     return closestEntity;
   }
+
+  public static queryRadius(wx: number, wz: number, radius: number): Entity[] {
+    const results: Entity[] = [];
+    const minCell = this.getCellCoords(wx - radius, wz - radius);
+    const maxCell = this.getCellCoords(wx + radius, wz + radius);
+    const radiusSq = radius * radius;
+
+    for (let gx = minCell.gx; gx <= maxCell.gx; gx++) {
+      for (let gz = minCell.gz; gz <= maxCell.gz; gz++) {
+        const key = this.getKey(gx, gz);
+        const cell = this.grid.get(key);
+        if (!cell) continue;
+
+        for (let i = 0; i < cell.length; i++) {
+          const entity = cell[i];
+          const pos = PositionComponent.get(entity);
+          if (!pos) continue;
+
+          const dx = pos.worldX - wx;
+          const dy = pos.worldY - wz;
+          if (dx * dx + dy * dy <= radiusSq) {
+            results.push(entity);
+          }
+        }
+      }
+    }
+    return results;
+  }
 }

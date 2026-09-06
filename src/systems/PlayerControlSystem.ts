@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { ECS, Entity } from '../core/ECS';
 import { PlayerTagComponent, PositionComponent, WeaponComponent, HealthComponent, RenderStateComponent, ZonalHealthComponent } from '../core/Components';
 import { InputManager } from '../input/InputManager';
-import { HitZoneManager } from '../rendering/HitZoneManager';
+import { HitZoneManager, HitZoneResult } from '../rendering/HitZoneManager';
 import { SceneManager } from '../rendering/SceneManager';
 import { DestructionSystem } from './DestructionSystem';
 import { DamageZone } from '../core/ZoneDefs';
@@ -15,14 +15,14 @@ import { BuildingRenderer } from '../rendering/BuildingRenderer';
 // --- System Constants ---
 const GROUND_PROXIMITY_RADIUS = 40;
 const SQUARED_PROXIMITY_RADIUS = GROUND_PROXIMITY_RADIUS * GROUND_PROXIMITY_RADIUS;
-const ZONAL_DAMAGE_AMOUNT = 15;
+const ZONAL_DAMAGE_AMOUNT = 20; // 20 dmg per hit for smooth multi-stage damage progression
 const WEAPON_HEAT_DEFAULT = 0;
 const LERP_FOLLOW_SPEED = 8.0; // Buoyant, smooth asynchronous UFO motion speed
 const WASD_SPEED = 65;
 
 export class PlayerControlSystem {
   private static groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-  
+
   // Reusable static instances to prevent GC frame drops
   private static raycaster = new THREE.Raycaster();
   private static pointerVector = new THREE.Vector2();
@@ -47,7 +47,7 @@ export class PlayerControlSystem {
       if (PlayerTagComponent.has(entity)) {
         const pos = PositionComponent.get(entity);
         const weapon = WeaponComponent.get(entity);
-        
+
         if (!pos || !weapon) continue;
 
         // Initialize target on spawn
@@ -83,7 +83,7 @@ export class PlayerControlSystem {
         this.lastHoverCheckTime += delta;
         if (this.lastHoverCheckTime >= this.HOVER_CHECK_INTERVAL) {
           this.lastHoverCheckTime = 0;
-          
+
           this.cachedHoveredHit = HitZoneManager.getHitZone(SceneManager.camera);
           this.cachedHoveredEntity = this.cachedHoveredHit ? this.cachedHoveredHit.entity : null;
 

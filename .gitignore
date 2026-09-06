@@ -37,3 +37,25 @@ Thumbs.db
 # Project scratch directories / logs
 scratch/
 .gemini/
+
+# AI tool directories
+.jules/
+.agents/
+
+# IDE / agent config
+.antigravityrules
+
+# Scratch test files
+test_import.js
+test_import2.js
+initiaprompt.md
+
+# AI-generated analysis / planning docs
+repo_analysis.md
+revert_analysis.md
+zonal_damage_analysis.md
+threejs_migration_plan.md
+SOFTWARE_ANALYSIS.md
+
+# Reference images
+NYC-ISONMETRIC.jpg

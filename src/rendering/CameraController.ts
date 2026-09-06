@@ -34,23 +34,35 @@ export class CameraController {
   private static targetX: number = ZERO_VALUE;
   private static targetZ: number = ZERO_VALUE;
 
-  // Frustum zoom state
-  private static targetFrustumSize: number = 560;
-  private static currentFrustumSize: number = 560;
+  private static readonly ZOOM_STORAGE_KEY = 'alienv2_camera_zoom_frustum';
+  private static targetFrustumSize: number = 320;
+  private static currentFrustumSize: number = 320;
 
   // The base offset for the isometric view
   private static readonly offset = ISOMETRIC_CAMERA_OFFSET;
 
   public static init(camera: THREE.OrthographicCamera) {
     this.camera = camera;
-    this.targetFrustumSize = SceneManager.getFrustumSize();
+    
+    // Restore saved zoom level from localStorage if available
+    const saved = localStorage.getItem(this.ZOOM_STORAGE_KEY);
+    if (saved) {
+      const parsed = parseFloat(saved);
+      if (!isNaN(parsed) && parsed >= MIN_FRUSTUM_SIZE && parsed <= MAX_FRUSTUM_SIZE) {
+        this.targetFrustumSize = parsed;
+      }
+    }
     this.currentFrustumSize = this.targetFrustumSize;
+    SceneManager.setFrustumSize(this.currentFrustumSize);
 
     window.addEventListener('wheel', (e: WheelEvent) => {
       this.targetFrustumSize = Math.max(
         MIN_FRUSTUM_SIZE,
         Math.min(MAX_FRUSTUM_SIZE, this.targetFrustumSize + e.deltaY * ZOOM_SENSITIVITY)
       );
+      try {
+        localStorage.setItem(this.ZOOM_STORAGE_KEY, this.targetFrustumSize.toString());
+      } catch (err) {}
     }, { passive: true });
   }
 

@@ -16,156 +16,307 @@ export type FXEvent =
   | { type: 'fire'; x: number; y: number; z: number; data: { entityId?: Entity } }
   | { type: 'laser'; x: number; y: number; z: number; data: { tx: number; ty: number; tz: number } };
 
+// ─── Cluster Explosion Settings ───────────────────────────────────────────────
+const CLUSTER_CHECK_INTERVAL  = 3.0;  // seconds between cluster scans
+const CLUSTER_RADIUS_SQ       = 80 * 80; // world units² — cluster detection radius
+const CLUSTER_THRESHOLD       = 3;    // minimum damaged buildings to trigger cluster blast
+const CLUSTER_DAMAGE_THRESHOLD = 0.35; // building must be ≥35% damaged to count
+
+// ─── Ambient Damage Smoke/Fire Timers ────────────────────────────────────────
+const AMBIENT_TICK_INTERVAL = 0.5;
+const AMBIENT_FIRE_THRESHOLD = 0.3;
+const AMBIENT_SMOKE_THRESHOLD = 0.6;
+
+import { SpatialGrid } from '../core/SpatialGrid';
+
 export class DestructionSystem {
   public static fxQueue: FXEvent[] = [];
+
   private static ambientTimer: number = 0;
+  private static clusterTimer: number = 0;
+
+  /** Set of entities that have already triggered a cluster blast (reset after 10s) */
+  private static clusterCooldown: Map<Entity, number> = new Map();
 
   public static init() {
     ECS.addSystem(this.tick.bind(this));
   }
 
   public static tick(delta: number) {
+    // ── Ambient fire/smoke on damaged buildings ─────────────────────────
     this.ambientTimer += delta;
-    if (this.ambientTimer < 0.5) return;
-    this.ambientTimer = 0;
-
-    for (const entity of ECS.entities) {
-      const health = HealthComponent.get(entity);
-      const pos = PositionComponent.get(entity);
-      if (!health || !pos || health.currentHP >= health.maxHP) continue;
-      
-      const dmgRatio = 1 - health.currentHP / health.maxHP;
-      if (dmgRatio > 0.3 && Math.random() < dmgRatio) {
-        this.fxQueue.push({ type: 'fire', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
+    if (this.ambientTimer >= AMBIENT_TICK_INTERVAL) {
+      this.ambientTimer = 0;
+      for (const entity of ECS.entities) {
+        const zonalHealth = ZonalHealthComponent.get(entity);
+        const pos = PositionComponent.get(entity);
+        if (!zonalHealth || !pos) continue;
+        const dmgRatio = 1 - zonalHealth.totalHp / zonalHealth.maxTotalHp;
+        if (dmgRatio > AMBIENT_FIRE_THRESHOLD && Math.random() < dmgRatio * 0.6) {
+          this.fxQueue.push({ type: 'fire', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
+        }
+        if (dmgRatio > AMBIENT_SMOKE_THRESHOLD && Math.random() < (dmgRatio - 0.3) * 0.4) {
+          this.fxQueue.push({ type: 'smoke', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 2, entityId: entity } });
+        }
       }
-      
-      if (dmgRatio > 0.6 && Math.random() < (dmgRatio - 0.3)) {
-        this.fxQueue.push({ type: 'smoke', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 2, entityId: entity } });
+    }
+
+    // ── Cluster explosion scan ──────────────────────────────────────────
+    this.clusterTimer += delta;
+    if (this.clusterTimer >= CLUSTER_CHECK_INTERVAL) {
+      this.clusterTimer = 0;
+      this.checkClusterExplosions();
+    }
+
+    // Age out cluster cooldowns
+    const now = performance.now() / 1000;
+    for (const [entity, expiry] of this.clusterCooldown) {
+      if (now > expiry) this.clusterCooldown.delete(entity);
+    }
+  }
+
+  /**
+   * Apply collateral shockwave damage to surrounding buildings within radius.
+   */
+  public static applyCollateralDamage(
+    originEntity: Entity,
+    originX: number,
+    originZ: number,
+    radius: number = 64,
+    maxDamage: number = 25
+  ) {
+    const candidates = SpatialGrid.queryRadius(originX, originZ, radius);
+
+    for (const entity of candidates) {
+      if (entity === originEntity) continue;
+      const pos = PositionComponent.get(entity);
+      const zonal = ZonalHealthComponent.get(entity);
+      if (!pos || !zonal || zonal.totalHp <= 0) continue;
+
+      const dx = pos.worldX - originX;
+      const dz = pos.worldY - originZ;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist <= radius && dist > 0.1) {
+        const falloff = 1 - dist / radius;
+        const damage = Math.round(maxDamage * falloff);
+        if (damage <= 0) continue;
+
+        const zoneKeys: DamageZone[] = [
+          DamageZone.CENTER,
+          DamageZone.TOP_CENTER,
+          DamageZone.BASE_CENTER,
+          DamageZone.BASE_LEFT,
+          DamageZone.BASE_RIGHT
+        ];
+        const targetZone = zoneKeys[Math.floor(Math.random() * zoneKeys.length)];
+        const zone = zonal.zones.get(targetZone);
+
+        if (zone) {
+          zone.hp = Math.max(0, zone.hp - damage);
+          zonal.totalHp = Math.max(0, zonal.totalHp - damage);
+
+          const newLevel = DamageStateTree.computeZoneLevel(zone.hp / zone.maxHp);
+          if (newLevel > zone.level) {
+            zone.level = newLevel;
+            zonal.globalDamageLevel = DamageStateTree.computeGlobalLevel(
+              zonal,
+              Array.from(zonal.zones.values()) as any
+            );
+          }
+
+          this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: 'light' } });
+          this.fxQueue.push({ type: 'smoke', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 3, entityId: entity } });
+          this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 4, entityId: entity } });
+        }
       }
     }
   }
 
-  public static applyZonalDamage(entity: Entity, zoneId: DamageZone, amount: number, uvCenter: {x: number, y: number}) {
+  // ─── Cluster Explosion Detection ─────────────────────────────────────────────
+
+  private static checkClusterExplosions() {
+    // Collect all significantly damaged buildings
+    const damaged: Array<{ entity: Entity; x: number; z: number }> = [];
+    for (const entity of ECS.entities) {
+      if (this.clusterCooldown.has(entity)) continue;
+      const zh = ZonalHealthComponent.get(entity);
+      const pos = PositionComponent.get(entity);
+      if (!zh || !pos) continue;
+      const ratio = 1 - zh.totalHp / zh.maxTotalHp;
+      if (ratio >= CLUSTER_DAMAGE_THRESHOLD) {
+        damaged.push({ entity, x: pos.worldX, z: pos.worldY });
+      }
+    }
+
+    if (damaged.length < CLUSTER_THRESHOLD) return;
+
+    // Find clusters using a simple O(n²) adjacency check (small n in practice)
+    const triggered = new Set<number>();
+    for (let i = 0; i < damaged.length; i++) {
+      if (triggered.has(i)) continue;
+      const cluster = [damaged[i]];
+
+      for (let j = i + 1; j < damaged.length; j++) {
+        if (triggered.has(j)) continue;
+        const dx = damaged[i].x - damaged[j].x;
+        const dz = damaged[i].z - damaged[j].z;
+        if (dx * dx + dz * dz <= CLUSTER_RADIUS_SQ) cluster.push(damaged[j]);
+      }
+
+      if (cluster.length < CLUSTER_THRESHOLD) continue;
+
+      // Compute centroid of the cluster
+      const cx = cluster.reduce((s, b) => s + b.x, 0) / cluster.length;
+      const cz = cluster.reduce((s, b) => s + b.z, 0) / cluster.length;
+
+      // Mark all cluster members on cooldown (10 s)
+      const now = performance.now() / 1000;
+      cluster.forEach((b) => {
+        triggered.add(damaged.indexOf(b));
+        this.clusterCooldown.set(b.entity, now + 10);
+      });
+
+      // ── Fire cluster blast FX ──────────────────────────────────────────
+      // Multiple overlapping blasts across the cluster centroid region
+      const anchorEntity = cluster[0].entity;
+      this.fxQueue.push({ type: 'blast', x: cx,       y: cz,     z: 10, data: { entityId: anchorEntity, targetFrame: 0 } });
+      this.fxQueue.push({ type: 'blast', x: cx + 12,  y: cz + 8, z: 12, data: { entityId: anchorEntity, targetFrame: 0 } });
+      this.fxQueue.push({ type: 'blast', x: cx - 10,  y: cz - 6, z: 8,  data: { entityId: anchorEntity, targetFrame: 0 } });
+      this.fxQueue.push({ type: 'blast360', x: cx,    y: cz,     z: 6,  data: { entityId: anchorEntity, targetFrame: 0 } });
+
+      this.fxQueue.push({ type: 'shake',  x: 0, y: 0, z: 0, data: { intensity: 14 } });
+      this.fxQueue.push({ type: 'smoke',  x: cx, y: cz, z: 0, data: { count: 20,         entityId: anchorEntity } });
+      this.fxQueue.push({ type: 'debris', x: cx, y: cz, z: 0, data: { count: 35, palette: [0x884422, 0xaa5533, 0x663311, 0x222222], entityId: anchorEntity } });
+      this.fxQueue.push({ type: 'dust',   x: cx, y: cz, z: 0, data: { count: 18,         entityId: anchorEntity } });
+      this.fxQueue.push({ type: 'sparks', x: cx, y: cz, z: 0, data: { count: 20,         entityId: anchorEntity } });
+
+      console.log(`[DestructionSystem] Cluster blast! ${cluster.length} buildings @ (${cx.toFixed(0)}, ${cz.toFixed(0)})`);
+    }
+  }
+
+  // ─── Direct Hit Damage ────────────────────────────────────────────────────────
+
+  /**
+   * Apply direct hit damage to a building.
+   * Frame advances on every single hit — no threshold gate.
+   * Buildings die in ~6 hits (3 zones × 50 HP / 25 damage per hit).
+   */
+  public static applyZonalDamage(
+    entity: Entity,
+    zoneId: DamageZone,
+    amount: number,
+    uvCenter: { x: number; y: number }
+  ) {
     const zonalHealth = ZonalHealthComponent.get(entity);
     const renderState = RenderStateComponent.get(entity);
-    const pos = PositionComponent.get(entity);
-
+    const pos         = PositionComponent.get(entity);
     if (!zonalHealth || !renderState || !pos) return;
 
     const zone = zonalHealth.zones.get(zoneId);
     if (!zone) return;
 
+    // Deduct HP
     zone.hp = Math.max(0, zone.hp - amount);
     zonalHealth.totalHp = Math.max(0, zonalHealth.totalHp - amount);
 
+    // Update damage level for zone (drives collapse flag)
     const newLevel = DamageStateTree.computeZoneLevel(zone.hp / zone.maxHp);
-
-    if (newLevel > zone.level) {
+    const levelChanged = newLevel > zone.level;
+    if (levelChanged) {
       zone.level = newLevel;
-      zonalHealth.globalDamageLevel = DamageStateTree.computeGlobalLevel(zonalHealth, Array.from(zonalHealth.zones.values()) as any);
+      zonalHealth.globalDamageLevel = DamageStateTree.computeGlobalLevel(
+        zonalHealth,
+        Array.from(zonalHealth.zones.values()) as any
+      );
+    }
 
-      const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-      const typeKey = prefixMatch ? prefixMatch[1] : '3';
-      const maxFrame = BuildingRenderer.BUILDING_MAX_FRAMES[typeKey] ?? 14;
+    // ── 1. Calculate target damage frame (swap deferred to peak explosion frame mask) ──
+    const { typeKey } = BuildingRenderer.getTypeInfo(entity, renderState.texturePrefix);
+    const maxFrame    = BuildingRenderer.BUILDING_MAX_FRAMES[typeKey] ?? 14;
 
-      const targetFrame = DamageCalc.computeFrameIndex(zonalHealth.totalHp, zonalHealth.maxTotalHp, maxFrame);
+    // Direct mapping: damage fraction → targetFrame
+    const dmgFraction = 1 - zonalHealth.totalHp / zonalHealth.maxTotalHp;
+    const targetFrame = Math.min(Math.floor(dmgFraction * maxFrame), maxFrame);
 
-      // Spawn Layer 2 scorch / crater decal on ground
-      const decalType = newLevel >= 3 ? 'crater' : 'scorch';
-      DecalManager.spawnDecal(pos.worldX, pos.worldY, decalType, 12 + newLevel * 4);
+    // ── 2. Scorch / crater decal ─────────────────────────────────────────
+    const decalType = (dmgFraction > 0.6 || zonalHealth.totalHp <= 0) ? 'crater' : 'scorch';
+    DecalManager.spawnDecal(pos.worldX, pos.worldY, decalType, 12 + newLevel * 4);
 
-      // Trigger blast explosion effect and defer texture swap to explosion peak frame
-      this.fxQueue.push({
-        type: 'blast_zonal',
-        x: pos.worldX,
-        y: pos.worldY,
-        z: pos.worldZ,
-        data: {
-          entityId: entity,
-          targetFrame: targetFrame,
-          zone: zoneId,
-          level: newLevel,
-          uvCenter: uvCenter
-        }
-      });
+    // ── 3. Zonal blast FX ────────────────────────────────────────────────
+    this.fxQueue.push({
+      type: 'blast_zonal',
+      x: pos.worldX, y: pos.worldY, z: pos.worldZ,
+      data: { entityId: entity, targetFrame, zone: zoneId, level: Math.max(1, newLevel) as DamageLevel, uvCenter }
+    });
 
-      this.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: newLevel * 2 + 2 } });
+    // ── 4. Screen shake ──────────────────────────────────────────────────
+    const shakeIntensity = levelChanged ? newLevel * 2 + 4 : 3;
+    this.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: shakeIntensity } });
 
-      const debrisCount = newLevel * 8 + 5;
-      
-      let palette = [0x884422, 0xaa5533, 0x663311];
-      if (typeKey === '1') palette = [0xffffff, 0xdddddd, 0xaaaaaa, 0xff4444];
-      else if (typeKey === '3') palette = [0xd2b48c, 0xaaaaaa, 0x888888, 0x5c4033];
-      
-      this.fxQueue.push({ type: 'debris', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: debrisCount, entityId: entity, palette } });
-      this.fxQueue.push({ type: 'dust', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 15, entityId: entity } });
-      this.fxQueue.push({ type: 'smoke', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 8, entityId: entity } });
-      this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 12, entityId: entity } });
-      this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: 'heavy' } });
+    // ── 5. Physics debris, fire, smoke, sparks — every hit ───────────────
+    const debrisCount = Math.max(8, newLevel * 6 + 8);
+    let palette = [0x884422, 0xaa5533, 0x663311];
+    if (typeKey === '1') palette = [0xffffff, 0xdddddd, 0xaaaaaa, 0xff4444];
+    else if (typeKey === '3') palette = [0xd2b48c, 0xaaaaaa, 0x888888, 0x5c4033];
 
-      if (renderState.texturePrefix.includes('mega_') && zonalHealth.totalHp <= 0) {
-        const fallDir = new THREE.Vector3(0.707, 0, 0.707);
-        BuildingRenderer.triggerCollapse(entity, fallDir);
-      }
-    } else {
-      this.fxQueue.push({ type: 'fire', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
-      this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 5, entityId: entity } });
-      this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: 'light' } });
+    this.fxQueue.push({ type: 'debris', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: debrisCount, entityId: entity, palette } });
+    this.fxQueue.push({ type: 'dust',   x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 12, entityId: entity } });
+    this.fxQueue.push({ type: 'smoke',  x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 8,  entityId: entity } });
+    this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 10, entityId: entity } });
+    this.fxQueue.push({ type: 'fire',   x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
+    this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: (levelChanged || newLevel >= 2) ? 'heavy' : 'light' } });
+
+    // ── 6. Mega building collapse when totally destroyed ─────────────────
+    if (renderState.texturePrefix.includes('mega_') && zonalHealth.totalHp <= 0) {
+      BuildingRenderer.triggerCollapse(entity, new THREE.Vector3(0.707, 0, 0.707));
     }
   }
 
+  // ─── Legacy flat-damage path (used by non-zonal buildings) ───────────────────
   public static applyDamage(entity: Entity, amount: number) {
-    const health = HealthComponent.get(entity);
+    const health      = HealthComponent.get(entity);
     const renderState = RenderStateComponent.get(entity);
-    const pos = PositionComponent.get(entity);
-
+    const pos         = PositionComponent.get(entity);
     if (!health || !renderState || !pos) return;
 
     health.currentHP = Math.max(0, health.currentHP - amount);
-    
-    const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
-    const typeKey = prefixMatch ? prefixMatch[1] : '3';
-    const maxFrame = BuildingRenderer.BUILDING_MAX_FRAMES[typeKey] ?? 14;
 
+    const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+    const typeKey     = prefixMatch ? prefixMatch[1] : '3';
+    const maxFrame    = BuildingRenderer.BUILDING_MAX_FRAMES[typeKey] ?? 14;
     const newFrameIndex = DamageCalc.computeFrameIndex(health.currentHP, health.maxHP, maxFrame);
 
     if (newFrameIndex !== health.state) {
       health.state = newFrameIndex;
-
       DecalManager.spawnDecal(pos.worldX, pos.worldY, 'scorch', 15);
 
       this.fxQueue.push({
         type: newFrameIndex === maxFrame ? 'blast' : 'blast360',
-        x: pos.worldX,
-        y: pos.worldY,
-        z: pos.worldZ,
+        x: pos.worldX, y: pos.worldY, z: pos.worldZ,
         data: { entityId: entity, targetFrame: newFrameIndex }
       });
       this.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: 8 } });
-      
-      const prefixMatch = renderState.texturePrefix.match(/building_(\d+)_stage_/);
-      const typeKey = prefixMatch ? prefixMatch[1] : '3';
+
       let palette = [0x884422, 0xaa5533, 0x663311];
       if (typeKey === '1') palette = [0xffffff, 0xdddddd, 0xaaaaaa, 0xff4444];
       else if (typeKey === '3') palette = [0xd2b48c, 0xaaaaaa, 0x888888, 0x5c4033];
 
       this.fxQueue.push({ type: 'debris', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: Math.min(newFrameIndex * 3, 30), entityId: entity, palette } });
-      this.fxQueue.push({ type: 'dust', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 15, entityId: entity } });
-      this.fxQueue.push({ type: 'smoke', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 8, entityId: entity } });
+      this.fxQueue.push({ type: 'dust',   x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 15, entityId: entity } });
+      this.fxQueue.push({ type: 'smoke',  x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 8,  entityId: entity } });
       this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 12, entityId: entity } });
       this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: 'heavy' } });
     } else {
-      this.fxQueue.push({ type: 'fire', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
+      this.fxQueue.push({ type: 'fire',   x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
       this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 5, entityId: entity } });
       this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: 'light' } });
     }
   }
 
-  // Executed by FXRenderer at peak explosion frame
+  // Executed by FXRenderer at peak explosion frame to sync texture
   public static executeTextureSwap(entity: Entity, targetFrame: number) {
     const renderState = RenderStateComponent.get(entity);
-    if (renderState) {
-      renderState.currentFrame = targetFrame;
-    }
+    if (renderState) renderState.currentFrame = targetFrame;
   }
 }

@@ -7,6 +7,8 @@ export interface BuildingDef {
   footprintTiles?: number;
   heightScale?: number;
   tier?: 'foreground' | 'midground' | 'background';
+  is3D?: boolean;
+  gltfKey?: string;
 }
 
 export const BUILDING_DEFS: Record<string, BuildingDef> = {
@@ -33,7 +35,7 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   'sky_cyber': { width: 16, length: 16, height: 320, name: 'Cyber Spire', visualScale: 4.2, footprintTiles: 1, heightScale: 4.2, tier: 'background' },
 
   // --- Tier 4: Mega-Landmarks & Special Buildings ---
-  'mega_titan': { width: 64, length: 64, height: 800, name: 'Apex Mega-Tower', visualScale: 18.0, footprintTiles: 4, heightScale: 18.0, tier: 'background' },
+  'mega_titan': { width: 64, length: 64, height: 800, name: 'Apex Mega-Tower', visualScale: 18.0, footprintTiles: 4, heightScale: 18.0, tier: 'background', is3D: true, gltfKey: 'skyscraper_demolition' },
   'mega_stadium': { width: 64, length: 48, height: 120, name: 'Metropolitan Arena', visualScale: 4.5, footprintTiles: 4, heightScale: 4.5, tier: 'foreground' },
   'spaceship_hq': { width: 64, length: 64, height: 400, name: 'Alien Spaceship HQ', visualScale: 8.0, footprintTiles: 4, heightScale: 8.0, tier: 'background' },
   'statue_liberty': { width: 48, length: 48, height: 350, name: 'Statue of Liberty', visualScale: 4.5, footprintTiles: 3, heightScale: 4.5, tier: 'foreground' },

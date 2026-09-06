@@ -1,13 +1,25 @@
 import * as THREE from 'three';
+import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
 export class AssetLoader {
   private static loader = new THREE.TextureLoader();
+  private static dracoLoader = new DRACOLoader();
+  private static gltfLoader = new GLTFLoader();
   private static textures = new Map<string, THREE.Texture>();
+  private static gltfModels = new Map<string, GLTF>();
   public static mapData: any[] = [];
   public static spriteOffsets: any = {};
 
   public static async loadAll(): Promise<void> {
+    // Configure DRACOLoader for compressed GLTF models
+    this.dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/gltf/');
+    this.gltfLoader.setDRACOLoader(this.dracoLoader);
+
     const promises: Promise<any>[] = [];
+
+    // 0. Load 3D GLB Models
+    promises.push(this.loadGLTF('skyscraper_demolition', '/3d/skyscrapper1/skyscraper_demolition.glb'));
 
     // 1. Load Map Data
     promises.push(
@@ -49,26 +61,31 @@ export class AssetLoader {
     // 5. Load Skyscraper Textures (Building Type 5) - 15 frames from buildingv2
     for (let i = 0; i < 15; i++) promises.push(this.loadTexture(`building_5_stage_${i}`, `/buildingv2/skyscraper/png/${getFilename(i, true)}`));
 
-    // 6. Load Low-rise Shops & Mid-rises from buildingv2
+    // 6. Load Low-rise Shops & Mid-rises from buildingv2 (with aliases so ALL buildings have damage stages)
     const shopFrames = ['state_000_pristine.png', 'state_033_shattered_front.png', 'state_066_facade_breached.png', 'state_100_rubble.png'];
-    shopFrames.forEach((f, i) => promises.push(this.loadTexture(`building_b1_stage_${i}`, `/buildingv2/shop_lowrise/png/${f}`)));
-
-    promises.push(this.loadTexture('building_b2_stage_0', '/buildingv2/residential_sky_gardens/png/00_pristine.png'));
+    shopFrames.forEach((f, i) => {
+      promises.push(this.loadTexture(`building_b1_stage_${i}`, `/buildingv2/shop_lowrise/png/${f}`));
+      promises.push(this.loadTexture(`building_b2_stage_${i}`, `/buildingv2/shop_lowrise/png/${f}`));
+    });
     
     const midriseFrames = ['state_000_pristine.png', 'state_033_roof_hvac_destroyed.png', 'state_066_mid_floors_gutted.png', 'state_100_collapsed_ruins.png'];
-    midriseFrames.forEach((f, i) => promises.push(this.loadTexture(`building_b3_stage_${i}`, `/buildingv2/tower_midrise/png/${f}`)));
+    midriseFrames.forEach((f, i) => {
+      promises.push(this.loadTexture(`building_b3_stage_${i}`, `/buildingv2/tower_midrise/png/${f}`));
+      promises.push(this.loadTexture(`building_res_bronze_stage_${i}`, `/buildingv2/tower_midrise/png/${f}`));
+    });
 
     const highriseFrames = ['state_000_pristine.png', 'state_033_spire_blast.png', 'state_066_midsection_crater.png', 'state_100_skeleton_ruin.png'];
-    highriseFrames.forEach((f, i) => promises.push(this.loadTexture(`building_b4_stage_${i}`, `/buildingv2/skyscraper_highrise/png/${f}`)));
+    highriseFrames.forEach((f, i) => {
+      promises.push(this.loadTexture(`building_b4_stage_${i}`, `/buildingv2/skyscraper_highrise/png/${f}`));
+      promises.push(this.loadTexture(`building_res_sky_stage_${i}`, `/buildingv2/skyscraper_highrise/png/${f}`));
+    });
 
-    promises.push(this.loadTexture('building_res_bronze_stage_0', '/buildingv2/residential_bronze_penthouses/png/00_pristine.png'));
-    promises.push(this.loadTexture('building_res_sky_stage_0', '/buildingv2/residential_sky_gardens/png/00_pristine.png'));
-
-    promises.push(this.loadTexture('building_sky_artdeco_stage_0', '/buildingv2/skyscraper_artdeco_titan/png/00_pristine.png'));
-    promises.push(this.loadTexture('building_sky_biotech_stage_0', '/buildingv2/skyscraper_biotech_helix/png/00_pristine.png'));
-    
     const cyberFrames = ['state_000_pristine.png', 'state_033_needle_antenna_snap.png', 'state_066_laser_conduit_overload.png', 'state_100_core_meltdown_rubble.png'];
-    cyberFrames.forEach((f, i) => promises.push(this.loadTexture(`building_sky_cyber_stage_${i}`, `/buildingv2/sky_cyber/png/${f}`)));
+    cyberFrames.forEach((f, i) => {
+      promises.push(this.loadTexture(`building_sky_cyber_stage_${i}`, `/buildingv2/sky_cyber/png/${f}`));
+      promises.push(this.loadTexture(`building_sky_artdeco_stage_${i}`, `/buildingv2/sky_cyber/png/${f}`));
+      promises.push(this.loadTexture(`building_sky_biotech_stage_${i}`, `/buildingv2/sky_cyber/png/${f}`));
+    });
 
     // Tier 4 Mega-Landmarks & Landmark Buildings from buildingv2
     const megaTitanFrames = ['state_000_pristine.png', 'state_033_setback_tier1_destroyed.png', 'state_066_lobby_facade_shattered.png', 'state_100_titan_split_collapse.png'];
@@ -160,5 +177,32 @@ export class AssetLoader {
       if (off) return off;
     }
     return typeOffsets['0'] || null;
+  }
+
+  public static async loadGLTF(id: string, url: string): Promise<GLTF | null> {
+    return new Promise((resolve) => {
+      if (this.gltfModels.has(id)) {
+        resolve(this.gltfModels.get(id)!);
+        return;
+      }
+
+      this.gltfLoader.load(
+        url,
+        (gltf) => {
+          console.log(`[AssetLoader] Successfully loaded 3D GLTF asset [${id}] from ${url}`, gltf);
+          this.gltfModels.set(id, gltf);
+          resolve(gltf);
+        },
+        undefined,
+        (error) => {
+          console.error(`[AssetLoader] ERROR loading 3D GLTF asset [${id}] from ${url}:`, error);
+          resolve(null);
+        }
+      );
+    });
+  }
+
+  public static getGLTF(id: string): GLTF | null {
+    return this.gltfModels.get(id) || null;
   }
 }

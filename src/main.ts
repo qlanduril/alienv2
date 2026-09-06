@@ -16,6 +16,7 @@ import { CityGenerator } from './systems/CityGenerator';
 import { PlayerControlSystem } from './systems/PlayerControlSystem';
 import { DestructionSystem } from './systems/DestructionSystem';
 import { ParticleSimSystem } from './systems/ParticleSimSystem';
+import { AudioSystem } from './systems/AudioSystem';
 
 import { AssetLoader } from './assets/AssetLoader';
 
@@ -47,6 +48,7 @@ async function bootstrap() {
   PlayerControlSystem.init();
   DestructionSystem.init();
   ParticleSimSystem.init();
+  AudioSystem.init();
 
 
   // 5. Generate World

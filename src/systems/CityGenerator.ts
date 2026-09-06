@@ -1,52 +1,78 @@
 import { ECS } from '../core/ECS';
 import { BUILDING_DEFS } from '../core/BuildingDefs';
-import { PositionComponent, HealthComponent, ZonalHealthComponent, CollisionComponent, RenderStateComponent } from '../core/Components';
+import {
+  PositionComponent,
+  HealthComponent,
+  ZonalHealthComponent,
+  CollisionComponent,
+  RenderStateComponent
+} from '../core/Components';
 import { BUILDING_ZONES } from '../core/ZoneDefs';
 import { LotManager } from '../rendering/TileSystem/LotManager';
 import { TileMap, BuildingLot, TerrainType, OverlayTileType } from '../rendering/TileSystem/TileMap';
 import { SpatialGrid } from '../core/SpatialGrid';
+import { MAP_DEFINITION, ZoneId } from '../core/MapDefinition';
+
+// ─── District building pools (by zone id) ────────────────────────────────────
+const ZONE_POOLS: Partial<Record<ZoneId, string[]>> = {
+  financial:   ['sky_cyber', 'sky_artdeco', 'sky_biotech', '5', 'b4', 'sky_cyber', 'sky_artdeco'],
+  tech:        ['sky_cyber', 'sky_biotech', 'b4', '5', 'sky_artdeco', 'b4'],
+  civic:       ['res_sky', 'b3', 'b4', 'res_bronze', 'b3', 'res_sky'],
+  residential: ['b1', 'b2', 'res_bronze', 'b1', 'b2', 'b1'],
+  docks:       ['b1', 'b2', '4', 'b1', 'b2'],
+};
+
+// Max fraction of candidate cells that can receive buildings per zone
+const ZONE_DENSITY: Partial<Record<ZoneId, number>> = {
+  financial:   0.55,
+  tech:        0.50,
+  civic:       0.58,
+  residential: 0.42,
+  docks:       0.35,
+};
+
+// HP per zone (3 zones × HP_PER_ZONE = 180 total HP per building)
+const HP_PER_ZONE = 60;
 
 export class CityGenerator {
   public static generateCity() {
-    TileMap.init(); // Initialize base 64x64 grid layout
-    const GRID_DIM = TileMap.GRID_DIM; // 64x64
-    const AVENUE_INTERVAL = TileMap.AVENUE_INTERVAL; // 14
-    const STREET_INTERVAL = TileMap.STREET_INTERVAL; // 7
+    // ── Phase 1: Blank-slate grid ─────────────────────────────────────────
+    TileMap.init();
+    const GRID_DIM = TileMap.GRID_DIM; // 64
 
-    const occupied: boolean[][] = Array.from({ length: GRID_DIM }, () => Array(GRID_DIM).fill(false));
+    // Master occupancy grid — true = no building may be placed here
+    const occupied: boolean[][] = Array.from(
+      { length: GRID_DIM }, () => Array(GRID_DIM).fill(false)
+    );
 
-    // 1. Mark all arterial road network cells as occupied
-    for (let gx = 0; gx < GRID_DIM; gx++) {
-      for (let gz = 0; gz < GRID_DIM; gz++) {
-        const cell = TileMap.getCell(gx, gz);
-        if (gx % AVENUE_INTERVAL === 0 || gz % STREET_INTERVAL === 0 || (cell && cell.overlayType === OverlayTileType.ROAD)) {
-          occupied[gx][gz] = true;
-        }
-      }
-    }
+    // ── Utility helpers ───────────────────────────────────────────────────
 
-    let count = 0;
-
-    // Helper to reserve lot area with spacing buffer
-    const reserveArea = (gx: number, gz: number, wTiles: number, zTiles: number, buffer: number = 1) => {
-      for (let dx = -buffer; dx < wTiles + buffer; dx++) {
-        for (let dz = -buffer; dz < zTiles + buffer; dz++) {
-          const tx = gx + dx;
-          const tz = gz + dz;
-          if (tx >= 0 && tx < GRID_DIM && tz >= 0 && tz < GRID_DIM) {
-            occupied[tx][tz] = true;
-          }
+    /** Reserve a rectangle + buffer ring as occupied */
+    const reserveArea = (gx: number, gz: number, w: number, h: number, buf = 1) => {
+      for (let dx = -buf; dx < w + buf; dx++) {
+        for (let dz = -buf; dz < h + buf; dz++) {
+          const tx = gx + dx, tz = gz + dz;
+          if (tx >= 0 && tx < GRID_DIM && tz >= 0 && tz < GRID_DIM) occupied[tx][tz] = true;
         }
       }
     };
 
-    // Helper to style underlying ground terrain tiles without overwriting roads
-    const applyGroundTerrain = (gx: number, gz: number, wTiles: number, zTiles: number, terrain: TerrainType, buffer: number = 0) => {
-      for (let dx = -buffer; dx < wTiles + buffer; dx++) {
-        for (let dz = -buffer; dz < zTiles + buffer; dz++) {
-          const tx = gx + dx;
-          const tz = gz + dz;
-          const cell = TileMap.getCell(tx, tz);
+    /** Return true only if every cell of a lot footprint is free */
+    const canPlace = (gx: number, gz: number, w: number, h: number): boolean => {
+      for (let dx = 0; dx < w; dx++) {
+        for (let dz = 0; dz < h; dz++) {
+          const tx = gx + dx, tz = gz + dz;
+          if (tx >= GRID_DIM || tz >= GRID_DIM || occupied[tx][tz]) return false;
+        }
+      }
+      return true;
+    };
+
+    /** Paint terrain onto a rectangle (+ optional buffer) respecting road cells */
+    const paintTerrain = (gx: number, gz: number, w: number, h: number, terrain: TerrainType, buf = 0) => {
+      for (let dx = -buf; dx < w + buf; dx++) {
+        for (let dz = -buf; dz < h + buf; dz++) {
+          const cell = TileMap.getCell(gx + dx, gz + dz);
           if (cell && cell.overlayType !== OverlayTileType.ROAD) {
             cell.terrainType = terrain;
           }
@@ -54,198 +80,194 @@ export class CityGenerator {
       }
     };
 
-    // 2. Map Layout Anchor Placement (Landmark & District Hubs)
-    const anchors = [
-      // Central Financial Core
-      { key: 'mega_titan', gx: 30, gz: 30, w: 4, z: 4, terrain: TerrainType.PLAZA_STONE, buffer: 1 },
-
-      // South-East Waterfront / Docks
-      { key: 'statue_liberty', gx: 52, gz: 52, w: 3, z: 3, terrain: TerrainType.PLAZA_STONE, buffer: 1 },
-      { key: '4', gx: 45, gz: 54, w: 3, z: 3, terrain: TerrainType.SIDEWALK, buffer: 1 },
-
-      // West / Tech District
-      { key: 'spaceship_hq', gx: 10, gz: 20, w: 4, z: 4, terrain: TerrainType.GRASS, buffer: 1 },
-
-      // Stadiums & Arenas
-      { key: 'mega_stadium', gx: 10, gz: 50, w: 4, z: 3, terrain: TerrainType.GRASS, buffer: 1 },
-      { key: 'mega_stadium', gx: 50, gz: 15, w: 4, z: 3, terrain: TerrainType.PLAZA_STONE, buffer: 1 },
-
-      // Civic Landmarks
-      { key: '3', gx: 40, gz: 10, w: 3, z: 3, terrain: TerrainType.GRASS, buffer: 1 },      // School
-      { key: '1', gx: 20, gz: 10, w: 3, z: 3, terrain: TerrainType.PLAZA_STONE, buffer: 1 }, // Hospital
-      { key: '2', gx: 20, gz: 45, w: 3, z: 3, terrain: TerrainType.PLAZA_STONE, buffer: 1 }, // Mall
-      { key: 'pentagon_defense', gx: 30, gz: 10, w: 4, z: 4, terrain: TerrainType.SIDEWALK, buffer: 1 }
-    ];
-
-    for (const c of anchors) {
-      reserveArea(c.gx, c.gz, c.w, c.z, c.buffer);
-      applyGroundTerrain(c.gx, c.gz, c.w, c.z, c.terrain, c.buffer);
-
-      const pos = LotManager.computeLotWorldPos(c.gx, c.gz, c.w, c.z);
+    /** Spawn a building entity and register it; returns true on success */
+    const spawnBuilding = (gx: number, gz: number, typeKey: string, lotType = 'dense'): boolean => {
+      const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS['3'];
+      const w = def.footprintTiles ?? 1;
+      const h = def.footprintTiles ?? 1;
+      if (!canPlace(gx, gz, w, h)) return false;
+      reserveArea(gx, gz, w, h, 1);
+      const pos = LotManager.computeLotWorldPos(gx, gz, w, h);
       const entity = ECS.createEntity();
-      const lot = LotManager.calculateAndRegisterLot(entity, pos.x, pos.z, c.key, 'landmark');
-      this.spawnBuildingEntity(entity, lot, c.key);
-      count++;
-    }
+      const lot = LotManager.calculateAndRegisterLot(entity, pos.x, pos.z, typeKey, lotType);
+      this.spawnBuildingEntity(entity, lot, typeKey);
+      return true;
+    };
 
-    // 1.5 Reserve and style South-East Harbor Water Region (no buildings can spawn in water)
-    for (let gx = 50; gx < GRID_DIM; gx++) {
-      for (let gz = 46; gz < GRID_DIM; gz++) {
-        const cell = TileMap.getCell(gx, gz);
-        if (cell && cell.overlayType !== OverlayTileType.ROAD) {
-          cell.terrainType = TerrainType.WATER;
-          occupied[gx][gz] = true; // Block building lots from spawning on water
+    // ── Phase 2: Paint zone terrain ────────────────────────────────────────
+    for (const zone of MAP_DEFINITION.zones) {
+      for (let gx = zone.gx; gx < zone.gx + zone.w && gx < GRID_DIM; gx++) {
+        for (let gz = zone.gz; gz < zone.gz + zone.h && gz < GRID_DIM; gz++) {
+          TileMap.setTerrain(gx, gz, zone.terrain);
+          // Block building placement inside water
+          if (zone.terrain === TerrainType.WATER) occupied[gx][gz] = true;
         }
       }
     }
 
-    // 2. Map Layout Anchor Placement (Landmark & District Hubs)
-    const poolCenter = ['sky_cyber', 'sky_artdeco', 'sky_biotech', '5', 'b4']; // Financial Skyscrapers
-    const poolSuburb = ['res_sky', 'b3', 'b2', 'res_bronze'];                  // Residential & Gardens
-    const poolIndustrial = ['b1', 'b2', 'b3'];                                 // Commercial Shops & Low-rises
+    // ── Phase 3: Paint roads, collect intersections & waypoints ───────────
+    const nsColumns = new Set<number>(); // gx values of NS avenues
+    const ewRows    = new Set<number>(); // gz values of EW streets
 
-    // 4. Iterate Super-Blocks with Lot Buffer Spacing & Terrain Matching
-    for (let startGx = 0; startGx < GRID_DIM; startGx += AVENUE_INTERVAL) {
-      for (let startGz = 0; startGz < GRID_DIM; startGz += STREET_INTERVAL) {
+    for (const road of MAP_DEFINITION.roads) {
+      if (road.axis === 'NS') nsColumns.add(road.gx);
+      else                     ewRows.add(road.gz);
 
-        for (let offX = 1; offX < AVENUE_INTERVAL - 1; offX += 2) {
-          for (let offZ = 1; offZ < STREET_INTERVAL - 1; offZ += 2) {
-            const gx = startGx + offX;
-            const gz = startGz + offZ;
+      for (let i = 0; i < road.length; i++) {
+        const rx = road.axis === 'NS' ? road.gx       : road.gx + i;
+        const rz = road.axis === 'NS' ? road.gz + i   : road.gz;
+        if (rx < 0 || rx >= GRID_DIM || rz < 0 || rz >= GRID_DIM) continue;
 
-            if (gx >= GRID_DIM - 1 || gz >= GRID_DIM - 1 || occupied[gx][gz]) continue;
+        TileMap.setRoad(rx, rz, road.axis);
+        occupied[rx][rz] = true;
+      }
 
-            const cellSeed = Math.abs((startGx * 1337 + startGz * 7331 + offX * 97 + offZ * 193)) % 1000;
-
-            const isWaterArea = gx >= 56 && gz >= 48;
-            const isAirportArea = gx < 18 && gz > 15 && gz < 42;
-            const isParkArea = (gx > 36 && gx < 50) && (gz > 5 && gz < 25);
-
-            if (isWaterArea) {
-              const cell = TileMap.getCell(gx, gz);
-              if (cell && cell.overlayType !== OverlayTileType.ROAD) cell.terrainType = TerrainType.WATER;
-              continue;
-            }
-
-            if (isAirportArea) {
-              const cell = TileMap.getCell(gx, gz);
-              if (cell && cell.overlayType !== OverlayTileType.ROAD) {
-                cell.terrainType = TerrainType.SIDEWALK;
-              }
-              continue; // Keep clear runway field
-            }
-
-            if (isParkArea) {
-              const cell = TileMap.getCell(gx, gz);
-              if (cell && cell.overlayType !== OverlayTileType.ROAD) {
-                cell.terrainType = TerrainType.GRASS;
-              }
-              if (cellSeed % 100 < 80) continue; // Sparse park structures
-            }
-
-            // Pick District Pool & Ground Terrain matching District
-            const distToCenter = Math.sqrt(Math.pow(gx - 32, 2) + Math.pow(gz - 32, 2));
-
-            let pool: string[];
-            let lotTerrain: TerrainType;
-
-            if (distToCenter < 16) {
-              pool = poolCenter;
-              lotTerrain = TerrainType.PLAZA_STONE; // Sleek urban stone plazas for skyscrapers
-            } else if (distToCenter < 32) {
-              pool = poolSuburb;
-              lotTerrain = TerrainType.GRASS; // Green lawns & gardens around residential units
-            } else {
-              pool = poolIndustrial;
-              lotTerrain = TerrainType.SIDEWALK; // Clean pavement for shops & low-rises
-            }
-
-            const typeKey = pool[cellSeed % pool.length];
-            const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS['3'];
-            const wTiles = def.footprintTiles || 1;
-            const zTiles = def.footprintTiles || 1;
-
-            // Check if full lot footprint fit is free
-            let canFit = true;
-            for (let dx = 0; dx < wTiles; dx++) {
-              for (let dz = 0; dz < zTiles; dz++) {
-                if (gx + dx >= GRID_DIM || gz + dz >= GRID_DIM || occupied[gx + dx][gz + dz]) {
-                  canFit = false;
-                  break;
-                }
-              }
-              if (!canFit) break;
-            }
-
-            if (!canFit) continue;
-
-            // Reserve lot with 1-tile buffer spacing between buildings
-            reserveArea(gx, gz, wTiles, zTiles, 1);
-            applyGroundTerrain(gx, gz, wTiles, zTiles, lotTerrain, 1);
-
-            const pos = LotManager.computeLotWorldPos(gx, gz, wTiles, zTiles);
-            const entity = ECS.createEntity();
-            const lot = LotManager.calculateAndRegisterLot(entity, pos.x, pos.z, typeKey, 'dense');
-            this.spawnBuildingEntity(entity, lot, typeKey);
-            count++;
-          }
+      // Register named waypoints into TileMap.roadWaypoints
+      for (const wp of road.waypoints ?? []) {
+        const rx = road.axis === 'NS' ? road.gx           : road.gx + wp.cellOffset;
+        const rz = road.axis === 'NS' ? road.gz + wp.cellOffset : road.gz;
+        const cell = TileMap.getCell(rx, rz);
+        if (cell) {
+          TileMap.roadWaypoints.push({
+            worldX: cell.worldX,
+            worldZ: cell.worldZ,
+            name: wp.name,
+            nextWaypoints: [] // filled by car system later
+          });
         }
-
       }
     }
 
-    // 5. Fill remaining unbuilt non-road cells with lawns, plazas, and green spaces
-    for (let gx = 0; gx < GRID_DIM; gx++) {
+    // Mark intersection tiles
+    for (const gxNS of nsColumns) {
+      for (const gzEW of ewRows) {
+        TileMap.setIntersection(gxNS, gzEW);
+      }
+    }
+
+    // Paint 1-cell-wide sidewalk flanks adjacent to every road (visual curbs)
+    for (const gxNS of nsColumns) {
       for (let gz = 0; gz < GRID_DIM; gz++) {
-        const cell = TileMap.getCell(gx, gz);
-        if (cell && cell.overlayType !== OverlayTileType.ROAD && !cell.occupiedByBuildingId) {
-          if (cell.terrainType === TerrainType.SIDEWALK || cell.terrainType === TerrainType.ROAD_STRAIGHT_NS) {
-            const dist = Math.sqrt(Math.pow(gx - 32, 2) + Math.pow(gz - 32, 2));
-            if (dist < 18) {
-              cell.terrainType = TerrainType.PLAZA_STONE;
-            } else if ((gx + gz) % 3 === 0) {
-              cell.terrainType = TerrainType.GRASS;
-            }
-          }
+        TileMap.setSidewalkIfNotRoad(gxNS - 1, gz);
+        TileMap.setSidewalkIfNotRoad(gxNS + 1, gz);
+      }
+    }
+    for (const gzEW of ewRows) {
+      for (let gx = 0; gx < GRID_DIM; gx++) {
+        TileMap.setSidewalkIfNotRoad(gx, gzEW - 1);
+        TileMap.setSidewalkIfNotRoad(gx, gzEW + 1);
+      }
+    }
+
+    // ── Phase 4: Place water islands (Statue of Liberty, etc.) ───────────
+    let count = 0;
+    for (const island of MAP_DEFINITION.islands) {
+      // Paint the PLAZA_STONE platform on top of the water
+      paintTerrain(island.platformGx, island.platformGz, island.platformW, island.platformH, TerrainType.PLAZA_STONE);
+
+      // Free the platform cells so the building can be placed there
+      for (let dx = 0; dx < island.platformW; dx++) {
+        for (let dz = 0; dz < island.platformH; dz++) {
+          const tx = island.platformGx + dx, tz = island.platformGz + dz;
+          if (tx >= 0 && tx < GRID_DIM && tz >= 0 && tz < GRID_DIM) occupied[tx][tz] = false;
+        }
+      }
+
+      if (island.landmark) {
+        const def = BUILDING_DEFS[island.landmark] || BUILDING_DEFS['3'];
+        const lw = def.footprintTiles ?? 1;
+        const lh = def.footprintTiles ?? 1;
+        // Centre the landmark on the platform
+        const lmGx = island.platformGx + Math.floor((island.platformW - lw) / 2);
+        const lmGz = island.platformGz + Math.floor((island.platformH - lh) / 2);
+        if (spawnBuilding(lmGx, lmGz, island.landmark, 'landmark')) count++;
+      }
+    }
+
+    // ── Phase 5: Place landmark anchors ───────────────────────────────────
+    for (const lm of MAP_DEFINITION.landmarks) {
+      const def = BUILDING_DEFS[lm.key] || BUILDING_DEFS['3'];
+      const w = def.footprintTiles ?? 1;
+      const h = def.footprintTiles ?? 1;
+      const buf = lm.bufferTiles ?? 1;
+      // Paint primary terrain + buffer area
+      paintTerrain(lm.gx, lm.gz, w, h, lm.terrain, buf);
+      if (spawnBuilding(lm.gx, lm.gz, lm.key, 'landmark')) count++;
+    }
+
+    // ── Phase 6: District infill with density caps ────────────────────────
+    for (const zone of MAP_DEFINITION.zones) {
+      const pool    = ZONE_POOLS[zone.id];
+      const density = ZONE_DENSITY[zone.id] ?? 0;
+      if (!pool || pool.length === 0 || density <= 0) continue;
+
+      // Gather all unoccupied candidate cells in this zone
+      const candidates: Array<{ gx: number; gz: number }> = [];
+      for (let gx = zone.gx; gx < zone.gx + zone.w && gx < GRID_DIM; gx++) {
+        for (let gz = zone.gz; gz < zone.gz + zone.h && gz < GRID_DIM; gz++) {
+          if (!occupied[gx][gz]) candidates.push({ gx, gz });
+        }
+      }
+
+      // Deterministic shuffle based on zone origin seed
+      const seed = zone.gx * 1337 + zone.gz * 7331;
+      candidates.sort((a, b) =>
+        ((a.gx * 97 + a.gz * 193 + seed) % 100) -
+        ((b.gx * 97 + b.gz * 193 + seed) % 100)
+      );
+
+      const maxBuildings = Math.floor(candidates.length * density);
+      let built = 0;
+
+      for (const { gx, gz } of candidates) {
+        if (built >= maxBuildings) break;
+        if (occupied[gx][gz]) continue;
+
+        const cellSeed = Math.abs(gx * 97 + gz * 193 + seed) % pool.length;
+        const typeKey  = pool[cellSeed];
+        if (spawnBuilding(gx, gz, typeKey, 'dense')) {
+          built++;
+          count++;
         }
       }
     }
 
-    console.log(`Generated ${count} city buildings with buffer lot spacing & terrain matching.`);
+    // ── Phase 7: Sports & Airport zones — keep fully open (no infill) ────
+    // (pools are empty for those zones, so they're already skipped above)
+
+    console.log(
+      `[CityGenerator] ${count} buildings | ` +
+      `${MAP_DEFINITION.roads.length} road segs | ` +
+      `${TileMap.roadWaypoints.length} waypoints | ` +
+      `${MAP_DEFINITION.islands.length} island(s)`
+    );
     SpatialGrid.rebuild();
   }
 
+  // ─── ECS Building Entity Factory ──────────────────────────────────────────────
   private static spawnBuildingEntity(entity: number, lot: BuildingLot, typeKey: string) {
     const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS['3'];
 
     PositionComponent.set(entity, {
       worldX: lot.centerWorldX,
-      worldY: lot.centerWorldZ, // Three.js ground depth (Z)
-      worldZ: 0.0 // Ground level
+      worldY: lot.centerWorldZ, // Three.js depth axis
+      worldZ: 0.0               // Ground level
     });
 
-    HealthComponent.set(entity, {
-      currentHP: 100,
-      maxHP: 100,
-      state: 0
-    });
+    HealthComponent.set(entity, { currentHP: 100, maxHP: 100, state: 0 });
 
-    // Initialize Zonal Health
+    // ── Zonal Health — each zone starts at HP_PER_ZONE (50).
+    // With ZONAL_DAMAGE_AMOUNT=25, each zone takes 2 hits, total 6 hits to destroy.
     const zoneMap = new Map();
     const zonesDef = BUILDING_ZONES[typeKey] || BUILDING_ZONES['3'];
     for (const zd of zonesDef) {
-      zoneMap.set(zd.id, {
-        id: zd.id,
-        level: 0, // PRISTINE
-        hp: 100,
-        maxHp: 100
-      });
+      zoneMap.set(zd.id, { id: zd.id, level: 0, hp: HP_PER_ZONE, maxHp: HP_PER_ZONE });
     }
 
     ZonalHealthComponent.set(entity, {
       zones: zoneMap,
-      totalHp: 100 * zonesDef.length,
-      maxTotalHp: 100 * zonesDef.length,
+      totalHp: HP_PER_ZONE * zonesDef.length,
+      maxTotalHp: HP_PER_ZONE * zonesDef.length,
       globalDamageLevel: 0
     });
 
@@ -265,4 +287,3 @@ export class CityGenerator {
     });
   }
 }
-

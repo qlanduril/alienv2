@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { ECS, Entity } from '../core/ECS';
 import { PositionComponent, RenderStateComponent, HealthComponent, ZonalHealthComponent } from '../core/Components';
 import { SceneManager } from './SceneManager';
@@ -8,7 +9,6 @@ import { UIOverlay } from './UIOverlay';
 import { HitZoneManager } from './HitZoneManager';
 import { BUILDING_ZONES } from '../core/ZoneDefs';
 import { BUILDING_DEFS } from '../core/BuildingDefs';
-import { DamageCalc } from '../core/DamageCalc';
 import { DestructionSystem } from '../systems/DestructionSystem';
 
 // --- Rendering Constants ---
@@ -37,10 +37,6 @@ const GLOBAL_SPRITE_DY_OFFSET = 0;
 // Vertical Lift to keep sprite base strictly above ground tiles (preventing GPU depth clipping)
 const BUILDING_BASE_LIFT = 0.2;
 
-// Sprite Material Constants
-const SPRITE_MATERIAL_COLOR = 0xffffff;
-const SPRITE_ALPHA_TEST = 0.1;
-const SPRITE_ROUGHNESS = 0.6;
 const SPRITE_PLANE_SIZE = 1.0;
 
 
@@ -85,13 +81,62 @@ interface FlashState {
   color: number;
 }
 
+interface AnimData3D {
+  actions: THREE.AnimationAction[];
+  maxDuration: number;
+}
+
+interface BlendState {
+  texA: THREE.Texture | null;
+  texB: THREE.Texture | null;
+  mixRatio: number;
+  isBlending: boolean;
+}
+
+const BUILDING_VERTEX_SHADER = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const BUILDING_FRAGMENT_SHADER = `
+  uniform sampler2D mapA;
+  uniform sampler2D mapB;
+  uniform float mixRatio;
+  uniform vec3 flashColor;
+  uniform float flashIntensity;
+  uniform float opacity;
+
+  varying vec2 vUv;
+
+  void main() {
+    vec4 colA = texture2D(mapA, vUv);
+    vec4 colB = texture2D(mapB, vUv);
+
+    vec4 blended = mix(colA, colB, mixRatio);
+
+    if (blended.a < 0.05) discard;
+
+    vec3 finalColor = mix(blended.rgb, flashColor, flashIntensity);
+
+    gl_FragColor = vec4(finalColor, blended.a * opacity);
+  }
+`;
+
 export class BuildingRenderer {
   private static sprites = new Map<Entity, THREE.Mesh>();
+  private static models3D = new Map<Entity, THREE.Object3D>();
+  private static mixers = new Map<Entity, THREE.AnimationMixer>();
+  private static animActions = new Map<Entity, AnimData3D>();
+  private static dummyHitSprites = new Map<Entity, THREE.Mesh>();
   private static sharedGeometry = new THREE.PlaneGeometry(SPRITE_PLANE_SIZE, SPRITE_PLANE_SIZE);
 
   // Per-entity active effects
   private static hitFxMap = new Map<Entity, HitFX[]>();
   private static flashMap = new Map<Entity, FlashState>();
+  private static blendMap = new Map<Entity, BlendState>();
 
   // Cache for resolved texture, offsets, and building type info
   private static lastFrameMap = new Map<Entity, number>();
@@ -101,11 +146,16 @@ export class BuildingRenderer {
   private static cachedDef = new Map<Entity, any>();
   private static collapseMap = new Map<Entity, { tiltAngle: number; impactVector: THREE.Vector3 }>();
 
+  // Smooth 2D frame interpolation & 3D real-time demolition state
+  private static FRAME_STEP_SPEED = 10.0;
+  private static displayFrameMap = new Map<Entity, number>();
+  private static demoStateMap = new Map<Entity, { isDemolishing: boolean; elapsedTime: number; maxDuration: number }>();
+
   /**
    * Helper to resolve typeKey and def with caching per entity.
    * Avoids running regex match on texturePrefix every frame in tick().
    */
-  private static getTypeInfo(entity: Entity, texturePrefix: string): { typeKey: string; def: any } {
+  public static getTypeInfo(entity: Entity, texturePrefix: string): { typeKey: string; def: any } {
     let typeKey = this.cachedTypeKey.get(entity);
     let def = this.cachedDef.get(entity);
 
@@ -147,11 +197,15 @@ export class BuildingRenderer {
   }
 
   public static getSpritePosition(entity: Entity): THREE.Vector3 | null {
+    const model = this.models3D.get(entity);
+    if (model) return model.position.clone();
     const sprite = this.sprites.get(entity);
     return sprite ? sprite.position.clone() : null;
   }
 
   public static getSpriteScale(entity: Entity): THREE.Vector3 | null {
+    const model = this.models3D.get(entity);
+    if (model) return model.scale.clone();
     const sprite = this.sprites.get(entity);
     return sprite ? sprite.scale.clone() : null;
   }
@@ -201,19 +255,26 @@ export class BuildingRenderer {
 
       if (!renderState || !pos) continue;
 
-      this.updateZonalFrame(entity, renderState);
+      const { typeKey, def } = this.getTypeInfo(entity, renderState.texturePrefix);
+
+      if (def && def.is3D) {
+        const rendered3D = this.update3DBuilding(entity, renderState, pos, typeKey, def, delta);
+        if (rendered3D) continue;
+      }
+
+      this.updateZonalFrame(entity, renderState, delta);
 
       const sprite = this.getOrCreateSprite(entity, renderState, pos);
-      const material = sprite.material as THREE.MeshStandardMaterial;
+      const material = sprite.material as THREE.ShaderMaterial;
 
-      const { texture, offset, typeKey } = this.updateTextureAndOffset(entity, renderState, material);
+      const { texture, offset } = this.updateTextureAndOffset(entity, renderState, material, delta);
       const fx = this.processHitEffects(entity, delta);
 
       this.updateTransformAndPhysics(entity, sprite, pos, renderState, typeKey, offset, texture, delta, fx);
       this.processHitFlash(entity, material, delta);
 
       sprite.visible = renderState.visible;
-      material.opacity = renderState.opacity;
+      material.uniforms.opacity.value = renderState.opacity;
     }
 
     this.cleanupDestroyedEntities();
@@ -226,13 +287,13 @@ export class BuildingRenderer {
     '4': 13,
     '5': 14,
     'b1': 3,
-    'b2': 0,
+    'b2': 3,
     'b3': 3,
     'b4': 3,
-    'res_bronze': 0,
-    'res_sky': 0,
-    'sky_artdeco': 0,
-    'sky_biotech': 0,
+    'res_bronze': 3,
+    'res_sky': 3,
+    'sky_artdeco': 3,
+    'sky_biotech': 3,
     'sky_cyber': 3,
     'mega_titan': 3,
     'spaceship_hq': 6,
@@ -243,12 +304,39 @@ export class BuildingRenderer {
     'school_civic': 4
   };
 
-  private static updateZonalFrame(entity: Entity, renderState: any) {
-    const zonalHealth = ZonalHealthComponent.get(entity);
-    if (zonalHealth) {
-      const { typeKey } = this.getTypeInfo(entity, renderState.texturePrefix);
-      const maxFrame = this.BUILDING_MAX_FRAMES[typeKey] ?? 14;
-      renderState.currentFrame = DamageCalc.computeFrameForZonalState(zonalHealth, maxFrame);
+  private static updateZonalFrame(entity: Entity, renderState: any, delta: number) {
+    const zonal = ZonalHealthComponent.get(entity);
+    const health = HealthComponent.get(entity);
+    const curHp = zonal ? zonal.totalHp : (health ? health.currentHP : 100);
+    const maxHp = zonal ? zonal.maxTotalHp : (health ? health.maxHP : 100);
+
+    const { typeKey } = this.getTypeInfo(entity, renderState.texturePrefix);
+    const maxFrame = this.BUILDING_MAX_FRAMES[typeKey] ?? 14;
+
+    const dmgFraction = Math.max(0, Math.min(1, 1 - curHp / maxHp));
+    const targetFrame = Math.min(Math.floor(dmgFraction * maxFrame), maxFrame);
+
+    let displayFrame = this.displayFrameMap.get(entity) ?? renderState.currentFrame ?? 0;
+
+    if (displayFrame < targetFrame) {
+      const prevInt = Math.floor(displayFrame);
+      displayFrame = Math.min(targetFrame, displayFrame + delta * this.FRAME_STEP_SPEED);
+      this.displayFrameMap.set(entity, displayFrame);
+      const nextInt = Math.floor(displayFrame);
+
+      renderState.currentFrame = nextInt;
+
+      // Mask frame transition behind micro explosion/smoke when crossing integer boundary
+      if (nextInt > prevInt) {
+        const pos = PositionComponent.get(entity);
+        if (pos) {
+          DestructionSystem.fxQueue.push({
+            type: 'smoke',
+            x: pos.worldX, y: pos.worldY, z: pos.worldZ,
+            data: { count: 3, entityId: entity }
+          });
+        }
+      }
     }
   }
 
@@ -258,17 +346,22 @@ export class BuildingRenderer {
     if (!sprite) {
       const { typeKey } = this.getTypeInfo(entity, renderState.texturePrefix);
 
-      // 1. Use Mesh with PlaneGeometry to keep buildings standing upright vertically on cityGroup layer
-      // IMPORTANT: Use depthWrite: false + depthTest: false cutout mode with painter's order sorting.
-      // This prevents the 3D ground tile plane from depth-clipping or slicing the base of building sprites.
-      const material = new THREE.MeshStandardMaterial({
-        color: SPRITE_MATERIAL_COLOR,
-        transparent: false,
+      // ShaderMaterial for 2D building sprites: cross-dissolves between texture stages seamlessly
+      const material = new THREE.ShaderMaterial({
+        vertexShader: BUILDING_VERTEX_SHADER,
+        fragmentShader: BUILDING_FRAGMENT_SHADER,
+        uniforms: {
+          mapA: { value: null },
+          mapB: { value: null },
+          mixRatio: { value: 0.0 },
+          flashColor: { value: new THREE.Color(0xffffff) },
+          flashIntensity: { value: 0.0 },
+          opacity: { value: 1.0 }
+        },
+        transparent: true,
         side: THREE.DoubleSide,
-        alphaTest: SPRITE_ALPHA_TEST,
         depthWrite: false,
-        depthTest: false,
-        roughness: SPRITE_ROUGHNESS
+        depthTest: false
       });
       sprite = new THREE.Mesh(this.sharedGeometry, material);
       sprite.castShadow = false;
@@ -277,9 +370,11 @@ export class BuildingRenderer {
       // Rotate 45 degrees around Y to face the isometric camera horizontally
       sprite.rotation.y = ISOMETRIC_ROTATION_Y;
 
-      // Painter's order: in isometric view, objects further from camera (smaller worldX+worldY) render first.
-      // Render order 100+ ensures all buildings render AFTER ground tiles (renderOrder 0).
-      sprite.renderOrder = 100 + Math.round(pos.worldX + pos.worldY);
+      // 2.5D Isometric Back-to-Front Painter's Order:
+      // Objects further from camera (smaller worldX + worldY) render first.
+      // Capped at 600 so UFO (1000), Shadow Ring (800), and FX (2000) render strictly on top.
+      const isoOrder = Math.min(600, 10 + Math.floor((pos.worldX + pos.worldY) * 0.15));
+      sprite.renderOrder = isoOrder;
 
       // Add to SceneManager.cityGroup (same layer as all buildings)
       SceneManager.cityGroup.add(sprite);
@@ -296,29 +391,56 @@ export class BuildingRenderer {
     return sprite;
   }
 
-  private static updateTextureAndOffset(entity: Entity, renderState: any, material: THREE.MeshStandardMaterial) {
+  private static updateTextureAndOffset(entity: Entity, renderState: any, material: THREE.ShaderMaterial, delta: number) {
     let texture = this.cachedTexture.get(entity);
     let offset = this.cachedOffset.get(entity);
     const lastFrame = this.lastFrameMap.get(entity);
 
     const { typeKey } = this.getTypeInfo(entity, renderState.texturePrefix);
 
+    let blendState = this.blendMap.get(entity);
+    if (!blendState) {
+      const textureName = `${renderState.texturePrefix}${renderState.currentFrame}`;
+      const initTex = AssetLoader.getTexture(textureName);
+      blendState = {
+        texA: initTex,
+        texB: initTex,
+        mixRatio: 0.0,
+        isBlending: false
+      };
+      this.blendMap.set(entity, blendState);
+    }
+
     if (lastFrame !== renderState.currentFrame || texture === undefined) {
       const textureName = `${renderState.texturePrefix}${renderState.currentFrame}`;
-      texture = AssetLoader.getTexture(textureName);
+      const newTexture = AssetLoader.getTexture(textureName);
       offset = AssetLoader.getSpriteOffset(typeKey, renderState.currentFrame);
 
       this.lastFrameMap.set(entity, renderState.currentFrame);
-      this.cachedTexture.set(entity, texture);
+      this.cachedTexture.set(entity, newTexture);
       this.cachedOffset.set(entity, offset);
 
-      if (texture && material.map !== texture) {
-        material.map = texture;
-        material.needsUpdate = true;
+      if (newTexture && blendState.texB !== newTexture) {
+        blendState.texA = blendState.texB || newTexture;
+        blendState.texB = newTexture;
+        blendState.mixRatio = 0.0;
+        blendState.isBlending = true;
       }
     }
 
-    return { texture, offset, typeKey };
+    if (blendState.isBlending) {
+      blendState.mixRatio = Math.min(1.0, blendState.mixRatio + delta * 3.33);
+      if (blendState.mixRatio >= 1.0) {
+        blendState.texA = blendState.texB;
+        blendState.isBlending = false;
+      }
+    }
+
+    if (blendState.texA) material.uniforms.mapA.value = blendState.texA;
+    if (blendState.texB) material.uniforms.mapB.value = blendState.texB;
+    material.uniforms.mixRatio.value = blendState.mixRatio;
+
+    return { texture: blendState.texB, offset, typeKey };
   }
 
   private static processHitEffects(entity: Entity, delta: number) {
@@ -436,19 +558,312 @@ export class BuildingRenderer {
     }
   }
 
-  private static processHitFlash(entity: Entity, material: THREE.MeshStandardMaterial, delta: number) {
+  private static processHitFlash(entity: Entity, material: THREE.ShaderMaterial, delta: number) {
     const flash = this.flashMap.get(entity);
     if (flash) {
-      material.color.setHex(flash.color);
+      material.uniforms.flashColor.value.setHex(flash.color);
+      material.uniforms.flashIntensity.value = 0.8;
       flash.timeLeft -= delta;
       if (flash.timeLeft <= ZERO_VALUE) {
-        material.color.setHex(SPRITE_MATERIAL_COLOR);
+        material.uniforms.flashIntensity.value = 0.0;
+        this.flashMap.delete(entity);
+      }
+    } else {
+      material.uniforms.flashIntensity.value = 0.0;
+    }
+  }
+
+  private static update3DBuilding(
+    entity: Entity,
+    renderState: any,
+    pos: any,
+    typeKey: string,
+    def: any,
+    delta: number
+  ): boolean {
+    const model = this.getOrCreateModel3D(entity, renderState, pos, typeKey, def);
+    if (!model) return false;
+
+    // 1. Process damage animation playback: real-time video playback triggered on demolition!
+    const zonal = ZonalHealthComponent.get(entity);
+    const health = HealthComponent.get(entity);
+    const curHp = zonal ? zonal.totalHp : (health ? health.currentHP : 100);
+
+    const mixer = this.mixers.get(entity);
+    const animData = this.animActions.get(entity);
+
+    let demoState = this.demoStateMap.get(entity);
+
+    // Trigger video demolition when HP reaches 0
+    if (curHp <= 0 && !demoState) {
+      demoState = {
+        isDemolishing: true,
+        elapsedTime: 0,
+        maxDuration: animData ? animData.maxDuration : 6.25
+      };
+      this.demoStateMap.set(entity, demoState);
+    }
+
+    if (demoState && demoState.isDemolishing && mixer) {
+      if (demoState.elapsedTime < demoState.maxDuration) {
+        const prevTime = demoState.elapsedTime;
+        demoState.elapsedTime += delta;
+        mixer.update(delta); // Play forward continuously in real-time video style!
+
+        // 1. Random height blast animations popping up along 3D tower structure
+        if (Math.random() < 0.25) {
+          const randX = pos.worldX + (Math.random() - 0.5) * 30;
+          const randZ = pos.worldY + (Math.random() - 0.5) * 30;
+          const randH = 10 + Math.random() * 80;
+          const blastType = Math.random() > 0.5 ? 'blast' : 'blast360';
+
+          DestructionSystem.fxQueue.push({
+            type: blastType,
+            x: randX, y: randZ, z: randH,
+            data: { entityId: entity, targetFrame: 0 }
+          });
+        }
+
+        // 2. Periodic camera rumbles
+        if (Math.random() < 0.15) {
+          DestructionSystem.fxQueue.push({
+            type: 'shake',
+            x: 0, y: 0, z: 0,
+            data: { intensity: 6 }
+          });
+        }
+
+        // 3. Collateral shockwave damage to surrounding buildings at demolition milestones (t = 1.0s, 2.5s, 4.0s)
+        const milestone1 = prevTime < 1.0 && demoState.elapsedTime >= 1.0;
+        const milestone2 = prevTime < 2.5 && demoState.elapsedTime >= 2.5;
+        const milestone3 = prevTime < 4.0 && demoState.elapsedTime >= 4.0;
+
+        if (milestone1 || milestone2 || milestone3) {
+          DestructionSystem.applyCollateralDamage(entity, pos.worldX, pos.worldY, 64, 25);
+          DestructionSystem.fxQueue.push({
+            type: 'shake',
+            x: 0, y: 0, z: 0,
+            data: { intensity: 10 }
+          });
+        }
+
+        // Continuous demolition smoke, sparks & debris
+        if (Math.random() < 0.35) {
+          DestructionSystem.fxQueue.push({
+            type: 'smoke',
+            x: pos.worldX, y: pos.worldY, z: pos.worldZ,
+            data: { count: 3, entityId: entity }
+          });
+        }
+        if (Math.random() < 0.25) {
+          DestructionSystem.fxQueue.push({
+            type: 'sparks',
+            x: pos.worldX, y: pos.worldY, z: pos.worldZ,
+            data: { count: 4, entityId: entity }
+          });
+        }
+        if (Math.random() < 0.2) {
+          DestructionSystem.fxQueue.push({
+            type: 'debris',
+            x: pos.worldX, y: pos.worldY, z: pos.worldZ,
+            data: { count: 5, entityId: entity, palette: [0x888888, 0x555555, 0xaaaaaa] }
+          });
+        }
+      }
+    } else if (mixer) {
+      // Intact standing pose (t = 0) while receiving laser hits
+      mixer.setTime(0);
+    }
+
+    // 2. Process micro hit effects (flinch shudder & squash)
+    const fx = this.processHitEffects(entity, delta);
+
+    const baseScale = model.userData.baseScale || 1.0;
+    model.scale.set(
+      baseScale * fx.scaleXMult,
+      baseScale * fx.scaleYMult,
+      baseScale * fx.scaleXMult
+    );
+
+    const basePosX = model.userData.basePosX ?? pos.worldX;
+    const basePosZ = model.userData.basePosZ ?? pos.worldY;
+    const basePosY = model.userData.basePosY ?? 0;
+
+    // 3D buildings remain strictly upright, relying exclusively on GLTF demolition keyframe tracks (no sideways tilt laying down)
+    model.position.set(basePosX + fx.shudderDX, basePosY, basePosZ + fx.shudderDZ);
+
+    // 3. Process hit flash
+    this.processHitFlash3D(entity, model, delta);
+
+    model.visible = renderState.visible;
+    return true;
+  }
+
+  private static getOrCreateModel3D(
+    entity: Entity,
+    _renderState: any,
+    pos: any,
+    typeKey: string,
+    def: any
+  ): THREE.Object3D | null {
+    let model = this.models3D.get(entity);
+
+    if (!model) {
+      const gltfKey = def.gltfKey || 'skyscraper_demolition';
+      const gltf = AssetLoader.getGLTF(gltfKey);
+      if (!gltf) return null;
+
+      model = SkeletonUtils.clone(gltf.scene);
+
+      const isoOrder = Math.min(600, 10 + Math.floor((pos.worldX + pos.worldY) * 0.15));
+      model.renderOrder = isoOrder;
+
+      // Setup materials for depth, shadow casting & hit flash + Hide GroundPlane base mesh
+      model.traverse((child) => {
+        child.renderOrder = isoOrder;
+        if (child.name === 'GroundPlane' || child.name.toLowerCase().includes('ground')) {
+          child.visible = false;
+        }
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          if (mesh.material) {
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            mats.forEach((m: any) => {
+              if (m.name === 'PixelGround' || m.name.toLowerCase().includes('ground')) {
+                mesh.visible = false;
+              }
+              m.depthWrite = true;
+              m.depthTest = true;
+              m.side = THREE.DoubleSide;
+              if (m.isMeshStandardMaterial || m.isMeshPhysicalMaterial) {
+                m.roughness = 0.6;
+                m.metalness = 0.1;
+                if (m.emissive) {
+                  m.emissiveIntensity = 0.2;
+                }
+              }
+            });
+          }
+        }
+      });
+
+      // Initialize AnimationMixer & play ALL animation tracks (all 590 demolition clips)
+      if (gltf.animations && gltf.animations.length > 0) {
+        const mixer = new THREE.AnimationMixer(model);
+        const actions: THREE.AnimationAction[] = [];
+        let maxDuration = 0;
+
+        for (const clip of gltf.animations) {
+          const action = mixer.clipAction(clip);
+          action.setLoop(THREE.LoopOnce, 1);
+          action.clampWhenFinished = true;
+          action.play();
+          actions.push(action);
+          if (clip.duration > maxDuration) {
+            maxDuration = clip.duration;
+          }
+        }
+
+        this.mixers.set(entity, mixer);
+        this.animActions.set(entity, { actions, maxDuration });
+
+        // Snap animation to pristine state at t = 0
+        mixer.setTime(0);
+      }
+
+      // Compute bounding box at t = 0 pose to set scale and base pivot
+      model.updateMatrixWorld(true);
+      const bbox = new THREE.Box3().setFromObject(model);
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+
+      // Target sizing: compute scale using def.height and def.visualScale so 3D skyscrapers match full proportions
+      const targetHeight = def.height || 220;
+      const targetFootprint = (def.width || 16) * (def.visualScale || 1.0);
+      const scaleByHeight = size.y > 0.1 ? (targetHeight / size.y) : 1.0;
+      const scaleByWidth = (size.x > 0.1 && size.z > 0.1) ? (targetFootprint / Math.max(size.x, size.z)) : scaleByHeight;
+      const targetScale = Math.min(scaleByHeight, scaleByWidth);
+
+      model.scale.set(targetScale, targetScale, targetScale);
+      model.updateMatrixWorld(true);
+
+      // Bottom pivot strictly on ground plane (Y = 0)
+      const scaledBbox = new THREE.Box3().setFromObject(model);
+      const minY = scaledBbox.min.y;
+
+      const basePosX = pos.worldX;
+      const basePosZ = pos.worldY; // Three.js Z depth
+      const basePosY = -minY;      // Sitting on Y = 0 ground plane
+
+      model.position.set(basePosX, basePosY, basePosZ);
+      model.userData = { baseScale: targetScale, basePosX, basePosY, basePosZ };
+
+      SceneManager.cityGroup.add(model);
+      RaycasterHelper.registerObject(model, entity);
+
+      this.models3D.set(entity, model);
+
+      // Create hit zones for raycasting / targeting HUD
+      const zones = BUILDING_ZONES[typeKey] || BUILDING_ZONES['mega_titan'];
+      if (zones) {
+        const dummySprite = new THREE.Mesh(
+          this.sharedGeometry,
+          new THREE.MeshBasicMaterial({ visible: true, transparent: true, opacity: 0, depthWrite: false })
+        );
+        dummySprite.position.set(pos.worldX, (def.height || 400) / 2, pos.worldY);
+        dummySprite.scale.set(def.width || 64, def.height || 400, 1);
+        dummySprite.rotation.y = ISOMETRIC_ROTATION_Y;
+        SceneManager.cityGroup.add(dummySprite);
+        HitZoneManager.createZonesForBuilding(entity, dummySprite, zones);
+        this.dummyHitSprites.set(entity, dummySprite);
+      }
+    }
+
+    return model;
+  }
+
+  private static processHitFlash3D(entity: Entity, model: THREE.Object3D, delta: number) {
+    const flash = this.flashMap.get(entity);
+    if (flash) {
+      model.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          if (mesh.material) {
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            mats.forEach((m: any) => {
+              if (m.emissive) {
+                m.emissive.setHex(flash.color);
+                m.emissiveIntensity = 0.8;
+              }
+            });
+          }
+        }
+      });
+      flash.timeLeft -= delta;
+      if (flash.timeLeft <= ZERO_VALUE) {
+        model.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            if (mesh.material) {
+              const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+              mats.forEach((m: any) => {
+                if (m.emissive) {
+                  m.emissive.setHex(0x000000);
+                  m.emissiveIntensity = 0.0;
+                }
+              });
+            }
+          }
+        });
         this.flashMap.delete(entity);
       }
     }
   }
 
   private static cleanupDestroyedEntities() {
+    // 2D Sprites Cleanup
     for (const [entity, sprite] of this.sprites.entries()) {
       if (!ECS.entities.has(entity) || !RenderStateComponent.has(entity)) {
         SceneManager.cityGroup.remove(sprite);
@@ -465,6 +880,43 @@ export class BuildingRenderer {
         this.cachedOffset.delete(entity);
         this.cachedTypeKey.delete(entity);
         this.cachedDef.delete(entity);
+        this.displayFrameMap.delete(entity);
+        this.demoStateMap.delete(entity);
+        this.blendMap.delete(entity);
+      }
+    }
+
+    // 3D Models Cleanup
+    for (const [entity, model] of this.models3D.entries()) {
+      if (!ECS.entities.has(entity) || !RenderStateComponent.has(entity)) {
+        SceneManager.cityGroup.remove(model);
+        model.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            mesh.geometry.dispose();
+            if (Array.isArray(mesh.material)) {
+              mesh.material.forEach(m => m.dispose());
+            } else {
+              mesh.material.dispose();
+            }
+          }
+        });
+        const dummy = this.dummyHitSprites.get(entity);
+        if (dummy) {
+          SceneManager.cityGroup.remove(dummy);
+          dummy.geometry.dispose();
+          this.dummyHitSprites.delete(entity);
+        }
+        this.models3D.delete(entity);
+        this.mixers.delete(entity);
+        this.animActions.delete(entity);
+        this.hitFxMap.delete(entity);
+        this.flashMap.delete(entity);
+        this.cachedTypeKey.delete(entity);
+        this.cachedDef.delete(entity);
+        this.displayFrameMap.delete(entity);
+        this.demoStateMap.delete(entity);
+        this.blendMap.delete(entity);
       }
     }
   }
@@ -478,7 +930,29 @@ export class BuildingRenderer {
         sprite.material.dispose();
       }
     }
+    for (const [, model] of this.models3D.entries()) {
+      SceneManager.cityGroup.remove(model);
+      model.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          mesh.geometry.dispose();
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(m => m.dispose());
+          } else {
+            mesh.material.dispose();
+          }
+        }
+      });
+    }
+    for (const [, dummy] of this.dummyHitSprites.entries()) {
+      SceneManager.cityGroup.remove(dummy);
+      dummy.geometry.dispose();
+    }
     this.sprites.clear();
+    this.models3D.clear();
+    this.mixers.clear();
+    this.animActions.clear();
+    this.dummyHitSprites.clear();
     this.hitFxMap.clear();
     this.flashMap.clear();
     this.lastFrameMap.clear();

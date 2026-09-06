@@ -344,7 +344,8 @@ export class BuildingRenderer {
     let sprite = this.sprites.get(entity);
 
     if (!sprite) {
-      const { typeKey } = this.getTypeInfo(entity, renderState.texturePrefix);
+      const { typeKey, def } = this.getTypeInfo(entity, renderState.texturePrefix);
+      const heightBias = Math.min(20, Math.floor((def?.height || 100) * 0.05));
 
       // ShaderMaterial for 2D building sprites: cross-dissolves between texture stages seamlessly
       const material = new THREE.ShaderMaterial({
@@ -370,10 +371,10 @@ export class BuildingRenderer {
       // Rotate 45 degrees around Y to face the isometric camera horizontally
       sprite.rotation.y = ISOMETRIC_ROTATION_Y;
 
-      // 2.5D Isometric Back-to-Front Painter's Order:
+      // 2.5D Isometric Back-to-Front Painter's Order with Height Bias:
       // Objects further from camera (smaller worldX + worldY) render first.
       // Capped at 600 so UFO (1000), Shadow Ring (800), and FX (2000) render strictly on top.
-      const isoOrder = Math.min(600, 10 + Math.floor((pos.worldX + pos.worldY) * 0.15));
+      const isoOrder = Math.min(600, Math.max(10, Math.floor((pos.worldX + pos.worldY) * 0.15 + heightBias)));
       sprite.renderOrder = isoOrder;
 
       // Add to SceneManager.cityGroup (same layer as all buildings)
@@ -715,7 +716,8 @@ export class BuildingRenderer {
 
       model = SkeletonUtils.clone(gltf.scene);
 
-      const isoOrder = Math.min(600, 10 + Math.floor((pos.worldX + pos.worldY) * 0.15));
+      const heightBias = Math.min(20, Math.floor((def?.height || 220) * 0.05));
+      const isoOrder = Math.min(600, Math.max(10, Math.floor((pos.worldX + pos.worldY) * 0.15 + heightBias)));
       model.renderOrder = isoOrder;
 
       // Setup materials for depth, shadow casting & hit flash + Hide GroundPlane base mesh
@@ -779,9 +781,10 @@ export class BuildingRenderer {
       const size = new THREE.Vector3();
       bbox.getSize(size);
 
-      // Target sizing: compute scale using def.height and def.visualScale so 3D skyscrapers match full proportions
-      const targetHeight = def.height || 220;
-      const targetFootprint = (def.width || 16) * (def.visualScale || 1.0);
+      // Target sizing: compute scale using def.height, def.width, and def.visualScale
+      const vScale = def ? (def.visualScale || 1.0) : 1.0;
+      const targetHeight = (def.height || 220) * vScale;
+      const targetFootprint = (def.width || 64) * vScale;
       const scaleByHeight = size.y > 0.1 ? (targetHeight / size.y) : 1.0;
       const scaleByWidth = (size.x > 0.1 && size.z > 0.1) ? (targetFootprint / Math.max(size.x, size.z)) : scaleByHeight;
       const targetScale = Math.min(scaleByHeight, scaleByWidth);

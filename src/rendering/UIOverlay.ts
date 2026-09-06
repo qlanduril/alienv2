@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ShowcaseManager } from '../systems/ShowcaseManager';
 import { HealthComponent, RenderStateComponent, ZonalHealthComponent } from '../core/Components';
 import { Entity } from '../core/ECS';
+import { CameraController } from './CameraController';
 
 // --- UIOverlay Constants ---
 const ZERO_VALUE = 0;
@@ -46,7 +47,7 @@ export class UIOverlay {
     hudContainer.style.position = 'fixed';
     hudContainer.style.top = '20px';
     hudContainer.style.left = '20px';
-    hudContainer.style.right = '20px';
+    hudContainer.style.width = 'calc(100% / 1.25 - 32px)';
     hudContainer.style.display = 'flex';
     hudContainer.style.justifyContent = 'space-between';
     hudContainer.style.alignItems = 'center';
@@ -54,17 +55,19 @@ export class UIOverlay {
     hudContainer.style.fontFamily = 'system-ui, -apple-system, sans-serif';
     hudContainer.style.zIndex = '1000';
     hudContainer.style.pointerEvents = 'none';
+    hudContainer.style.transform = 'scale(1.25)';
+    hudContainer.style.transformOrigin = 'top left';
 
     // Score / Title
     this.scoreElement = document.createElement('div');
-    this.scoreElement.style.fontSize = '20px';
+    this.scoreElement.style.fontSize = '22px';
     this.scoreElement.style.fontWeight = '700';
-    this.scoreElement.style.background = 'rgba(15, 23, 42, 0.75)';
+    this.scoreElement.style.background = 'rgba(15, 23, 42, 0.85)';
     this.scoreElement.style.backdropFilter = 'blur(8px)';
-    this.scoreElement.style.padding = '10px 20px';
-    this.scoreElement.style.borderRadius = '12px';
-    this.scoreElement.style.border = '1px solid rgba(255, 255, 255, 0.15)';
-    this.scoreElement.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.4)';
+    this.scoreElement.style.padding = '12px 24px';
+    this.scoreElement.style.borderRadius = '14px';
+    this.scoreElement.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+    this.scoreElement.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5)';
     this.scoreElement.innerText = 'DESTRUCTION: 0%';
     hudContainer.appendChild(this.scoreElement);
 
@@ -78,13 +81,13 @@ export class UIOverlay {
     this.modeToggleButton = document.createElement('button');
     this.modeToggleButton.setAttribute('aria-label', 'Enter test showcase mode');
     this.modeToggleButton.setAttribute('aria-pressed', 'false');
-    this.modeToggleButton.style.padding = '10px 20px';
-    this.modeToggleButton.style.borderRadius = '12px';
+    this.modeToggleButton.style.padding = '12px 22px';
+    this.modeToggleButton.style.borderRadius = '14px';
     this.modeToggleButton.style.border = '1px solid rgba(59, 130, 246, 0.5)';
     this.modeToggleButton.style.background = 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)';
     this.modeToggleButton.style.color = 'white';
     this.modeToggleButton.style.fontWeight = '600';
-    this.modeToggleButton.style.fontSize = '14px';
+    this.modeToggleButton.style.fontSize = '15px';
     this.modeToggleButton.style.cursor = 'pointer';
     this.modeToggleButton.style.boxShadow = '0 4px 14px rgba(59, 130, 246, 0.4)';
     this.modeToggleButton.style.transition = 'all 0.2s ease';
@@ -114,6 +117,12 @@ export class UIOverlay {
 
     this.controlPanel.appendChild(this.modeToggleButton);
 
+    // Zoom Controls
+    const btnZoomIn = this.createActionButton('🔍 Zoom IN', '#2563eb', 'Zoom Camera In', () => CameraController.adjustZoom(-35));
+    const btnZoomOut = this.createActionButton('🔍 Zoom OUT', '#475569', 'Zoom Camera Out', () => CameraController.adjustZoom(35));
+    this.controlPanel.appendChild(btnZoomIn);
+    this.controlPanel.appendChild(btnZoomOut);
+
     // Showcase Action Tools Container (Hidden in City mode)
     this.showcaseTools = document.createElement('div');
     this.showcaseTools.style.display = 'none';
@@ -134,18 +143,19 @@ export class UIOverlay {
     this.targetInfoPanel.style.position = 'fixed';
     this.targetInfoPanel.style.bottom = '24px';
     this.targetInfoPanel.style.left = '50%';
-    this.targetInfoPanel.style.transform = 'translateX(-50%)';
-    this.targetInfoPanel.style.background = 'rgba(15, 23, 42, 0.85)';
-    this.targetInfoPanel.style.backdropFilter = 'blur(10px)';
-    this.targetInfoPanel.style.padding = '12px 24px';
-    this.targetInfoPanel.style.borderRadius = '16px';
-    this.targetInfoPanel.style.border = '1px solid rgba(255, 255, 255, 0.15)';
+    this.targetInfoPanel.style.transform = 'translateX(-50%) scale(1.25)';
+    this.targetInfoPanel.style.transformOrigin = 'bottom center';
+    this.targetInfoPanel.style.background = 'rgba(15, 23, 42, 0.9)';
+    this.targetInfoPanel.style.backdropFilter = 'blur(12px)';
+    this.targetInfoPanel.style.padding = '16px 32px';
+    this.targetInfoPanel.style.borderRadius = '18px';
+    this.targetInfoPanel.style.border = '2px solid rgba(59, 130, 246, 0.6)';
     this.targetInfoPanel.style.color = 'white';
     this.targetInfoPanel.style.fontFamily = 'monospace';
-    this.targetInfoPanel.style.fontSize = '14px';
+    this.targetInfoPanel.style.fontSize = '18px';
     this.targetInfoPanel.style.pointerEvents = 'none';
     this.targetInfoPanel.style.display = 'none';
-    this.targetInfoPanel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+    this.targetInfoPanel.style.boxShadow = '0 12px 36px rgba(0,0,0,0.6)';
     document.body.appendChild(this.targetInfoPanel);
 
     // 3. Screen Labels Container for Showcase Buildings
@@ -177,13 +187,13 @@ export class UIOverlay {
   private static createActionButton(text: string, bgColor: string, ariaLabel: string, onClick: () => void): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.setAttribute('aria-label', ariaLabel);
-    btn.style.padding = '8px 16px';
-    btn.style.borderRadius = '10px';
+    btn.style.padding = '10px 18px';
+    btn.style.borderRadius = '12px';
     btn.style.border = 'none';
     btn.style.background = bgColor;
     btn.style.color = 'white';
     btn.style.fontWeight = '600';
-    btn.style.fontSize = '13px';
+    btn.style.fontSize = '14px';
     btn.style.cursor = 'pointer';
     btn.style.transition = 'transform 0.15s ease';
     btn.innerText = text;
@@ -232,8 +242,8 @@ export class UIOverlay {
     const safeName = escapeHtml(info.name);
     const safeKey = escapeHtml(info.key);
     this.targetInfoPanel.innerHTML = `
-      <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px; color: #60a5fa;">TARGET: ${safeName} <span style="opacity: 0.6; font-weight: normal;">[key: ${safeKey}]</span></div>
-      <div>HP: <span style="color: ${hpColor}; font-weight: bold;">${info.hp}/${info.maxHp} (${hpPercent}%)</span> | Stage Frame: <span style="color: #f472b6;">#${info.frame}</span></div>
+      <div style="font-weight: bold; font-size: 17px; margin-bottom: 6px; color: #60a5fa; letter-spacing: 0.5px;">🎯 TARGET: ${safeName} <span style="opacity: 0.7; font-weight: normal; font-size: 14px;">[${safeKey}]</span></div>
+      <div style="font-size: 15px;">HP: <span style="color: ${hpColor}; font-weight: bold;">${info.hp}/${info.maxHp} (${hpPercent}%)</span> | Frame: <span style="color: #f472b6; font-weight: bold;">#${info.frame}</span></div>
     `;
   }
 

@@ -2,33 +2,41 @@
 
 ![City Grid Architecture Blueprint](file:///home/berkans/development/alienv2/docs/images/city_grid_architecture.jpg)
 
-## 1. World Generation Architecture
+## 1. World Generation Architecture & Wave Function Collapse (WFC)
 
-The city map in ALINV-3D is generated procedurally via [`CityGenerator.ts`](file:///home/berkans/development/alienv2/src/systems/CityGenerator.ts) operating on a 64×64 cell grid (`TileMap.GRID_DIM = 64`, `TILE_SIZE = 16`, Total World Bounds = 1024×1024 units).
+The city map in ALINV-3D is generated procedurally via [`CityGenerator.ts`](file:///home/berkans/development/alienv2/src/systems/CityGenerator.ts) and [`WFCSolver.ts`](file:///home/berkans/development/alienv2/src/generation/WFCSolver.ts) operating on a 64×64 cell grid (`TileMap.GRID_DIM = 64`, `TILE_SIZE = 16`, Total World Bounds = 1024×1024 units).
 
 ```mermaid
 flowchart TD
-    Phase1[Phase 1: Blank-Slate Grid & Occupancy Matrix Initialization] --> Phase2[Phase 2: Paint District Zones & Water Boundaries]
-    Phase2 --> Phase3[Phase 3: Generate Road Networks, Intersections & Sidewalk Flanks]
-    Phase3 --> Phase4[Phase 4: Place Island Platforms & Statue of Liberty]
-    Phase4 --> Phase5[Phase 5: Place Landmark Anchors & Civic Buildings]
-    Phase5 --> Phase6[Phase 6: District Infill with Density Caps & Shuffled Seeds]
+    Phase1[Phase 1: Superposition & Entropy Matrix Init] --> Phase2[Phase 2: Seed Center 4-Way Cross Intersection]
+    Phase2 --> Phase3[Phase 3: WFC Minimum Entropy Cell Collapse]
+    Phase3 --> Phase4[Phase 4: Cardinal Socket Constraint Propagation Queue]
+    Phase4 --> CheckSolved{All Cells Collapsed?}
+    CheckSolved -- Contradiction --> Restart[Auto-Restart with Incremented Seed]
+    Restart --> Phase1
+    CheckSolved -- Solved --> Phase5[Phase 5: Map WFC Tile State to TileMap Terrain & Overlay]
+    Phase5 --> Phase6[Phase 6: Landmark Placement & District Infill]
     Phase6 --> Phase7[Phase 7: Rebuild SpatialGrid Spatial Hash Partitioning]
 ```
 
+### Wave Function Collapse (WFC) Socket Rules
+- **Tile Prototypes ([`WFCTilePrototypes.ts`](file:///home/berkans/development/alienv2/src/generation/WFCTilePrototypes.ts))**: Defines 20+ directional tile prototypes for straight roads (NS/EW), corners (NE/NW/SE/SW), T-intersections, 4-way cross intersections, commercial skyscraper lots, residential blocks, civic parks, and waterfront canals.
+- **Socket Matching (`SocketType`)**: Cardinal sockets (`N`, `E`, `S`, `W`) enforce socket compatibility (`ROAD`, `SIDEWALK`, `PLAZA`, `WATER`, `BUILDING_LOT`), guaranteeing 100% connected road networks with zero disconnected road stubs.
+- **Shannon Entropy Collapse**: Selects the uncollapsed cell with lowest Shannon entropy $H(c) = \log_2(\sum w) - \frac{\sum w \log_2(w)}{\sum w} + \epsilon$ and collapses its superposition via weighted random selection.
+
 ---
 
-## 2. District Zoning & Density Management
+## 2. District Zoning & Central Focal Point Layout
 
-The city is partitioned into 5 distinct urban districts defined in [`MapDefinition.ts`](file:///home/berkans/development/alienv2/src/core/MapDefinition.ts):
+The city is partitioned into 5 thematic urban districts defined in [`MapDefinition.ts`](file:///home/berkans/development/alienv2/src/core/MapDefinition.ts) around the **Central 3D Skyscraper Focal Point**:
 
-| District Zone | Grid Region | Terrain Type | Density Cap | Building Types |
-| :--- | :--- | :--- | :--- | :--- |
-| **Financial District** | North-East | Dark Asphalt / Concrete | 55% | Cyber Spires, Art Deco Titans, Skyscrapers |
-| **Tech Corridor** | Central-North | High-Tech Slate | 50% | Biotech Helix, Glass Mid-rises |
-| **Civic Center** | Center | Plaza Stone / Parks | 58% | Sky Gardens, Bronze Penthouses |
-| **Residential Borough**| South | Brownstone / Brick | 42% | Low-rise Shops, Brownstones |
-| **Docks & Waterfront** | South-East | Water & Docks | 35% | Warehouses, Shipping Terminals |
+| District Zone | Grid Region | Landmark / Centerpiece | Building Types |
+| :--- | :--- | :--- | :--- |
+| **Central Downtown Core** | Map Center ($gx=28, gz=28$) | **3D Skyscraper (`'5'`)**, Art Deco Titan | Cyber Spires, Glass Commercial Towers |
+| **North-West Airfield** | North-West ($gx=0..15, gz=0..15$) | Spaceship HQ Control Tower (`spaceship_hq`) | Tarmac Runway, Flight Apron, Hangers |
+| **North-East Sports & Parks** | North-East ($gx=37..63, gz=0..25$) | **Twin Stadium Arenas (`mega_stadium`)** | Sports Arenas, Green Park Belts, Trees |
+| **South-East Harbor & Docks** | South-East ($gx=37..63, gz=37..63$) | **Statue of Liberty Island**, Canal | Water Canal, Docks, Warehouses (`4`) |
+| **South-West Residential** | South-West ($gx=0..25, gz=37..63$) | **Hospital (`1`)**, **Shopping Mall (`2`)** | Brownstones (`b1`, `b2`), Civic Buildings |
 
 ```typescript
 const ZONE_DENSITY: Partial<Record<ZoneId, number>> = {

@@ -11,7 +11,7 @@ const MAX_PIXEL_RATIO = 2.0;
 const SCENE_BACKGROUND_HEX = 0x0d1b2a;
 
 // Camera Orthographic Projection Constants
-const DEFAULT_FRUSTUM_SIZE = 320;
+const DEFAULT_FRUSTUM_SIZE = 260;
 const CAMERA_NEAR_PLANE = 1;
 const CAMERA_FAR_PLANE = 3500;
 const CAMERA_INIT_X = 200;

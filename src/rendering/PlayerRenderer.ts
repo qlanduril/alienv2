@@ -12,7 +12,7 @@ const DISC_SCALE_X = 2.2;                // Scaled out to ~60 world units total 
 const DISC_SCALE_Y = 0.45;
 const DISC_SCALE_Z = 2.2;
 
-const DEFAULT_UFO_ALTITUDE = 75.0;       // High flight altitude hovering well above skyscraper roofs
+const DEFAULT_UFO_ALTITUDE = 75.0;        // Natural hover altitude hovering over rooftops in classic 2:1 isometric view
 
 const PLAYER_COLOR_HEX = 0x00f3ff;
 const PLAYER_EMISSIVE_HEX = 0x004466;
@@ -50,7 +50,7 @@ export class PlayerRenderer {
     if (this.playerEntity !== null) {
       const pos = PositionComponent.get(this.playerEntity);
       if (pos) {
-        // Enforce high altitude for mothership
+        // Enforce hover altitude for mothership
         if (pos.worldZ < 40) {
           pos.worldZ = DEFAULT_UFO_ALTITUDE;
         }

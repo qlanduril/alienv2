@@ -171,7 +171,7 @@ export class BuildingRenderer {
     let def = this.cachedDef.get(entity);
 
     if (!typeKey || !def) {
-      const prefixMatch = texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
+      const prefixMatch = texturePrefix ? texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/) : null;
       typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
       def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
 
@@ -392,6 +392,7 @@ export class BuildingRenderer {
 
       this.sprites.set(entity, sprite);
 
+      const { typeKey } = this.getTypeInfo(entity, renderState.texturePrefix);
       const zones = BUILDING_ZONES[typeKey];
       if (zones) {
         HitZoneManager.createZonesForBuilding(entity, sprite, zones);

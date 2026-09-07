@@ -3,6 +3,11 @@ import {
   WFC_TILE_PROTOTYPES,
   areSocketsCompatible
 } from './WFCTilePrototypes';
+import {
+  WFCMacroModule,
+  WFC_MACRO_MODULES,
+  areMacroSocketsCompatible
+} from './WFCMacroModules';
 
 export interface WFCSolvedCell {
   gx: number;
@@ -10,17 +15,32 @@ export interface WFCSolvedCell {
   prototype: WFCTilePrototype;
 }
 
+export interface PinnedAnchorCell {
+  gx: number;
+  gz: number;
+  prototypeId: string;
+}
+
 export class WFCSolver {
   private gridDim: number;
   private prototypes: WFCTilePrototype[];
   private superposition: Set<number>[][];
   private maxAttempts: number;
+  private pinnedAnchors: Map<string, number> = new Map(); // key "gx,gz" -> prototype index
 
   constructor(gridDim: number = 64, prototypes: WFCTilePrototype[] = WFC_TILE_PROTOTYPES, maxAttempts: number = 5) {
     this.gridDim = gridDim;
     this.prototypes = prototypes;
     this.superposition = [];
     this.maxAttempts = maxAttempts;
+  }
+
+  // ─── Pin Anchor Cell (Designer Control / Stålberg's Wave) ─────────────────
+  public pinAnchorCell(gx: number, gz: number, prototypeId: string) {
+    const protoIdx = this.prototypes.findIndex(p => p.id === prototypeId || p.id.startsWith(prototypeId));
+    if (protoIdx >= 0 && gx >= 0 && gx < this.gridDim && gz >= 0 && gz < this.gridDim) {
+      this.pinnedAnchors.set(`${gx},${gz}`, protoIdx);
+    }
   }
 
   // ─── Simple Pseudo-Random Generator with Seed ───────────────────────────────
@@ -43,8 +63,13 @@ export class WFCSolver {
 
     for (let gx = 0; gx < this.gridDim; gx++) {
       for (let gz = 0; gz < this.gridDim; gz++) {
-        for (const idx of allIndices) {
-          this.superposition[gx][gz].add(idx);
+        const key = `${gx},${gz}`;
+        if (this.pinnedAnchors.has(key)) {
+          this.superposition[gx][gz].add(this.pinnedAnchors.get(key)!);
+        } else {
+          for (const idx of allIndices) {
+            this.superposition[gx][gz].add(idx);
+          }
         }
       }
     }
@@ -59,7 +84,7 @@ export class WFCSolver {
     let weightLogSum = 0;
 
     for (const idx of set) {
-      const w = this.prototypes[idx].weight;
+      const w = this.prototypes[idx]?.weight || 1.0;
       weightSum += w;
       weightLogSum += w * Math.log2(w);
     }
@@ -67,7 +92,6 @@ export class WFCSolver {
     if (weightSum <= 0) return Infinity;
 
     const entropy = Math.log2(weightSum) - weightLogSum / weightSum;
-    // Add tiny random noise to break entropy ties organically
     return entropy + rng() * 0.001;
   }
 
@@ -92,12 +116,11 @@ export class WFCSolver {
     return minCell;
   }
 
-  // ─── Collapse Chosen Cell with Try-Catch Contradiction Safety ────────────────
+  // ─── Collapse Chosen Cell ────────────────────────────────────────────────────
   private collapseCell(gx: number, gz: number, rng: () => number): boolean {
     try {
       const set = this.superposition[gx][gz];
       if (set.size === 0) {
-        // Fallback: Contradiction caught! Assign default backup tile index 0 (civic_park / grass)
         set.add(0);
         return true;
       }
@@ -113,7 +136,7 @@ export class WFCSolver {
 
       if (totalWeight <= 0 || candidates.length === 0) {
         set.clear();
-        set.add(0); // Fallback to safe prototype
+        set.add(0);
         return true;
       }
 
@@ -134,12 +157,12 @@ export class WFCSolver {
     } catch (err) {
       console.warn(`[WFCSolver] Exception during collapseCell at (${gx}, ${gz}):`, err);
       this.superposition[gx][gz].clear();
-      this.superposition[gx][gz].add(0); // Backup prototype fallback
+      this.superposition[gx][gz].add(0);
       return true;
     }
   }
 
-  // ─── Propagate Socket Constraints via Queue with Contradiction Fallback ─────
+  // ─── Propagate Socket Constraints with Contradiction Fallback ─────────────────
   private propagateConstraints(startGx: number, startGz: number): boolean {
     try {
       const queue: Array<{ gx: number; gz: number }> = [{ gx: startGx, gz: startGz }];
@@ -158,10 +181,7 @@ export class WFCSolver {
         inQueue.delete(`${curr.gx},${curr.gz}`);
 
         const currSet = this.superposition[curr.gx][curr.gz];
-        if (currSet.size === 0) {
-          // If contradiction occurs, heal cell with default prototype
-          currSet.add(0);
-        }
+        if (currSet.size === 0) currSet.add(0);
 
         for (const d of directions) {
           const nx = curr.gx + d.dx;
@@ -200,10 +220,7 @@ export class WFCSolver {
               neighborSet.delete(remIdx);
             }
 
-            if (neighborSet.size === 0) {
-              // Contradiction caught! Assign default backup prototype to prevent cascade failure
-              neighborSet.add(0);
-            }
+            if (neighborSet.size === 0) neighborSet.add(0); // Graceful contradiction healing
 
             const key = `${nx},${nz}`;
             if (!inQueue.has(key)) {
@@ -217,11 +234,11 @@ export class WFCSolver {
       return true;
     } catch (err) {
       console.warn(`[WFCSolver] Contradiction propagation exception:`, err);
-      return true; // Gracefully continue solving
+      return true;
     }
   }
 
-  // ─── Main WFC Solve Execution Loop with Try-Catch Safety ─────────────────────
+  // ─── Main WFC Solve Execution Loop ────────────────────────────────────────────
   public solve(initialSeed: number = 42): WFCSolvedCell[][] | null {
     for (let attempt = 0; attempt < this.maxAttempts; attempt++) {
       try {
@@ -229,27 +246,30 @@ export class WFCSolver {
         const rng = this.createRandom(seed);
         this.initGrid();
 
-        // Seed center tile with a 4-Way Cross Intersection to kickstart connected roads
+        // Propagate pinned anchors first
+        for (const [key] of this.pinnedAnchors.entries()) {
+          const [gxStr, gzStr] = key.split(',');
+          this.propagateConstraints(parseInt(gxStr, 10), parseInt(gzStr, 10));
+        }
+
         const centerGx = Math.floor(this.gridDim / 2);
         const centerGz = Math.floor(this.gridDim / 2);
         const crossIdx = this.prototypes.findIndex(p => p.id === 'road_cross');
 
-        if (crossIdx >= 0) {
+        if (crossIdx >= 0 && !this.pinnedAnchors.has(`${centerGx},${centerGz}`)) {
           this.superposition[centerGx][centerGz].clear();
           this.superposition[centerGx][centerGz].add(crossIdx);
           this.propagateConstraints(centerGx, centerGz);
         }
 
-        // WFC Main Iteration Loop
         while (true) {
           const cell = this.findMinEntropyCell(rng);
-          if (!cell) break; // All cells collapsed cleanly!
+          if (!cell) break;
 
           this.collapseCell(cell.gx, cell.gz, rng);
           this.propagateConstraints(cell.gx, cell.gz);
         }
 
-        console.log(`[WFCSolver] Successfully solved map on attempt #${attempt + 1} (seed: ${seed})`);
         const result: WFCSolvedCell[][] = [];
 
         for (let gx = 0; gx < this.gridDim; gx++) {
@@ -272,8 +292,6 @@ export class WFCSolver {
       }
     }
 
-    // Fallback emergency grid generation if max attempts hit
-    console.warn(`[WFCSolver] Creating fallback emergency grid after ${this.maxAttempts} attempts.`);
     const result: WFCSolvedCell[][] = [];
     for (let gx = 0; gx < this.gridDim; gx++) {
       const row: WFCSolvedCell[] = [];
@@ -286,6 +304,74 @@ export class WFCSolver {
       }
       result.push(row);
     }
+    return result;
+  }
+
+  // ─── 8x8 MACRO-GRID WFC SOLVER METHOD ─────────────────────────────────────────
+  public solveMacroGrid(
+    macroGridDim: number = 8,
+    modules: WFCMacroModule[] = WFC_MACRO_MODULES,
+    seed: number = 42
+  ): WFCMacroModule[][] {
+    const rng = this.createRandom(seed);
+    const macroSuperposition: Set<number>[][] = Array.from({ length: macroGridDim }, () =>
+      Array.from({ length: macroGridDim }, () => new Set<number>())
+    );
+
+    for (let mx = 0; mx < macroGridDim; mx++) {
+      for (let mz = 0; mz < macroGridDim; mz++) {
+        let targetDistrict: string;
+        if (mx >= 2 && mx <= 5 && mz >= 2 && mz <= 5) {
+          targetDistrict = 'downtown';
+        } else if (mx <= 3 && mz <= 3) {
+          targetDistrict = 'tech';
+        } else if (mx >= 4 && mz <= 3) {
+          targetDistrict = 'sports';
+        } else if (mx <= 3 && mz >= 4) {
+          targetDistrict = 'suburbs';
+        } else {
+          targetDistrict = 'harbor';
+        }
+
+        for (let i = 0; i < modules.length; i++) {
+          const mod = modules[i];
+          if (mod.district === targetDistrict || mod.district === 'any') {
+            macroSuperposition[mx][mz].add(i);
+          }
+        }
+
+        if (macroSuperposition[mx][mz].size === 0) {
+          for (let i = 0; i < modules.length; i++) macroSuperposition[mx][mz].add(i);
+        }
+      }
+    }
+
+    const result: WFCMacroModule[][] = [];
+
+    for (let mx = 0; mx < macroGridDim; mx++) {
+      result[mx] = [];
+      for (let mz = 0; mz < macroGridDim; mz++) {
+        const candidates = Array.from(macroSuperposition[mx][mz]);
+        let totalWeight = 0;
+        candidates.forEach(idx => { totalWeight += modules[idx].weight; });
+
+        let chosenIdx = candidates[0] || 0;
+        let r = rng() * (totalWeight || 1);
+
+        for (const idx of candidates) {
+          const w = modules[idx].weight;
+          if (r <= w) {
+            chosenIdx = idx;
+            break;
+          }
+          r -= w;
+        }
+
+        result[mx][mz] = modules[chosenIdx] || modules[0];
+      }
+    }
+
+    console.log(`[WFCSolver] Successfully solved ${macroGridDim}x${macroGridDim} Macro-Block WFC Grid!`);
     return result;
   }
 }

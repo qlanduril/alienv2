@@ -5,6 +5,7 @@ export interface SerializedTile {
   overlayType: OverlayTileType;
   isIntersection?: boolean;
   roadAxis?: 'NS' | 'EW' | 'DIAG';
+  tileSprite?: string;
 }
 
 export interface SerializedBuilding {

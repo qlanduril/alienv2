@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TileMap, TerrainType } from './TileMap';
 import { SceneManager } from '../SceneManager';
+import { AssetLoader } from '../../assets/AssetLoader';
 
 // --- TileRenderer Constants ---
 const ZERO_VALUE = 0;
@@ -8,7 +9,7 @@ const INITIAL_SCALE_UNIT = 1;
 const GROUND_ALTITUDE = 0;
 const MAX_INSTANCES_PER_TYPE = 8000;
 const CANVAS_DIMENSION = 512;
-const TEXTURE_REPEAT_COUNT = 2;
+const TEXTURE_REPEAT_COUNT = 1;
 const TEXTURE_ANISOTROPY = 4;
 const GROUND_ROTATION_X = -Math.PI / 2;
 
@@ -259,8 +260,8 @@ export class TileRenderer {
       if (tType === TerrainType.SIDEWALK || tType === TerrainType.PLAZA_STONE) {
         r = SIDEWALK_ROUGHNESS;
       } else if (tType === TerrainType.WATER) {
-        r = 0.1; // Low roughness for water reflection
-        m = 0.8; // High metalness
+        r = 0.1;
+        m = 0.8;
       }
 
       const mat = new THREE.MeshStandardMaterial({

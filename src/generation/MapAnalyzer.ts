@@ -34,6 +34,7 @@ export interface AnalysisReport {
     harborOccupancy: number;
   };
   paletteDistribution: Record<string, { count: number; ratio: number }>;
+  refImage?: string;
   diagnostics: string[];
   score: number; // 0..100 quality score against target preset hyperparameters
 }
@@ -251,6 +252,7 @@ export class MapAnalyzer {
       footprintDistribution,
       blockOccupancy,
       paletteDistribution,
+      refImage: (mapData.metadata as any)?.refImage,
       diagnostics,
       score: Math.max(0, score),
     };

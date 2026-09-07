@@ -1,4 +1,4 @@
-export type CityPresetName = 'metropolitan_ny' | 'retro_arcade';
+export type CityPresetName = 'metropolitan_ny' | 'retro_arcade' | 'isometric_v1';
 
 export interface CityGeneratorHyperparameters {
   name: string;
@@ -49,88 +49,47 @@ export interface CityGeneratorHyperparameters {
 
 /**
  * PRESET 1: Metropolitan NY (Extracted from NYC-ISONMETRIC.jpg)
- * Dense Gotham high-rise core with 6x6 grid, sandstone plazas, wall-to-wall towers with 4-tile monolith breaking alleys.
  */
 export const PRESET_METROPOLITAN_NY: CityGeneratorHyperparameters = {
   name: 'Metropolitan NY',
   description: 'Dense Gotham high-rise grid based on NYC-ISONMETRIC.jpg',
-  landUse: {
-    waterRatio: 0.15,
-    roadRatio: 0.20,
-    negativeSpaceRatio: 0.22,
-    builtLotRatio: 0.43,
-  },
-  heightDistribution: {
-    megaTitan: 0.01,
-    highRise: 0.25,
-    midRise: 0.35,
-    lowRise: 0.39,
-  },
-  footprintDistribution: {
-    size1x1: 0.65,
-    size2x2: 0.23,
-    size3x3: 0.08,
-    size4x4: 0.04,
-  },
-  blockOccupancy: {
-    downtownCore: 0.80,
-    maxBuildingStreak: 4,
-    civicLeisure: 0.35,
-    residentialSuburbs: 0.45,
-    harborIndustrial: 0.30,
-  },
-  paletteDistribution: {
-    blueGlassSpire: 0.25,
-    whiteConcreteCivic: 0.25,
-    redBrickBrownstone: 0.25,
-    industrialGreyMetal: 0.15,
-    accentColorSpire: 0.10,
-  },
+  landUse: { waterRatio: 0.15, roadRatio: 0.20, negativeSpaceRatio: 0.22, builtLotRatio: 0.43 },
+  heightDistribution: { megaTitan: 0.01, highRise: 0.25, midRise: 0.35, lowRise: 0.39 },
+  footprintDistribution: { size1x1: 0.65, size2x2: 0.23, size3x3: 0.08, size4x4: 0.04 },
+  blockOccupancy: { downtownCore: 0.80, maxBuildingStreak: 4, civicLeisure: 0.35, residentialSuburbs: 0.45, harborIndustrial: 0.30 },
+  paletteDistribution: { blueGlassSpire: 0.25, whiteConcreteCivic: 0.25, redBrickBrownstone: 0.25, industrialGreyMetal: 0.15, accentColorSpire: 0.10 },
 };
 
 /**
  * PRESET 2: Retro Arcade City (Extracted from alinv2city.jpg)
- * Vibrant civic city with airport runways, central Mega-Titan + twin arenas, canal/docks, 30% green parks, 66% low-rise structures.
  */
 export const PRESET_RETRO_ARCADE: CityGeneratorHyperparameters = {
   name: 'Retro Arcade City',
-  description: 'Vibrant pixel-art city with airfield, central Mega-Titan, canals, and green parks based on alinv2city.jpg',
-  landUse: {
-    waterRatio: 0.18,
-    roadRatio: 0.22,
-    negativeSpaceRatio: 0.30,
-    builtLotRatio: 0.30,
-  },
-  heightDistribution: {
-    megaTitan: 0.01,
-    highRise: 0.08,
-    midRise: 0.25,
-    lowRise: 0.66,
-  },
-  footprintDistribution: {
-    size1x1: 0.50,
-    size2x2: 0.30,
-    size3x3: 0.12,
-    size4x4: 0.08,
-  },
-  blockOccupancy: {
-    downtownCore: 0.65,
-    maxBuildingStreak: 3,
-    civicLeisure: 0.25,
-    residentialSuburbs: 0.35,
-    harborIndustrial: 0.25,
-  },
-  paletteDistribution: {
-    blueGlassSpire: 0.15,
-    whiteConcreteCivic: 0.35,
-    redBrickBrownstone: 0.25,
-    industrialGreyMetal: 0.15,
-    accentColorSpire: 0.10,
-  },
+  description: 'Vibrant pixel-art city based on alinv2city.jpg',
+  landUse: { waterRatio: 0.18, roadRatio: 0.22, negativeSpaceRatio: 0.30, builtLotRatio: 0.30 },
+  heightDistribution: { megaTitan: 0.01, highRise: 0.08, midRise: 0.25, lowRise: 0.66 },
+  footprintDistribution: { size1x1: 0.50, size2x2: 0.30, size3x3: 0.12, size4x4: 0.08 },
+  blockOccupancy: { downtownCore: 0.65, maxBuildingStreak: 3, civicLeisure: 0.25, residentialSuburbs: 0.35, harborIndustrial: 0.25 },
+  paletteDistribution: { blueGlassSpire: 0.15, whiteConcreteCivic: 0.35, redBrickBrownstone: 0.25, industrialGreyMetal: 0.15, accentColorSpire: 0.10 },
 };
 
-export const DEFAULT_CITY_HYPERPARAMETERS = PRESET_RETRO_ARCADE;
+/**
+ * PRESET 3: Isometric Pack V1 (JanaChumi PNG Tileset)
+ */
+export const PRESET_ISOMETRIC_V1: CityGeneratorHyperparameters = {
+  name: 'Isometric Pack V1',
+  description: 'Clean isometric city powered by JanaChumi Isometric PNG tileset',
+  landUse: { waterRatio: 0.10, roadRatio: 0.25, negativeSpaceRatio: 0.25, builtLotRatio: 0.40 },
+  heightDistribution: { megaTitan: 0.01, highRise: 0.15, midRise: 0.45, lowRise: 0.39 },
+  footprintDistribution: { size1x1: 0.70, size2x2: 0.15, size3x3: 0.10, size4x4: 0.05 },
+  blockOccupancy: { downtownCore: 0.75, maxBuildingStreak: 4, civicLeisure: 0.30, residentialSuburbs: 0.40, harborIndustrial: 0.20 },
+  paletteDistribution: { blueGlassSpire: 0.20, whiteConcreteCivic: 0.30, redBrickBrownstone: 0.30, industrialGreyMetal: 0.10, accentColorSpire: 0.10 },
+};
 
-export function getCityPreset(preset: CityPresetName = 'retro_arcade'): CityGeneratorHyperparameters {
+export const DEFAULT_CITY_HYPERPARAMETERS = PRESET_ISOMETRIC_V1;
+
+export function getCityPreset(preset: CityPresetName = 'isometric_v1'): CityGeneratorHyperparameters {
+  if (preset === 'isometric_v1') return PRESET_ISOMETRIC_V1;
   return preset === 'metropolitan_ny' ? PRESET_METROPOLITAN_NY : PRESET_RETRO_ARCADE;
 }
+

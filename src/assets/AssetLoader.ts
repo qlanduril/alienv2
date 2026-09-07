@@ -98,6 +98,42 @@ export class AssetLoader {
     ];
     spaceshipFrames.forEach((f, i) => promises.push(this.loadTexture(`building_spaceship_hq_stage_${i}`, `/buildingv2/spaceship_hq/png/${f}`)));
 
+    // 7. Load JanaChumi Isometric Pack V1 Building Textures
+    const janaBuildingMap: Record<string, string> = {
+      'jana_building0': '/tiles/v1/IsometricPack_ByJanaChumi/png/building0.png',
+      'jana_building1': '/tiles/v1/IsometricPack_ByJanaChumi/png/building1.png',
+      'jana_building2': '/tiles/v1/IsometricPack_ByJanaChumi/png/building2.png',
+      'jana_police': '/tiles/v1/IsometricPack_ByJanaChumi/png/police0.png',
+      'jana_shop0': '/tiles/v1/IsometricPack_ByJanaChumi/png/shop0.png',
+      'jana_shop1': '/tiles/v1/IsometricPack_ByJanaChumi/png/shop1.png',
+      'jana_pink_house': '/tiles/v1/IsometricPack_ByJanaChumi/png/pinkHouse.png',
+      'jana_purple_house': '/tiles/v1/IsometricPack_ByJanaChumi/png/purpleHouse.png',
+      'jana_school': '/tiles/v1/IsometricPack_ByJanaChumi/png/school0.png',
+      'jana_fountain': '/tiles/v1/IsometricPack_ByJanaChumi/png/fountain.png'
+    };
+
+    for (const [key, texPath] of Object.entries(janaBuildingMap)) {
+      promises.push(this.loadTexture(`building_${key}_stage_0`, texPath));
+    }
+
+    // 8. Load Kenney Isometric City Pack Building Textures
+    const kenneyBuildingMap: Record<string, string> = {
+      'kenney_tower_cyber': '/tiles/kenny/PNG/cityTiles_036.png',
+      'kenney_tower_office': '/tiles/kenny/PNG/cityTiles_044.png',
+      'kenney_tower_artdeco': '/tiles/kenny/PNG/cityTiles_048.png',
+      'kenney_building_block': '/tiles/kenny/PNG/cityTiles_052.png',
+      'kenney_house_red': '/tiles/kenny/PNG/cityTiles_072.png',
+      'kenney_house_beige': '/tiles/kenny/PNG/cityTiles_078.png',
+      'kenney_shop_blue': '/tiles/kenny/PNG/cityTiles_086.png',
+      'kenney_shop_green': '/tiles/kenny/PNG/cityTiles_088.png',
+      'kenney_hospital': '/tiles/kenny/PNG/cityTiles_092.png',
+      'kenney_stadium': '/tiles/kenny/PNG/cityTiles_090.png'
+    };
+
+    for (const [key, texPath] of Object.entries(kenneyBuildingMap)) {
+      promises.push(this.loadTexture(`building_${key}_stage_0`, texPath));
+    }
+
     const statueFrames = ['state_000_pristine.png', 'state_050_head_torch_snapped.png', 'state_100_pedestal_shattered.png'];
     statueFrames.forEach((f, i) => promises.push(this.loadTexture(`building_statue_liberty_stage_${i}`, `/buildingv2/statue_liberty/png/${f}`)));
 
@@ -147,7 +183,10 @@ export class AssetLoader {
           resolve(texture);
         },
         undefined,
-        (error) => reject(error)
+        (error) => {
+          console.warn(`[AssetLoader] Texture '${id}' at ${url} failed to load. Proceeding with fallback.`);
+          resolve(null as any);
+        }
       );
     });
   }

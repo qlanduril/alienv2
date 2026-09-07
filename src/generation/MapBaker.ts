@@ -9,12 +9,15 @@ import {
   SerializedWaypoint
 } from './GeneratedMapSchema';
 
+import { WFCSolver } from './WFCSolver';
+import { WFC_MACRO_MODULES } from './WFCMacroModules';
+
 export interface ProgressCallback {
   (layer: number, totalLayers: number, message: string): void;
 }
 
 export class MapBaker {
-  private static readonly SCHEMA_VERSION = '1.0.0';
+  private static readonly SCHEMA_VERSION = '1.3.0';
   private static readonly TOTAL_LAYERS = 6;
 
   /**
@@ -148,189 +151,52 @@ export class MapBaker {
       }
     }
     placeBuilding(platformGx + 1, platformGz + 1, 'statue_liberty', 'landmark', 0);
-    layerTimings['Pass 2 (Islands)'] = performance.now() - t0;
-
-    // ── PASS 3: HIERARCHICAL ROAD NETWORK ─────────────────────────────────
+    
+    // ── PASS 3, 4 & 5: HIERARCHICAL 8x8 MACRO-BLOCK WFC SOLVE & RASTERIZATION ───
     t0 = performance.now();
-    onProgress?.(2, this.TOTAL_LAYERS, `Pass 3: Road network hierarchy for '${config.name}'...`);
+    onProgress?.(2, this.TOTAL_LAYERS, `Pass 3: Solving 8x8 Macro-Block WFC grid...`);
 
-    const markRoadCell = (gx: number, gz: number, axis: 'NS' | 'EW') => {
-      if (gx < 0 || gx >= gridDim || gz < 0 || gz >= gridDim) return;
-      if (TileMap.getCell(gx, gz)?.terrainType === TerrainType.WATER) return;
+    const wfcSolver = new WFCSolver(gridDim);
+    const macroGrid = wfcSolver.solveMacroGrid(8, WFC_MACRO_MODULES, seed);
+    layerTimings['Pass 3 (Macro WFC Solve)'] = performance.now() - t0;
 
-      TileMap.setRoad(gx, gz, axis);
-      occupied[gx][gz] = true;
-    };
+    t0 = performance.now();
+    onProgress?.(3, this.TOTAL_LAYERS, 'Pass 4: Rasterizing Macro-Module tiles & Landmark siting...');
 
-    // Primary Arterial Avenues (2-lanes wide through center)
-    const arterialCols = [31, 32];
-    for (const gx of arterialCols) {
-      for (let gz = 0; gz < 56; gz++) markRoadCell(gx, gz, 'NS');
-      const cell = TileMap.getCell(gx, 0);
-      if (cell) roadWaypoints.push({ worldX: cell.worldX, worldZ: cell.worldZ, name: `Arterial Prime Ave ${gx}` });
-    }
+    for (let mx = 0; mx < 8; mx++) {
+      for (let mz = 0; mz < 8; mz++) {
+        const mod = macroGrid[mx][mz];
+        const baseGx = mx * 8;
+        const baseGz = mz * 8;
 
-    if (preset === 'retro_arcade') {
-      // NW Airfield Runways & Tarmac (gx=0..16, gz=0..16)
-      for (let gx = 1; gx <= 15; gx++) {
-        markRoadCell(gx, 4, 'EW');
-        markRoadCell(gx, 10, 'EW');
-      }
-    }
+        for (let lx = 0; lx < 8; lx++) {
+          for (let lz = 0; lz < 8; lz++) {
+            const gx = baseGx + lx;
+            const gz = baseGz + lz;
+            if (gx < gridDim && gz < gridDim) {
+              const cellData = mod.grid[lx][lz];
+              const cell = TileMap.getCell(gx, gz);
+              if (cell && cell.terrainType !== TerrainType.WATER) {
+                cell.terrainType = cellData.terrainType;
+                cell.overlayType = cellData.overlayType;
 
-    // Coastal Diagonal Boulevard
-    for (let i = 0; i <= 44; i++) {
-      const gx = 10 + i;
-      const gz = 54 - Math.floor(i * 0.65);
-      if (gx < gridDim && gz >= 0) {
-        markRoadCell(gx, gz, 'EW');
-        markRoadCell(gx + 1, gz, 'EW');
-      }
-    }
+                if (cellData.overlayType === OverlayTileType.ROAD) {
+                  occupied[gx][gz] = true;
+                }
 
-    // Local Secondary Grid
-    const gridLines = preset === 'metropolitan_ny' ? [20, 26, 32, 38, 44] : [16, 26, 36, 46];
-    for (const line of gridLines) {
-      for (let gz = 16; gz <= 44; gz++) markRoadCell(line, gz, 'NS');
-      for (let gx = 16; gx <= 44; gx++) markRoadCell(gx, line, 'EW');
-    }
-
-    // Outer Avenues
-    for (const gx of [8, 14, 50]) {
-      for (let gz = 0; gz < 52; gz++) markRoadCell(gx, gz, 'NS');
-    }
-    for (const gz of [8, 14, 50]) {
-      for (let gx = 0; gx < 52; gx++) markRoadCell(gx, gz, 'EW');
-    }
-
-    // Intersections
-    for (let gx = 0; gx < gridDim; gx++) {
-      for (let gz = 0; gz < gridDim; gz++) {
-        const cell = TileMap.getCell(gx, gz);
-        if (cell && cell.overlayType === OverlayTileType.ROAD) {
-          const hasNS = TileMap.getCell(gx, gz - 1)?.overlayType === OverlayTileType.ROAD || TileMap.getCell(gx, gz + 1)?.overlayType === OverlayTileType.ROAD;
-          const hasEW = TileMap.getCell(gx - 1, gz)?.overlayType === OverlayTileType.ROAD || TileMap.getCell(gx + 1, gz)?.overlayType === OverlayTileType.ROAD;
-          if (hasNS && hasEW) {
-            TileMap.setIntersection(gx, gz);
+                if (cellData.buildingType && !occupied[gx][gz]) {
+                  placeBuilding(gx, gz, cellData.buildingType, 'macro_wfc', 0);
+                }
+              }
+            }
           }
         }
       }
     }
 
-    // Sidewalk Flanks
-    for (let gx = 0; gx < gridDim; gx++) {
-      for (let gz = 0; gz < gridDim; gz++) {
-        const cell = TileMap.getCell(gx, gz);
-        if (cell && cell.overlayType === OverlayTileType.ROAD) {
-          TileMap.setSidewalkIfNotRoad(gx - 1, gz);
-          TileMap.setSidewalkIfNotRoad(gx + 1, gz);
-          TileMap.setSidewalkIfNotRoad(gx, gz - 1);
-          TileMap.setSidewalkIfNotRoad(gx, gz + 1);
-        }
-      }
-    }
-    layerTimings['Pass 3 (Road Hierarchy)'] = performance.now() - t0;
-
-    // ── PASS 4: LANDMARK ANCHORS WITH BUFFER ZONES ────────────────────────
-    t0 = performance.now();
-    onProgress?.(3, this.TOTAL_LAYERS, 'Pass 4: Landmark anchors with dedicated buffer rings...');
-
-    paintTerrain(6, 10, 8, 8, TerrainType.GRASS, 2);
-    placeBuilding(8, 12, 'spaceship_hq', 'landmark', 2);
-
-    paintTerrain(28, 24, 6, 6, TerrainType.PLAZA_STONE, 1);
-    placeBuilding(29, 25, 'mega_titan', 'landmark', 1);
-
-    paintTerrain(36, 1, 6, 6, TerrainType.GRASS, 1);
-    placeBuilding(37, 2, 'mega_stadium', 'landmark', 1);
-    paintTerrain(36, 12, 6, 6, TerrainType.GRASS, 1);
-    placeBuilding(37, 13, 'mega_stadium', 'landmark', 1);
-
-    placeBuilding(9, 39, '1', 'landmark', 1);
-    placeBuilding(18, 39, '2', 'landmark', 1);
-    placeBuilding(18, 28, 'pentagon_defense', 'landmark', 1);
-    placeBuilding(18, 18, '3', 'landmark', 1);
-    placeBuilding(28, 28, '5', 'landmark', 1);
-    layerTimings['Pass 4 (Landmarks)'] = performance.now() - t0;
-
-    // ── PASS 5: DISTRICT MORPHOLOGY & PERIMETER LOT INFILL ───────────────
-    t0 = performance.now();
-    onProgress?.(4, this.TOTAL_LAYERS, `Pass 5: Perimeter infill & monolith break (Max ${config.blockOccupancy.maxBuildingStreak} tiles)...`);
-
-    const downtownPool = preset === 'metropolitan_ny'
-      ? ['sky_cyber', 'b2', 'sky_artdeco', 'b1', 'sky_biotech', 'b3', 'res_sky', 'res_bronze', '5', 'b4']
-      : ['b4', 'b3', 'b1', 'b2', 'sky_artdeco', 'res_sky', '5', 'res_bronze'];
-    let dIdx = 0;
-    let currentBuildingStreak = 0;
-
-    for (let gx = 20; gx <= 44; gx++) {
-      for (let gz = 20; gz <= 44; gz++) {
-        const cell = TileMap.getCell(gx, gz);
-        if (!cell || cell.overlayType === OverlayTileType.ROAD || cell.terrainType === TerrainType.WATER) continue;
-
-        // Break continuous building clusters to prevent solid monoliths!
-        if (currentBuildingStreak >= config.blockOccupancy.maxBuildingStreak) {
-          cell.terrainType = TerrainType.PLAZA_STONE;
-          currentBuildingStreak = 0;
-          continue;
-        }
-
-        if (!occupied[gx][gz]) {
-          const typeKey = downtownPool[dIdx % downtownPool.length];
-          dIdx++;
-          if (placeBuilding(gx, gz, typeKey, 'urban_cluster', 0)) {
-            cell.terrainType = TerrainType.PLAZA_STONE;
-            currentBuildingStreak++;
-          } else {
-            cell.terrainType = TerrainType.PLAZA_STONE;
-            currentBuildingStreak = 0;
-          }
-        } else {
-          currentBuildingStreak = 0;
-        }
-      }
-    }
-
-    // Suburban Low-Rise Infill
-    const suburbPool = ['b1', 'b2', 'res_bronze', 'b3'];
-    let sIdx = 0;
-
-    for (let gx = 1; gx <= 25; gx++) {
-      for (let gz = 35; gz <= 60; gz++) {
-        const cell = TileMap.getCell(gx, gz);
-        if (!cell || cell.overlayType === OverlayTileType.ROAD || cell.terrainType === TerrainType.WATER) continue;
-
-        const isPerimeter = TileMap.getCell(gx - 1, gz)?.overlayType === OverlayTileType.SIDEWALK ||
-                            TileMap.getCell(gx + 1, gz)?.overlayType === OverlayTileType.SIDEWALK ||
-                            TileMap.getCell(gx, gz - 1)?.overlayType === OverlayTileType.SIDEWALK ||
-                            TileMap.getCell(gx, gz + 1)?.overlayType === OverlayTileType.SIDEWALK;
-
-        if (isPerimeter && !occupied[gx][gz]) {
-          const typeKey = suburbPool[sIdx % suburbPool.length];
-          sIdx++;
-          placeBuilding(gx, gz, typeKey, 'suburban_house', 0);
-        } else if (!occupied[gx][gz]) {
-          cell.terrainType = TerrainType.GRASS;
-        }
-      }
-    }
-
-    // Harbor Docks Infill
-    for (let gx = 35; gx < gridDim; gx++) {
-      for (let gz = 35; gz < gridDim; gz++) {
-        const cell = TileMap.getCell(gx, gz);
-        if (!cell || cell.overlayType === OverlayTileType.ROAD || cell.terrainType === TerrainType.WATER) continue;
-
-        if (!occupied[gx][gz]) {
-          if (placeBuilding(gx, gz, '4', 'harbor_warehouse', 0)) {
-            cell.terrainType = TerrainType.SIDEWALK;
-          } else {
-            cell.terrainType = TerrainType.PLAZA_STONE;
-          }
-        }
-      }
-    }
-    layerTimings['Pass 5 (Perimeter Infill)'] = performance.now() - t0;
+    // Statue of Liberty Landmark Anchor on Island
+    placeBuilding(51, 51, 'statue_liberty', 'landmark', 0);
+    layerTimings['Pass 4 & 5 (Macro Rasterization)'] = performance.now() - t0;
 
     // ── PASS 6: 4,096-TILE SERIALIZATION & PACKAGING ───────────────────────
     t0 = performance.now();

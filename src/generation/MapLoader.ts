@@ -17,30 +17,41 @@ import { GeneratedMapData, SerializedTile } from './GeneratedMapSchema';
 import { CityPresetName } from './CityConfig';
 
 const HP_PER_ZONE = 60;
-const CURRENT_SCHEMA_VERSION = '1.0.0';
+const CURRENT_SCHEMA_VERSION = '1.3.0';
 
 export class MapLoader {
   /**
    * Helper to determine target preset from URL query parameter (e.g. ?preset=ny or ?preset=arcade)
    */
   public static getPresetFromUrl(): CityPresetName {
-    if (typeof window === 'undefined') return 'retro_arcade';
+    if (typeof window === 'undefined') return 'isometric_v1';
     const params = new URLSearchParams(window.location.search);
     const p = params.get('preset')?.toLowerCase();
     if (p === 'ny' || p === 'metropolitan_ny' || p === 'gotham') {
       return 'metropolitan_ny';
+    }
+    if (p === 'kenney' || p === 'kenney_isometric') {
+      return 'kenney_isometric';
+    }
+    if (p === 'v1' || p === 'isometric_v1') {
+      return 'isometric_v1';
     }
     return 'retro_arcade';
   }
 
   /**
    * Loads pre-baked city map JSON, paints TileMap, and spawns ECS building entities.
-   * Checks URL parameter ?preset=ny vs ?preset=arcade, or uses explicit jsonPath.
+   * Checks URL parameter ?preset=v1 vs ?preset=kenney vs ?preset=ny vs ?preset=arcade, or uses explicit jsonPath.
    */
   public static async loadAndInstantiate(jsonPath?: string): Promise<boolean> {
     try {
       const activePreset = this.getPresetFromUrl();
-      const targetPath = jsonPath || (activePreset === 'metropolitan_ny' ? '/generated_map_ny.json' : '/generated_map_arcade.json');
+      const targetPath = jsonPath || (
+        activePreset === 'kenney_isometric' ? '/generated_map_kenney.json' :
+        activePreset === 'isometric_v1' ? '/generated_map_v1.json' :
+        activePreset === 'metropolitan_ny' ? '/generated_map_ny.json' :
+        '/generated_map.json'
+      );
 
       console.log(`[MapLoader] Fetching pre-baked map for preset '${activePreset}' from ${targetPath}...`);
       let response = await fetch(targetPath);
@@ -70,10 +81,7 @@ export class MapLoader {
 
       for (let gx = 0; gx < gridDim; gx++) {
         for (let gz = 0; gz < gridDim; gz++) {
-          let terrainType = TerrainType.GRASS;
-          let overlayType = OverlayTileType.NONE;
-          let isIntersection = false;
-          let roadAxis: 'NS' | 'EW' | 'DIAG' | undefined = undefined;
+          let tileSprite: string | undefined = undefined;
 
           if (is2D) {
             const serializedTile = (data.tiles as SerializedTile[][])[gx]?.[gz];
@@ -82,6 +90,7 @@ export class MapLoader {
               overlayType = serializedTile.overlayType;
               isIntersection = !!serializedTile.isIntersection;
               roadAxis = serializedTile.roadAxis;
+              tileSprite = serializedTile.tileSprite;
             }
           } else {
             const val = (data.tiles as any)[gz * gridDim + gx];
@@ -97,10 +106,15 @@ export class MapLoader {
               overlayType = val.overlayType;
               isIntersection = !!val.isIntersection;
               roadAxis = val.roadAxis;
+              tileSprite = val.tileSprite;
             }
           }
 
           TileMap.setTerrain(gx, gz, terrainType);
+          const cell = TileMap.getCell(gx, gz);
+          if (cell && tileSprite) {
+            cell.tileSprite = tileSprite;
+          }
 
           if (overlayType === OverlayTileType.ROAD) {
             if (isIntersection || terrainType === TerrainType.ROAD_INTERSECTION) {

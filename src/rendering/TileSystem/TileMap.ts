@@ -41,6 +41,7 @@ export interface TileCell {
   terrainType: TerrainType;
   overlayType: OverlayTileType;
   occupiedByBuildingId?: number;
+  tileSprite?: string;
 }
 
 /** Named world-space point on the road network — used for future car path animation */

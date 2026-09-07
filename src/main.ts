@@ -12,7 +12,7 @@ import { PositionComponent, PlayerTagComponent, WeaponComponent } from './core/C
 import { InputManager } from './input/InputManager';
 import { RaycasterHelper } from './input/Raycaster';
 
-import { CityGenerator } from './systems/CityGenerator';
+import { MapLoader } from './generation/MapLoader';
 import { PlayerControlSystem } from './systems/PlayerControlSystem';
 import { DestructionSystem } from './systems/DestructionSystem';
 import { ParticleSimSystem } from './systems/ParticleSimSystem';
@@ -31,7 +31,7 @@ async function bootstrap() {
   SceneManager.init(container);
   ParticleRenderer.init();
   UIOverlay.init();
-  
+
   CameraController.init(SceneManager.camera);
   RaycasterHelper.init(SceneManager.camera);
 
@@ -51,8 +51,8 @@ async function bootstrap() {
   AudioSystem.init();
 
 
-  // 5. Generate World
-  CityGenerator.generateCity();
+  // 5. Generate World (Pre-baked map loader with live generator fallback)
+  await MapLoader.loadAndInstantiate();
   GroundRenderer.finalizeMap();
 
   // 5.5 Spawn Player (UFO)

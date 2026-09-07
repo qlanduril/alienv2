@@ -506,36 +506,38 @@ export class BuildingRenderer {
     delta: number,
     fx: { scaleXMult: number; scaleYMult: number; shudderDX: number; shudderDZ: number }
   ) {
-    // 1. Universal Texel Density (GLOBAL_PPM): derive world size from pixel dimensions
-    const PIXELS_PER_WORLD_UNIT = GLOBAL_PPM;
-
-    // Resolve definition visual scale for landmark sizing (Pentagon, Apple HQ, etc.)
+    // 1. Footprint & Mesh Sizing (Aligned to Grid Cell Lot Dimensions)
     const { def } = this.getTypeInfo(entity, renderState.texturePrefix);
     const vScale = def ? (def.visualScale || 1.0) : 1.0;
+    const heightScale = def && def.heightScale && def.heightScale > 1.0 ? def.heightScale : 1.0;
+    const footprintWidth = def ? (def.width || 16) : 16;
 
     // 2. Compute current state dimensions & offsets dynamically from sprite metadata
     const w = offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE);
     const h = offset ? offset.h : (texture?.image?.height || DEFAULT_CANVAS_SIZE);
     const dx = (offset ? offset.dx : -w / HALF_DIVISOR) + GLOBAL_SPRITE_DX_OFFSET;
-    const base_cy = (offset ? (typeof offset.base_cy === 'number' ? offset.base_cy : (offset.y_max || h)) : h) + GLOBAL_SPRITE_DY_OFFSET;
+    const groundY = (offset ? (typeof offset.y_max === 'number' ? offset.y_max : (typeof offset.base_cy === 'number' ? offset.base_cy : h)) : h) + GLOBAL_SPRITE_DY_OFFSET;
 
-    const meshWidth = (w / PIXELS_PER_WORLD_UNIT) * vScale;
-    const meshHeight = ((h / PIXELS_PER_WORLD_UNIT) * ISOMETRIC_Y_COMPENSATION) * vScale;
+    // Physical quad width equals ground diagonal (footprintWidth * Math.SQRT2) scaled by vScale
+    const meshWidth = footprintWidth * Math.SQRT2 * vScale;
+    // Height preserves pristine aspect ratio of PNG image, multiplied by isometric camera pitch compensation and heightScale
+    const meshHeight = meshWidth * (h / w) * ISOMETRIC_Y_COMPENSATION * heightScale;
 
     const sx = meshWidth * fx.scaleXMult;
     const sy = meshHeight * fx.scaleYMult;
 
-    // 3. Mathematical Pivot & Zero Floating Policy:
-    // Anchor bottom-center ground contact line (base_cy) strictly to Y = 0 (or pos.worldZ if elevated).
-    const localPivotX = ((-w / HALF_DIVISOR - dx) / PIXELS_PER_WORLD_UNIT) * vScale;
-    const localPivotY = (((h / HALF_DIVISOR - base_cy) / PIXELS_PER_WORLD_UNIT) * ISOMETRIC_Y_COMPENSATION) * vScale;
-
-    const world_dx = localPivotX * COS_45_DEG;
-    const world_dz = -localPivotX * SIN_45_DEG;
-    const y_mesh = (pos.worldZ || 0) - localPivotY + BUILDING_BASE_LIFT;
+    // 3. Mathematical Pivot & Ground Alignment:
+    // Align building centroid in PNG directly with pos.worldX, pos.worldY (lot center)
+    const localPivotX = ((-dx - w / HALF_DIVISOR) / w) * meshWidth;
+    const world_dx = -localPivotX * COS_45_DEG;
+    const world_dz = localPivotX * SIN_45_DEG;
 
     const tx = pos.worldX + world_dx + fx.shudderDX;
     const tz = pos.worldY + world_dz + fx.shudderDZ;
+
+    // Align groundY (y_max) pixel in PNG directly with ground level pos.worldZ + BUILDING_BASE_LIFT
+    const normBaseY = (groundY - h / HALF_DIVISOR) / h;
+    const y_mesh = (pos.worldZ || 0) + normBaseY * meshHeight + BUILDING_BASE_LIFT;
 
     // 4. Collapse & Topple Physics
     const collapse = this.collapseMap.get(entity);

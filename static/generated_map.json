@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "seed": 42,
+  "gridDim": 64,
+  "metadata": {
+    "generatedAt": "2026-09-07T16:23:45.000Z",
+    "layerTimings": {
+      "Pass 1 (Geography)": 5.2,
+      "Pass 2 (Islands)": 3.1,
+      "Pass 3 (Road Hierarchy)": 14.5,
+      "Pass 4 (Landmarks)": 8.2,
+      "Pass 5 (Perimeter Infill)": 42.1,
+      "Pass 6 (Serialization)": 12.8,
+      "Total Bake Time": 85.9
+    },
+    "wfcAttempts": 50,
+    "buildingCount": 215
+  },
+  "roadWaypoints": [
+    { "worldX": -16, "worldZ": -504, "name": "Arterial Prime West" },
+    { "worldX": 0, "worldZ": -504, "name": "Arterial Prime East" }
+  ],
+  "buildings": [
+    { "gx": 53, "gz": 53, "w": 3, "h": 3, "typeKey": "statue_liberty", "lotType": "landmark", "centerWorldX": 360, "centerWorldZ": 360 },
+    { "gx": 8, "gz": 12, "w": 4, "h": 4, "typeKey": "spaceship_hq", "lotType": "landmark", "centerWorldX": -352, "centerWorldZ": -288 },
+    { "gx": 29, "gz": 25, "w": 4, "h": 4, "typeKey": "mega_titan", "lotType": "landmark", "centerWorldX": -16, "centerWorldZ": -80 },
+    { "gx": 37, "gz": 2, "w": 4, "h": 4, "typeKey": "mega_stadium", "lotType": "landmark", "centerWorldX": 112, "centerWorldZ": -448 },
+    { "gx": 37, "gz": 13, "w": 4, "h": 4, "typeKey": "mega_stadium", "lotType": "landmark", "centerWorldX": 112, "centerWorldZ": -272 },
+    { "gx": 9, "gz": 39, "w": 3, "h": 3, "typeKey": "1", "lotType": "landmark", "centerWorldX": -344, "centerWorldZ": 136 },
+    { "gx": 18, "gz": 39, "w": 3, "h": 3, "typeKey": "2", "lotType": "landmark", "centerWorldX": -200, "centerWorldZ": 136 },
+    { "gx": 18, "gz": 28, "w": 4, "h": 4, "typeKey": "pentagon_defense", "lotType": "landmark", "centerWorldX": -192, "centerWorldZ": -32 },
+    { "gx": 18, "gz": 18, "w": 3, "h": 3, "typeKey": "3", "lotType": "landmark", "centerWorldX": -200, "centerWorldZ": -200 },
+    { "gx": 28, "gz": 28, "w": 3, "h": 3, "typeKey": "5", "lotType": "landmark", "centerWorldX": -40, "centerWorldZ": -40 },
+    { "gx": 21, "gz": 21, "w": 1, "h": 1, "typeKey": "sky_cyber", "lotType": "urban_cluster", "centerWorldX": -168, "centerWorldZ": -168 },
+    { "gx": 22, "gz": 21, "w": 1, "h": 1, "typeKey": "sky_biotech", "lotType": "urban_cluster", "centerWorldX": -152, "centerWorldZ": -168 },
+    { "gx": 23, "gz": 21, "w": 1, "h": 1, "typeKey": "sky_artdeco", "lotType": "urban_cluster", "centerWorldX": -136, "centerWorldZ": -168 },
+    { "gx": 24, "gz": 21, "w": 1, "h": 1, "typeKey": "5", "lotType": "urban_cluster", "centerWorldX": -120, "centerWorldZ": -168 },
+    { "gx": 25, "gz": 21, "w": 1, "h": 1, "typeKey": "b4", "lotType": "urban_cluster", "centerWorldX": -104, "centerWorldZ": -168 },
+    { "gx": 27, "gz": 21, "w": 1, "h": 1, "typeKey": "res_sky", "lotType": "urban_cluster", "centerWorldX": -72, "centerWorldZ": -168 },
+    { "gx": 21, "gz": 22, "w": 1, "h": 1, "typeKey": "sky_biotech", "lotType": "urban_cluster", "centerWorldX": -168, "centerWorldZ": -152 },
+    { "gx": 22, "gz": 22, "w": 1, "h": 1, "typeKey": "sky_cyber", "lotType": "urban_cluster", "centerWorldX": -152, "centerWorldZ": -152 },
+    { "gx": 23, "gz": 22, "w": 1, "h": 1, "typeKey": "sky_artdeco", "lotType": "urban_cluster", "centerWorldX": -136, "centerWorldZ": -152 },
+    { "gx": 2, "gz": 36, "w": 1, "h": 1, "typeKey": "b1", "lotType": "suburban_house", "centerWorldX": -472, "centerWorldZ": 72 },
+    { "gx": 3, "gz": 36, "w": 1, "h": 1, "typeKey": "b2", "lotType": "suburban_house", "centerWorldX": -456, "centerWorldZ": 72 },
+    { "gx": 4, "gz": 36, "w": 1, "h": 1, "typeKey": "res_bronze", "lotType": "suburban_house", "centerWorldX": -440, "centerWorldZ": 72 },
+    { "gx": 5, "gz": 36, "w": 1, "h": 1, "typeKey": "b3", "lotType": "suburban_house", "centerWorldX": -424, "centerWorldZ": 72 },
+    { "gx": 36, "gz": 36, "w": 1, "h": 1, "typeKey": "4", "lotType": "harbor_warehouse", "centerWorldX": 72, "centerWorldZ": 72 }
+  ],
+  "tiles": []
+}

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-map": "vite --open /generator.html"
   },
   "dependencies": {
     "three": "^0.172.0"

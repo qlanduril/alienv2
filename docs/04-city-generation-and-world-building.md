@@ -98,4 +98,39 @@ All ground textures are generated at runtime via HTML5 Canvas 2D in [`TileRender
 > **Design invariant:** Road asphalt (`#1c1f24`) and grass (`#2d6a2d`) must remain visually distinct at all zoom levels. The green channel gap (≥ 42 units between `#1c` and `#2d`) provides sufficient contrast even under directional light shadow.
 
 ---
+
+## 6. Curated Procedural Generation — Deterministic 6-Pass Pre-Baking Pipeline
+
+ALINV-3D uses a **two-phase generation architecture** that decouples rich city synthesis from runtime loading performance:
+
+```
+OFFLINE PHASE (generator.html / MapBaker.ts):
+  Pass 1: Macro Geography (South-East ocean water spline & land grass default)
+  Pass 2: Water Platforms & Statue of Liberty Island Anchor
+  Pass 3: Hierarchical Road Network (2-Lane Arterials, Diagonal Boulevard, 6x6 Downtown Grid, Harbor Piers)
+  Pass 4: Landmark Anchors & Dedicated Buffer Rings (Apple Ring, Apex Tower, Arenas)
+  Pass 5: District Morphology & Perimeter Lot Infill (Wall-to-wall Downtown towers, Suburban lawns)
+  Pass 6: 4,096-Tile Serialization & JSON Export
+  → Output: static/generated_map.json (~150 KB)
+
+RUNTIME PHASE (main.ts / MapLoader.ts):
+  - Fetches static/generated_map.json (< 10ms)
+  - Validates schema version ("1.0.0")
+  - Hydrates all 4,096 TileMap grid cells & road waypoints directly
+  - Spawns building ECS entities from serialized lot records
+  - Rebuilds SpatialGrid
+  - Fallback: Triggers MapBaker.bake() dynamically if JSON is absent or missing tiles
+```
+
+### Map Data Schema (`GeneratedMapSchema.ts`)
+The serialized JSON structure contains:
+- `version`: Schema version tag (`"1.0.0"`).
+- `seed`: Numeric seed used for generation (`42`).
+- `gridDim`: Grid size (`64`).
+- `tiles`: All 4,096 terrain tiles ($64 \times 64$ array of `{ terrainType, overlayType, isIntersection?, roadAxis? }` or flat array).
+- `buildings`: Array of `{ gx, gz, w, h, typeKey, lotType, centerWorldX, centerWorldZ }`.
+- `roadWaypoints`: Array of `{ worldX, worldZ, name }`.
+- `metadata`: Generation metrics (`generatedAt`, `layerTimings`, `wfcAttempts`, `buildingCount`).
+
+---
 *Back to [Documentation Sitemap](file:///home/berkans/development/alienv2/docs/README.md)*

@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
+
 // --- SceneManager Constants ---
 const HALF_DIVISOR = 2.0;
 const ZERO_LOOKAT = 0;
@@ -56,6 +57,13 @@ export class SceneManager {
   public static cityGroup: THREE.Group;
   public static effectsGroup: THREE.Group;
   public static playerGroup: THREE.Group;
+
+  /**
+   * Dedicated scene rendered AFTER the main pass with a fresh depth buffer.
+   * The UFO mothership lives here — guaranteed always on top regardless of
+   * hardware depth writes from 3D GLTF buildings in the main scene.
+   */
+  public static ufoScene: THREE.Scene;
 
   public static setFrustumSize(size: number) {
     this.currentFrustumSize = size;
@@ -123,6 +131,16 @@ export class SceneManager {
     this.scene.add(this.playerGroup);
     this.scene.add(this.effectsGroup);
 
+    // 4b. Dedicated UFO scene — rendered in a separate composer pass
+    // with autoClearDepth=true so building depth data CANNOT occlude the mothership.
+    this.ufoScene = new THREE.Scene();
+    // Share the same lighting so the UFO is lit identically to the city
+    const ufoAmbient = new THREE.AmbientLight(AMBIENT_LIGHT_COLOR, AMBIENT_LIGHT_INTENSITY);
+    const ufoDir = new THREE.DirectionalLight(DIR_LIGHT_COLOR, DIR_LIGHT_INTENSITY);
+    ufoDir.position.set(DIR_LIGHT_POS_X, DIR_LIGHT_POS_Y, DIR_LIGHT_POS_Z);
+    this.ufoScene.add(ufoAmbient);
+    this.ufoScene.add(ufoDir);
+
     // 5. Lighting & Atmosphere
     const ambientLight = new THREE.AmbientLight(AMBIENT_LIGHT_COLOR, AMBIENT_LIGHT_INTENSITY);
     this.scene.add(ambientLight);
@@ -147,11 +165,21 @@ export class SceneManager {
 
     // 7. Post-Processing
     this.composer = new EffectComposer(this.renderer);
+
+    // Pass 1: Full city scene + bloom
     const renderPass = new RenderPass(this.scene, this.camera);
     this.composer.addPass(renderPass);
 
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
     this.composer.addPass(bloomPass);
+
+    // Pass 2: UFO-only scene rendered AFTER bloom with depth buffer cleared.
+    // autoClear=false preserves the bloom composited frame; autoClearDepth=true
+    // discards all building Z values so the mothership is guaranteed on top.
+    const ufoPass = new RenderPass(this.ufoScene, this.camera);
+    ufoPass.clear = false;          // don't wipe the frame from pass 1
+    ufoPass.clearDepth = true;      // DO wipe the depth buffer — nuclear option
+    this.composer.addPass(ufoPass);
 
     const outputPass = new OutputPass();
     this.composer.addPass(outputPass);

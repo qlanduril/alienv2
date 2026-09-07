@@ -92,25 +92,37 @@ ALINV-3D resolves both ground clipping and sprite sorting with a **2.5D Isometri
    Building sprite materials configure `depthTest: false` and `depthWrite: false`. Because ground tiles (`renderOrder = 0`) are drawn first, ground plane tiles **never clip or sink** building bases. `BUILDING_BASE_LIFT = 0.2` ensures sprite contact lines rest flush on street asphalt.
 
 2. **Bounded Isometric Depth Sort**:
-   All 2D sprite billboards and 3D GLTF building models assign `renderOrder` dynamically according to camera view distance:
+   All 2D sprite billboards and 3D GLTF building models assign `renderOrder` dynamically according to ground-plane footprint distance:
 
-   $$\text{isoOrder} = \min\left(600, 10 + \lfloor (worldX + worldY) \times 0.15 \rfloor\right)$$
+   $$\text{isoOrder} = \text{clamp}\left(10 + \lfloor (worldX + worldZ) \times 0.5 \rfloor,\; 10,\; 600\right)$$
 
-   - Objects further from the camera (smaller $worldX + worldY$) get smaller `renderOrder` (e.g., `25`) and render first.
-   - Objects closer to the camera (larger $worldX + worldY$) get larger `renderOrder` (e.g., `110`), properly overlapping buildings behind them (including large lot structures like the Mall).
-   - Capped at `600` so building render orders never spill into UFO or FX layers.
+   > **Critical invariant:** Sort uses **ground-plane footprint only** (`worldX + worldZ`). Building altitude (`worldY`) is **never** included — tall spires must not artificially outrank closer shorter buildings. The shared helper `calculateIsoOrder(worldX, worldZ)` in [`BuildingRenderer.ts`](file:///home/berkans/development/alienv2/src/rendering/BuildingRenderer.ts#L47) enforces this on both 2D sprite and 3D GLTF model paths.
+   - Objects further from the camera (smaller $worldX + worldZ$) get smaller `renderOrder` (e.g., `25`) and render first.
+   - Objects closer to the camera (larger $worldX + worldZ$) get larger `renderOrder` (e.g., `310`), properly overlapping buildings behind them.
+   - Capped at `600` so building render orders never reach the UFO or FX layers.
 
 ---
 
-## 5. 5-Layer Scene Render Hierarchy & Shaders
+## 5. Render Architecture: Two-Scene Depth-Isolation Pipeline
 
-| Layer / Group | `renderOrder` | Depth Flags | Purpose & Elements |
+ALINV-3D uses **two separate Three.js scenes** rendered by the `EffectComposer` to guarantee the UFO mothership is always on top, even against 3D GLTF buildings that write to the hardware depth buffer:
+
+```
+Composer Pass 1: RenderPass(scene, camera)   ← City, ground, effects, shadow ring
+      ↓ UnrealBloomPass
+Composer Pass 2: RenderPass(ufoScene, camera) ← UFO mothership ONLY
+      clear=false       ← preserves pass 1 colour buffer
+      clearDepth=true   ← WIPES depth buffer — city Z-values cannot occlude UFO
+      ↓ OutputPass
+```
+
+| Scene / Group | Composer Pass | Depth Flags | Purpose & Elements |
 | :--- | :--- | :--- | :--- |
-| **`groundGroup`** | `0` | `depthTest: true` | Ground tiles, asphalt noise, road markings, scorch decals |
-| **`cityGroup`** | `10` to `600` | `depthTest: false` | 2D building billboards and 3D GLTF building models |
-| **`groundShadowRing`** | `800` | `depthTest: false` | Alien targeting ring lerp-projected onto roofs ($Y_{roof}$) or street asphalt ($Y=0.1$) |
-| **`playerGroup`** | `1000` | `depthTest: false` | UFO Mothership (`discMesh = 1000`, `domeMesh = 1001`, `portMesh = 1002`) |
-| **`effectsGroup`** | `2000` | `depthTest: false` | Outer cyan laser line (`2000`), inner white core (`2001`), laser hit ring (`2002`) |
+| **`groundGroup`** (`renderOrder=0`) | Pass 1 | `depthTest: true` | Ground tiles, asphalt noise, road markings, scorch decals |
+| **`cityGroup`** (`renderOrder=10–600`) | Pass 1 | `depthTest: false` | 2D building billboards (`depthWrite:false`) and 3D GLTF models (`depthWrite:true`) |
+| **`playerGroup`** (shadow ring `renderOrder=800`) | Pass 1 | `depthTest: false` | Targeting ring projected onto roofs / ground |
+| **`effectsGroup`** (`renderOrder=2000`) | Pass 1 | `depthTest: false` | Laser beam, explosion rings, FX particles |
+| **`ufoScene`** (UFO meshes `renderOrder=0,1`) | Pass 2 (clearDepth) | `depthTest: true` | UFO disc, dome, beam port — **physically impossible to be occluded** |
 
 ### GLSL Cross-Dissolve Texture Blending Shader
 2D building billboard sprites use a custom GLSL shader ([`BUILDING_FRAGMENT_SHADER`](file:///home/berkans/development/alienv2/src/rendering/BuildingRenderer.ts#L104-L126)) to morph seamlessly between damage state frames over $0.3\text{s}$:

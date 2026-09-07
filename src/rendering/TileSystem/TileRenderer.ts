@@ -113,12 +113,13 @@ export class TileRenderer {
         ctx.fillRect(492, 492, 20, 20);
 
       } else if (type === TerrainType.SIDEWALK) {
-        ctx.fillStyle = '#3a404a';
+        // Light blue-grey concrete — clearly brighter than asphalt
+        ctx.fillStyle = '#5a6473';
         ctx.fillRect(ZERO_VALUE, ZERO_VALUE, CANVAS_DIMENSION, CANVAS_DIMENSION);
 
         // Paving joint grid
-        ctx.strokeStyle = '#282c33';
-        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#424c58';
+        ctx.lineWidth = 5;
         for (let p = ZERO_VALUE; p <= CANVAS_DIMENSION; p += 128) {
           ctx.beginPath();
           ctx.moveTo(p, ZERO_VALUE);
@@ -135,17 +136,18 @@ export class TileRenderer {
         for (let i = ZERO_VALUE; i < 2000; i++) {
           const x = Math.random() * CANVAS_DIMENSION;
           const y = Math.random() * CANVAS_DIMENSION;
-          const val = Math.floor(Math.random() * 30 + 55);
-          ctx.fillStyle = `rgb(${val},${val},${val})`;
+          const val = Math.floor(Math.random() * 30 + 80);  // lighter range: 80–110
+          ctx.fillStyle = `rgb(${val},${val + 4},${val + 8})`;
           ctx.fillRect(x, y, 2, 2);
         }
 
       } else if (type === TerrainType.PLAZA_STONE) {
-        ctx.fillStyle = '#2d323b';
+        // Warm sandstone / travertine — distinctly beige/tan vs dark roads
+        ctx.fillStyle = '#9e8e78';
         ctx.fillRect(ZERO_VALUE, ZERO_VALUE, CANVAS_DIMENSION, CANVAS_DIMENSION);
 
-        // Architectural slate tiles
-        ctx.strokeStyle = '#1e2128';
+        // Architectural stone tile grout lines
+        ctx.strokeStyle = '#6e6050';
         ctx.lineWidth = 4;
         for (let y = ZERO_VALUE; y < CANVAS_DIMENSION; y += 64) {
           ctx.beginPath();
@@ -161,32 +163,71 @@ export class TileRenderer {
           }
         }
 
-      } else if (type === TerrainType.GRASS) {
-        ctx.fillStyle = '#1e381e';
-        ctx.fillRect(ZERO_VALUE, ZERO_VALUE, CANVAS_DIMENSION, CANVAS_DIMENSION);
-
-        for (let i = ZERO_VALUE; i < 6000; i++) {
+        // Warm speckle texture
+        for (let i = 0; i < 1500; i++) {
           const x = Math.random() * CANVAS_DIMENSION;
           const y = Math.random() * CANVAS_DIMENSION;
-          const g = Math.floor(Math.random() * 60 + 50);
-          ctx.fillStyle = `rgb(18, ${g}, 18)`;
+          const r = Math.floor(Math.random() * 30 + 130);
+          const g = Math.floor(Math.random() * 25 + 118);
+          const b = Math.floor(Math.random() * 20 + 95);
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.fillRect(x, y, 2, 2);
+        }
+
+      } else if (type === TerrainType.GRASS) {
+        // Vivid medium green — clearly distinct from dark asphalt roads
+        ctx.fillStyle = '#2d6a2d';
+        ctx.fillRect(ZERO_VALUE, ZERO_VALUE, CANVAS_DIMENSION, CANVAS_DIMENSION);
+
+        // Fine grass noise with brighter green variation
+        for (let i = ZERO_VALUE; i < 8000; i++) {
+          const x = Math.random() * CANVAS_DIMENSION;
+          const y = Math.random() * CANVAS_DIMENSION;
+          const g = Math.floor(Math.random() * 55 + 90);  // 90–145 green channel
+          const r = Math.floor(Math.random() * 10 + 25);  // slight warmth variation
+          ctx.fillStyle = `rgb(${r}, ${g}, ${r})`;
           ctx.fillRect(x, y, 3, 3);
         }
-      } else if (type === TerrainType.WATER) {
-        ctx.fillStyle = '#1ca3ec'; // Deep harbor blue
-        ctx.fillRect(ZERO_VALUE, ZERO_VALUE, CANVAS_DIMENSION, CANVAS_DIMENSION);
 
-        // Light wave patterns
-        ctx.strokeStyle = '#23b5f7';
-        ctx.lineWidth = 2;
-        for (let i = 0; i < 150; i++) {
+        // Subtle darker grass blade streaks for depth
+        ctx.fillStyle = 'rgba(10, 60, 10, 0.4)';
+        for (let i = 0; i < 120; i++) {
           const x = Math.random() * CANVAS_DIMENSION;
           const y = Math.random() * CANVAS_DIMENSION;
-          const len = Math.random() * 30 + 10;
+          ctx.fillRect(x, y, 1, Math.floor(Math.random() * 8 + 4));
+        }
+      } else if (type === TerrainType.WATER) {
+        // Deep navy harbor blue
+        ctx.fillStyle = '#0d3d7a';
+        ctx.fillRect(ZERO_VALUE, ZERO_VALUE, CANVAS_DIMENSION, CANVAS_DIMENSION);
+
+        // Lighter blue mid-layer shimmer
+        ctx.fillStyle = '#1565c0';
+        for (let i = 0; i < 80; i++) {
+          const x = Math.random() * CANVAS_DIMENSION;
+          const y = Math.random() * CANVAS_DIMENSION;
+          ctx.fillRect(x, y, Math.random() * 40 + 20, Math.random() * 8 + 4);
+        }
+
+        // Bright cyan wave highlights
+        ctx.strokeStyle = '#55ccff';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 200; i++) {
+          const x = Math.random() * CANVAS_DIMENSION;
+          const y = Math.random() * CANVAS_DIMENSION;
+          const len = Math.random() * 40 + 10;
           ctx.beginPath();
           ctx.moveTo(x, y);
           ctx.lineTo(x + len, y);
           ctx.stroke();
+        }
+
+        // Subtle white foam tips
+        ctx.fillStyle = 'rgba(200, 240, 255, 0.25)';
+        for (let i = 0; i < 40; i++) {
+          const x = Math.random() * CANVAS_DIMENSION;
+          const y = Math.random() * CANVAS_DIMENSION;
+          ctx.fillRect(x, y, Math.random() * 20 + 5, 2);
         }
       }
 

@@ -129,13 +129,13 @@ export class PlayerRenderer {
       emissiveIntensity: 0.6,
       roughness: 0.2,
       metalness: 0.8,
-      depthTest: false,
+      depthTest: true,
       depthWrite: true
     });
     const discMesh = new THREE.Mesh(discGeo, discMat);
     discMesh.scale.set(DISC_SCALE_X, DISC_SCALE_Y, DISC_SCALE_Z);
     discMesh.castShadow = true;
-    discMesh.renderOrder = 1000;
+    discMesh.renderOrder = 0;
     this.mothershipGroup.add(discMesh);
 
     // 2. Top Energy Dome
@@ -147,26 +147,30 @@ export class PlayerRenderer {
       transparent: true,
       opacity: 0.85,
       roughness: 0.1,
-      depthTest: false,
-      depthWrite: true
+      depthTest: true,
+      depthWrite: false   // Transparent dome doesn't write depth (standard transparent rendering)
     });
     const domeMesh = new THREE.Mesh(domeGeo, domeMat);
     domeMesh.position.y = MOTHERSHIP_RADIUS * 0.15;
     domeMesh.scale.set(DISC_SCALE_X * 0.7, DISC_SCALE_Y * 1.5, DISC_SCALE_Z * 0.7);
-    domeMesh.renderOrder = 1001;
+    domeMesh.renderOrder = 1;
     this.mothershipGroup.add(domeMesh);
 
     // 3. Bottom Energy Beam Port
     const portGeo = new THREE.CylinderGeometry(MOTHERSHIP_RADIUS * 0.3, MOTHERSHIP_RADIUS * 0.1, MOTHERSHIP_RADIUS * 0.1, 16);
-    const portMat = new THREE.MeshBasicMaterial({ color: BEAM_PORT_HEX, depthTest: false, depthWrite: true });
+    const portMat = new THREE.MeshBasicMaterial({ color: BEAM_PORT_HEX, depthTest: true, depthWrite: true });
     const portMesh = new THREE.Mesh(portGeo, portMat);
     portMesh.position.y = -MOTHERSHIP_RADIUS * 0.18;
-    portMesh.renderOrder = 1002;
+    portMesh.renderOrder = 0;
     this.mothershipGroup.add(portMesh);
 
-    // Render Order 1000 ensures Mothership renders strictly in front / above all city building sprites & 3D models
-    this.mothershipGroup.renderOrder = 1000;
-    SceneManager.playerGroup.add(this.mothershipGroup);
+    // ── ISOLATED UFO SCENE ────────────────────────────────────────────────────
+    // The mothershipGroup lives in SceneManager.ufoScene, NOT the main scene.
+    // The EffectComposer renders ufoScene in a second RenderPass AFTER bloom,
+    // with clearDepth=true — this wipes all city depth values from the Z-buffer
+    // before drawing the UFO, making it physically impossible for any building
+    // to occlude the mothership via hardware depth testing.
+    SceneManager.ufoScene.add(this.mothershipGroup);
 
     // 4. Projection Shadow / Targeting Ring (Render order 800, depthTest=false so always visible on roofs/ground)
     const shadowGeo = new THREE.RingGeometry(MOTHERSHIP_RADIUS * 0.8, MOTHERSHIP_RADIUS * 1.2, 32);

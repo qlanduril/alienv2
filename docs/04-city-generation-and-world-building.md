@@ -81,4 +81,21 @@ Ground rendering ([`GroundRenderer.ts`](file:///home/berkans/development/alienv2
 - Named `RoadWaypoint` nodes are generated along road channels for vehicle traffic pathfinding systems.
 
 ---
+
+## 5. Procedural Ground Texture Color Palette
+
+All ground textures are generated at runtime via HTML5 Canvas 2D in [`TileRenderer.ts`](file:///home/berkans/development/alienv2/src/rendering/TileSystem/TileRenderer.ts). Each type is visually distinct to avoid the monochromatic dark-grey prototype look:
+
+| Terrain Type | Base Color | Visual Character |
+| :--- | :--- | :--- |
+| **`ROAD_STRAIGHT_NS/EW`** | `#1c1f24` dark asphalt | White curb lines, double yellow centre, dashed lane dividers |
+| **`ROAD_INTERSECTION`** | `#1c1f24` dark asphalt | 4-way zebra crosswalks, corner curb caps |
+| **`SIDEWALK`** | `#5a6473` light blue-grey | Paving joint grid, fine concrete grain (range 80–110) |
+| **`PLAZA_STONE`** | `#9e8e78` warm sandstone | Staggered stone tile grout (`#6e6050`), warm speckle noise |
+| **`GRASS`** | `#2d6a2d` vivid green | 8000-dot noise (green channel 90–145), blade streak shadows |
+| **`WATER`** | `#0d3d7a` deep navy | `#1565c0` shimmer patches, `#55ccff` wave highlights, foam tips |
+
+> **Design invariant:** Road asphalt (`#1c1f24`) and grass (`#2d6a2d`) must remain visually distinct at all zoom levels. The green channel gap (≥ 42 units between `#1c` and `#2d`) provides sufficient contrast even under directional light shadow.
+
+---
 *Back to [Documentation Sitemap](file:///home/berkans/development/alienv2/docs/README.md)*

@@ -39,6 +39,17 @@ const BUILDING_BASE_LIFT = 0.2;
 
 const SPRITE_PLANE_SIZE = 1.0;
 
+/**
+ * Correct isometric depth calculation for camera at (+X, +Y, +Z).
+ * Sorts strictly by ground-plane footprint distance (worldX + worldZ).
+ * NEVER uses worldY (altitude) — tall buildings must NOT outrank closer shorter ones.
+ */
+export function calculateIsoOrder(worldX: number, worldZ: number): number {
+  // Objects with larger (worldX + worldZ) are closer to the isometric camera and render later
+  const depthValue = Math.floor((worldX + worldZ) * 0.5);
+  return Math.min(600, Math.max(10, 10 + depthValue));
+}
+
 
 // Trajectory & Collapse Physics Constants
 const CRUSH_RANGE_DEFAULT = 64;
@@ -344,9 +355,6 @@ export class BuildingRenderer {
     let sprite = this.sprites.get(entity);
 
     if (!sprite) {
-      const { typeKey, def } = this.getTypeInfo(entity, renderState.texturePrefix);
-      const heightBias = Math.min(20, Math.floor((def?.height || 100) * 0.05));
-
       // ShaderMaterial for 2D building sprites: cross-dissolves between texture stages seamlessly
       const material = new THREE.ShaderMaterial({
         vertexShader: BUILDING_VERTEX_SHADER,
@@ -371,10 +379,11 @@ export class BuildingRenderer {
       // Rotate 45 degrees around Y to face the isometric camera horizontally
       sprite.rotation.y = ISOMETRIC_ROTATION_Y;
 
-      // 2.5D Isometric Back-to-Front Painter's Order with Height Bias:
-      // Objects further from camera (smaller worldX + worldY) render first.
-      // Capped at 600 so UFO (1000), Shadow Ring (800), and FX (2000) render strictly on top.
-      const isoOrder = Math.min(600, Math.max(10, Math.floor((pos.worldX + pos.worldY) * 0.15 + heightBias)));
+      // 2.5D Isometric Back-to-Front Painter's Order:
+      // Sort strictly by ground-plane footprint (worldX + worldZ). Never use building height.
+      // pos.worldY stores Three.js Z-depth in this ECS convention.
+      // Capped at 600 so UFO (9999), Shadow Ring (800), and FX (2000) render strictly on top.
+      const isoOrder = calculateIsoOrder(pos.worldX, pos.worldY);
       sprite.renderOrder = isoOrder;
 
       // Add to SceneManager.cityGroup (same layer as all buildings)
@@ -716,8 +725,8 @@ export class BuildingRenderer {
 
       model = SkeletonUtils.clone(gltf.scene);
 
-      const heightBias = Math.min(20, Math.floor((def?.height || 220) * 0.05));
-      const isoOrder = Math.min(600, Math.max(10, Math.floor((pos.worldX + pos.worldY) * 0.15 + heightBias)));
+      // Sort 3D models by ground-plane footprint only — no height bias (height inflates sort order causing tall spires to occlude closer buildings)
+      const isoOrder = calculateIsoOrder(pos.worldX, pos.worldY);
       model.renderOrder = isoOrder;
 
       // Setup materials for depth, shadow casting & hit flash + Hide GroundPlane base mesh

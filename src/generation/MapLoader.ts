@@ -27,6 +27,9 @@ export class MapLoader {
     if (typeof window === 'undefined') return 'isometric_v1';
     const params = new URLSearchParams(window.location.search);
     const p = params.get('preset')?.toLowerCase();
+    if (p === 'osmnx' || p === 'realworld') {
+      return 'osmnx' as any;
+    }
     if (p === 'ny' || p === 'metropolitan_ny' || p === 'gotham') {
       return 'metropolitan_ny';
     }
@@ -41,12 +44,13 @@ export class MapLoader {
 
   /**
    * Loads pre-baked city map JSON, paints TileMap, and spawns ECS building entities.
-   * Checks URL parameter ?preset=v1 vs ?preset=kenney vs ?preset=ny vs ?preset=arcade, or uses explicit jsonPath.
+   * Checks URL parameter ?preset=v1 vs ?preset=kenney vs ?preset=ny vs ?preset=osmnx vs ?preset=arcade, or uses explicit jsonPath.
    */
   public static async loadAndInstantiate(jsonPath?: string): Promise<boolean> {
     try {
       const activePreset = this.getPresetFromUrl();
       const targetPath = jsonPath || (
+        (activePreset as string) === 'osmnx' ? '/generated_map_osmnx.json' :
         activePreset === 'kenney_isometric' ? '/generated_map_kenney.json' :
         activePreset === 'isometric_v1' ? '/generated_map_v1.json' :
         activePreset === 'metropolitan_ny' ? '/generated_map_ny.json' :

@@ -83,7 +83,7 @@ def generate_chunk_based_map(ref_image_path, seed=42):
     # Building catalog specs
     high_rise_types = ["mega_titan", "sky_cyber", "sky_biotech", "sky_artdeco", "res_sky"]
     mid_rise_types = ["1", "2", "3", "4", "b3", "b4", "pentagon_defense"]
-    low_rise_types = ["b1", "b2", "res_bronze", "kenney_tower_office", "kenney_shop_blue"]
+    low_rise_types = ["b1", "b2", "res_bronze"]
 
     # 2. Place Civic Landmark Hub Buildings (4x4) cleanly inside specific chunks
     landmarks = [

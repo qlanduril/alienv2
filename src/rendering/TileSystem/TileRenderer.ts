@@ -281,49 +281,135 @@ export class TileRenderer {
 
   public static buildMapMesh() {
     const cells = TileMap.getAllCells();
-    const counts = new Map<TerrainType, number>();
+    const mapSize = 2048; // 2048x2048 texture resolution for 64x64 grid (32px per tile)
+    const cellSize = mapSize / TileMap.GRID_DIM;
 
-    this.instancedTerrainMeshes.forEach((_, key) => counts.set(key, ZERO_VALUE));
-    const dummy = new THREE.Object3D();
-    const BORDER_MARGIN = 8;
-    const halfBound = TileMap.MAP_BOUNDS / 2.0;
+    const canvas = document.createElement('canvas');
+    canvas.width = mapSize;
+    canvas.height = mapSize;
+    const ctx = canvas.getContext('2d')!;
 
-    // Render Connected Ground & Road Grid + Surrounding Terrain Skirt
-    for (let gx = -BORDER_MARGIN; gx < TileMap.GRID_DIM + BORDER_MARGIN; gx++) {
-      for (let gz = -BORDER_MARGIN; gz < TileMap.GRID_DIM + BORDER_MARGIN; gz++) {
-        let tType: TerrainType;
+    // PASS 1: Base Land & Water Layer (Grass & Sea)
+    for (let gx = 0; gx < TileMap.GRID_DIM; gx++) {
+      for (let gz = 0; gz < TileMap.GRID_DIM; gz++) {
+        const cell = cells[gx][gz];
+        const px = gx * cellSize;
+        const py = gz * cellSize;
 
-        if (gx >= ZERO_VALUE && gx < TileMap.GRID_DIM && gz >= ZERO_VALUE && gz < TileMap.GRID_DIM) {
-          tType = cells[gx][gz].terrainType;
+        if (cell.terrainType === TerrainType.WATER) {
+          ctx.fillStyle = '#0d3d7a'; // Navy harbor water
         } else {
-          // Border terrain skirt
-          if (gx > 40 && gz > 40) {
-            tType = TerrainType.WATER;
-          } else {
-            tType = TerrainType.GRASS;
-          }
+          ctx.fillStyle = '#2d6a2d'; // Park green grass
         }
+        ctx.fillRect(px, py, cellSize, cellSize);
+      }
+    }
 
-        const mesh = this.instancedTerrainMeshes.get(tType);
-        if (mesh) {
-          const count = counts.get(tType) || ZERO_VALUE;
-          const worldX = -halfBound + (gx + 0.5) * TileMap.TILE_SIZE;
-          const worldZ = -halfBound + (gz + 0.5) * TileMap.TILE_SIZE;
+    // PASS 2: Connected Road Network Layer (Asphalt, Continuous Yellow Center Lines & Zebra Crosswalks)
+    for (let gx = 0; gx < TileMap.GRID_DIM; gx++) {
+      for (let gz = 0; gz < TileMap.GRID_DIM; gz++) {
+        const cell = cells[gx][gz];
+        const px = gx * cellSize;
+        const py = gz * cellSize;
+        const t = cell.terrainType;
 
-          dummy.position.set(worldX, GROUND_ALTITUDE, worldZ);
-          dummy.rotation.set(GROUND_ROTATION_X, ZERO_VALUE, ZERO_VALUE);
-          dummy.scale.set(INITIAL_SCALE_UNIT, INITIAL_SCALE_UNIT, INITIAL_SCALE_UNIT);
-          dummy.updateMatrix();
+        if (t === TerrainType.ROAD_STRAIGHT_NS || t === TerrainType.ROAD_STRAIGHT_EW || t === TerrainType.ROAD_INTERSECTION) {
+          // Asphalt base
+          ctx.fillStyle = '#1c1f24';
+          ctx.fillRect(px, py, cellSize, cellSize);
 
-          mesh.setMatrixAt(count, dummy.matrix);
-          counts.set(tType, count + 1);
+          if (t === TerrainType.ROAD_STRAIGHT_NS) {
+            // Outer white curb lines
+            ctx.fillStyle = '#d0d7e0';
+            ctx.fillRect(px + 1, py, 1, cellSize);
+            ctx.fillRect(px + cellSize - 2, py, 1, cellSize);
+            // Yellow center double line
+            ctx.fillStyle = '#f5b800';
+            ctx.fillRect(px + cellSize / 2 - 1, py, 2, cellSize);
+            // Dashed white lane dividers
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(px + cellSize * 0.25, py + 4, 1, 8);
+            ctx.fillRect(px + cellSize * 0.25, py + 20, 1, 8);
+            ctx.fillRect(px + cellSize * 0.75, py + 4, 1, 8);
+            ctx.fillRect(px + cellSize * 0.75, py + 20, 1, 8);
+
+          } else if (t === TerrainType.ROAD_STRAIGHT_EW) {
+            // Outer white curb lines
+            ctx.fillStyle = '#d0d7e0';
+            ctx.fillRect(px, py + 1, cellSize, 1);
+            ctx.fillRect(px, py + cellSize - 2, cellSize, 1);
+            // Yellow center double line
+            ctx.fillStyle = '#f5b800';
+            ctx.fillRect(px, py + cellSize / 2 - 1, cellSize, 2);
+            // Dashed white lane dividers
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(px + 4, py + cellSize * 0.25, 8, 1);
+            ctx.fillRect(px + 20, py + cellSize * 0.25, 8, 1);
+            ctx.fillRect(px + 4, py + cellSize * 0.75, 8, 1);
+            ctx.fillRect(px + 20, py + cellSize * 0.75, 8, 1);
+
+          } else if (t === TerrainType.ROAD_INTERSECTION) {
+            // 4-Way Crosswalk Zebra Stripes
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(px + 4, py + 2, cellSize - 8, 3);
+            ctx.fillRect(px + 4, py + cellSize - 5, cellSize - 8, 3);
+            ctx.fillRect(px + 2, py + 4, 3, cellSize - 8);
+            ctx.fillRect(px + cellSize - 5, py + 4, 3, cellSize - 8);
+            // Corner curb caps
+            ctx.fillStyle = '#6a7280';
+            ctx.fillRect(px, py, 2, 2);
+            ctx.fillRect(px + cellSize - 2, py, 2, 2);
+            ctx.fillRect(px, py + cellSize - 2, 2, 2);
+            ctx.fillRect(px + cellSize - 2, py + cellSize - 2, 2, 2);
+          }
         }
       }
     }
 
-    this.instancedTerrainMeshes.forEach((mesh, tType) => {
-      mesh.count = counts.get(tType) || ZERO_VALUE;
-      mesh.instanceMatrix.needsUpdate = true;
+    // PASS 3: Urban Building Lots & Courtyards Layer (Sidewalk Concrete & Plaza Stone)
+    for (let gx = 0; gx < TileMap.GRID_DIM; gx++) {
+      for (let gz = 0; gz < TileMap.GRID_DIM; gz++) {
+        const cell = cells[gx][gz];
+        const px = gx * cellSize;
+        const py = gz * cellSize;
+
+        if (cell.terrainType === TerrainType.SIDEWALK) {
+          ctx.fillStyle = '#5a6473'; // Brighter concrete sidewalk
+          ctx.fillRect(px, py, cellSize, cellSize);
+          ctx.strokeStyle = '#424c58';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, cellSize - 1, cellSize - 1);
+        } else if (cell.terrainType === TerrainType.PLAZA_STONE) {
+          ctx.fillStyle = '#9e8e78'; // Sandstone travertine plaza
+          ctx.fillRect(px, py, cellSize, cellSize);
+          ctx.strokeStyle = '#6e6050';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, cellSize - 1, cellSize - 1);
+        }
+      }
+    }
+
+    const groundTex = new THREE.CanvasTexture(canvas);
+    groundTex.wrapS = THREE.ClampToEdgeWrapping;
+    groundTex.wrapT = THREE.ClampToEdgeWrapping;
+    groundTex.minFilter = THREE.LinearFilter;
+    groundTex.magFilter = THREE.LinearFilter;
+    groundTex.anisotropy = TEXTURE_ANISOTROPY;
+    groundTex.needsUpdate = true;
+
+    const groundGeo = new THREE.PlaneGeometry(TileMap.MAP_BOUNDS, TileMap.MAP_BOUNDS);
+    const groundMat = new THREE.MeshStandardMaterial({
+      map: groundTex,
+      roughness: DEFAULT_ROUGHNESS,
+      metalness: DEFAULT_METALNESS
     });
+
+    const singleGroundMesh = new THREE.Mesh(groundGeo, groundMat);
+    singleGroundMesh.rotation.x = GROUND_ROTATION_X;
+    singleGroundMesh.position.set(0, GROUND_ALTITUDE, 0);
+    singleGroundMesh.receiveShadow = true;
+
+    this.layer0Group.clear();
+    this.layer0Group.add(singleGroundMesh);
   }
 }

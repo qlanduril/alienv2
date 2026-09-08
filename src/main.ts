@@ -24,8 +24,12 @@ async function bootstrap() {
   const container = document.getElementById('app');
   if (!container) throw new Error("No app container found!");
 
+  const progressBar = document.getElementById('loading-progress');
+  const loadingScreen = document.getElementById('loading-screen');
+
   // 1. Setup Input (Pure DOM)
   InputManager.init();
+  if (progressBar) progressBar.style.width = '30%';
 
   // 2. Setup Rendering Layer (Three.js)
   SceneManager.init(container);
@@ -34,6 +38,7 @@ async function bootstrap() {
 
   CameraController.init(SceneManager.camera);
   RaycasterHelper.init(SceneManager.camera);
+  if (progressBar) progressBar.style.width = '60%';
 
   // 3. Load Assets
   console.log("Loading assets...");
@@ -49,11 +54,20 @@ async function bootstrap() {
   DestructionSystem.init();
   ParticleSimSystem.init();
   AudioSystem.init();
-
+  if (progressBar) progressBar.style.width = '85%';
 
   // 5. Generate World (Pre-baked map loader with live generator fallback)
   await MapLoader.loadAndInstantiate();
   GroundRenderer.finalizeMap();
+  if (progressBar) progressBar.style.width = '100%';
+
+  // Hide loading screen smoothly
+  if (loadingScreen) {
+    setTimeout(() => {
+      loadingScreen.style.opacity = '0';
+      loadingScreen.style.visibility = 'hidden';
+    }, 150);
+  }
 
   // 5.5 Spawn Player (UFO)
   const playerEntity = ECS.createEntity();

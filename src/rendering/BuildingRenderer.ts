@@ -161,6 +161,7 @@ export class BuildingRenderer {
   private static FRAME_STEP_SPEED = 10.0;
   private static displayFrameMap = new Map<Entity, number>();
   private static demoStateMap = new Map<Entity, { isDemolishing: boolean; elapsedTime: number; maxDuration: number }>();
+  private static partialDamageTimeMap = new Map<Entity, number>();
 
   /**
    * Helper to resolve typeKey and def with caching per entity.
@@ -308,6 +309,8 @@ export class BuildingRenderer {
     'sky_cyber': 3,
     'mega_titan': 3,
     'spaceship_hq': 6,
+    'cyber_reactor': 6,
+    'financial_tower': 6,
     'statue_liberty': 2,
     'pentagon_defense': 4,
     'hospital_civic': 4,
@@ -601,20 +604,38 @@ export class BuildingRenderer {
     const zonal = ZonalHealthComponent.get(entity);
     const health = HealthComponent.get(entity);
     const curHp = zonal ? zonal.totalHp : (health ? health.currentHP : 100);
+    const maxHp = zonal ? zonal.maxTotalHp : (health ? health.maxHP : 100);
+    const dmgFraction = Math.max(0, Math.min(1, 1 - curHp / maxHp));
 
     const mixer = this.mixers.get(entity);
     const animData = this.animActions.get(entity);
 
     let demoState = this.demoStateMap.get(entity);
 
-    // Trigger video demolition when HP reaches 0
+    // Partial damage timeline scrubbing (Frames 1-40 mapped to 0..1.33 seconds)
+    const PARTIAL_DAMAGE_MAX_TIME = 1.33;
+
+    // Trigger full video demolition when HP reaches 0
     if (curHp <= 0 && !demoState) {
+      const currentPartialTime = this.partialDamageTimeMap.get(entity) || PARTIAL_DAMAGE_MAX_TIME;
       demoState = {
         isDemolishing: true,
-        elapsedTime: 0,
-        maxDuration: animData ? animData.maxDuration : 6.25
+        elapsedTime: currentPartialTime,
+        maxDuration: animData ? animData.maxDuration : 4.0
       };
       this.demoStateMap.set(entity, demoState);
+
+      // Initial catastrophic explosion blast FX burst
+      DestructionSystem.fxQueue.push({
+        type: 'blast360',
+        x: pos.worldX, y: pos.worldY, z: 30,
+        data: { entityId: entity, targetFrame: 0 }
+      });
+      DestructionSystem.fxQueue.push({
+        type: 'shake',
+        x: 0, y: 0, z: 0,
+        data: { intensity: 14 }
+      });
     }
 
     if (demoState && demoState.isDemolishing && mixer) {
@@ -649,7 +670,7 @@ export class BuildingRenderer {
         // 3. Collateral shockwave damage to surrounding buildings at demolition milestones (t = 1.0s, 2.5s, 4.0s)
         const milestone1 = prevTime < 1.0 && demoState.elapsedTime >= 1.0;
         const milestone2 = prevTime < 2.5 && demoState.elapsedTime >= 2.5;
-        const milestone3 = prevTime < 4.0 && demoState.elapsedTime >= 4.0;
+        const milestone3 = prevTime < 3.8 && demoState.elapsedTime >= 3.8;
 
         if (milestone1 || milestone2 || milestone3) {
           DestructionSystem.applyCollateralDamage(entity, pos.worldX, pos.worldY, 64, 25);
@@ -684,8 +705,42 @@ export class BuildingRenderer {
         }
       }
     } else if (mixer) {
-      // Intact standing pose (t = 0) while receiving laser hits
-      mixer.setTime(0);
+      // Partial damage progression: smoothly scrub animation timeline from 0.0s to 1.33s based on HP loss!
+      const targetTime = dmgFraction * PARTIAL_DAMAGE_MAX_TIME;
+      let curTime = this.partialDamageTimeMap.get(entity) || 0;
+      curTime += (targetTime - curTime) * Math.min(1.0, delta * 5.0);
+      this.partialDamageTimeMap.set(entity, curTime);
+
+      mixer.setTime(curTime);
+
+      // Progressive FX streams based on partial damage severity while building is alive
+      if (dmgFraction > 0.25 && Math.random() < 0.12) {
+        DestructionSystem.fxQueue.push({
+          type: 'smoke',
+          x: pos.worldX + (Math.random() - 0.5) * 15,
+          y: pos.worldY + (Math.random() - 0.5) * 15,
+          z: 10 + Math.random() * 40,
+          data: { count: 2, entityId: entity }
+        });
+      }
+      if (dmgFraction > 0.50 && Math.random() < 0.15) {
+        DestructionSystem.fxQueue.push({
+          type: 'sparks',
+          x: pos.worldX + (Math.random() - 0.5) * 20,
+          y: pos.worldY + (Math.random() - 0.5) * 20,
+          z: 15 + Math.random() * 50,
+          data: { count: 3, entityId: entity }
+        });
+      }
+      if (dmgFraction > 0.75 && Math.random() < 0.18) {
+        DestructionSystem.fxQueue.push({
+          type: 'debris',
+          x: pos.worldX + (Math.random() - 0.5) * 20,
+          y: pos.worldY + (Math.random() - 0.5) * 20,
+          z: 20 + Math.random() * 60,
+          data: { count: 3, entityId: entity, palette: [0x999999, 0x666666] }
+        });
+      }
     }
 
     // 2. Process micro hit effects (flinch shudder & squash)

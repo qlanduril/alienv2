@@ -37,7 +37,7 @@
     },
     {
       "id": "building_3",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 1,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -55,7 +55,7 @@
     },
     {
       "id": "building_5",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 1,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -64,7 +64,7 @@
     },
     {
       "id": "building_6",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 1,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -82,7 +82,7 @@
     },
     {
       "id": "building_8",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 1,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -100,7 +100,7 @@
     },
     {
       "id": "building_10",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 3,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -109,7 +109,7 @@
     },
     {
       "id": "building_11",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 3,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -118,7 +118,7 @@
     },
     {
       "id": "building_12",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 3,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -127,7 +127,7 @@
     },
     {
       "id": "building_13",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 3,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -136,7 +136,7 @@
     },
     {
       "id": "building_14",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 3,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -145,7 +145,7 @@
     },
     {
       "id": "building_15",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 3,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -163,7 +163,7 @@
     },
     {
       "id": "building_17",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 5,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -181,7 +181,7 @@
     },
     {
       "id": "building_19",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 5,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -190,7 +190,7 @@
     },
     {
       "id": "building_20",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 5,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -208,7 +208,7 @@
     },
     {
       "id": "building_22",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 5,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -217,7 +217,7 @@
     },
     {
       "id": "building_23",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 5,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -226,7 +226,7 @@
     },
     {
       "id": "building_24",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 7,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -235,7 +235,7 @@
     },
     {
       "id": "building_25",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 7,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -244,7 +244,7 @@
     },
     {
       "id": "building_26",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 7,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -253,7 +253,7 @@
     },
     {
       "id": "building_27",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 7,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -262,7 +262,7 @@
     },
     {
       "id": "building_28",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 7,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -280,7 +280,7 @@
     },
     {
       "id": "building_30",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 7,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -289,7 +289,7 @@
     },
     {
       "id": "building_31",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 9,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -298,7 +298,7 @@
     },
     {
       "id": "building_32",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 9,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -307,7 +307,7 @@
     },
     {
       "id": "building_33",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 9,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -316,7 +316,7 @@
     },
     {
       "id": "building_34",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 9,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -334,7 +334,7 @@
     },
     {
       "id": "building_36",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 9,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -343,7 +343,7 @@
     },
     {
       "id": "building_37",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 9,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -370,7 +370,7 @@
     },
     {
       "id": "building_40",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 11,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -379,7 +379,7 @@
     },
     {
       "id": "building_41",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 11,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -388,7 +388,7 @@
     },
     {
       "id": "building_42",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 11,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -397,7 +397,7 @@
     },
     {
       "id": "building_43",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 11,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -406,7 +406,7 @@
     },
     {
       "id": "building_44",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 11,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -415,7 +415,7 @@
     },
     {
       "id": "building_45",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 13,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -424,7 +424,7 @@
     },
     {
       "id": "building_46",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 13,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -433,7 +433,7 @@
     },
     {
       "id": "building_47",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 13,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -442,7 +442,7 @@
     },
     {
       "id": "building_48",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 13,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -451,7 +451,7 @@
     },
     {
       "id": "building_49",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 13,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -460,7 +460,7 @@
     },
     {
       "id": "building_50",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 13,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -469,7 +469,7 @@
     },
     {
       "id": "building_51",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 13,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -478,7 +478,7 @@
     },
     {
       "id": "building_52",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 1,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -496,7 +496,7 @@
     },
     {
       "id": "building_54",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 1,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -505,7 +505,7 @@
     },
     {
       "id": "building_55",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 1,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -514,7 +514,7 @@
     },
     {
       "id": "building_56",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 1,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -532,7 +532,7 @@
     },
     {
       "id": "building_58",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 1,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -559,7 +559,7 @@
     },
     {
       "id": "building_61",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 3,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -568,7 +568,7 @@
     },
     {
       "id": "building_62",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 3,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -586,7 +586,7 @@
     },
     {
       "id": "building_64",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 3,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -595,7 +595,7 @@
     },
     {
       "id": "building_65",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 3,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -604,7 +604,7 @@
     },
     {
       "id": "building_66",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 5,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -613,7 +613,7 @@
     },
     {
       "id": "building_67",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 5,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -622,7 +622,7 @@
     },
     {
       "id": "building_68",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 5,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -631,7 +631,7 @@
     },
     {
       "id": "building_69",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 5,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -640,7 +640,7 @@
     },
     {
       "id": "building_70",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 5,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -649,7 +649,7 @@
     },
     {
       "id": "building_71",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 5,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -658,7 +658,7 @@
     },
     {
       "id": "building_72",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 5,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -667,7 +667,7 @@
     },
     {
       "id": "building_73",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 7,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -676,7 +676,7 @@
     },
     {
       "id": "building_74",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 7,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -685,7 +685,7 @@
     },
     {
       "id": "building_75",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 7,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -694,7 +694,7 @@
     },
     {
       "id": "building_76",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 7,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -703,7 +703,7 @@
     },
     {
       "id": "building_77",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 7,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -730,7 +730,7 @@
     },
     {
       "id": "building_80",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 9,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -739,7 +739,7 @@
     },
     {
       "id": "building_81",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 9,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -748,7 +748,7 @@
     },
     {
       "id": "building_82",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 9,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -757,7 +757,7 @@
     },
     {
       "id": "building_83",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 9,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -775,7 +775,7 @@
     },
     {
       "id": "building_85",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 9,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -793,7 +793,7 @@
     },
     {
       "id": "building_87",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 11,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -802,7 +802,7 @@
     },
     {
       "id": "building_88",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 11,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -820,7 +820,7 @@
     },
     {
       "id": "building_90",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 11,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -847,7 +847,7 @@
     },
     {
       "id": "building_93",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 11,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -856,7 +856,7 @@
     },
     {
       "id": "building_94",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 13,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -865,7 +865,7 @@
     },
     {
       "id": "building_95",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 13,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -874,7 +874,7 @@
     },
     {
       "id": "building_96",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 13,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -883,7 +883,7 @@
     },
     {
       "id": "building_97",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 13,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -892,7 +892,7 @@
     },
     {
       "id": "building_98",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 13,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -901,7 +901,7 @@
     },
     {
       "id": "building_99",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 13,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -919,7 +919,7 @@
     },
     {
       "id": "building_101",
-      "typeKey": "3",
+      "typeKey": "4",
       "gridX": 1,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -928,7 +928,7 @@
     },
     {
       "id": "building_102",
-      "typeKey": "2",
+      "typeKey": "3",
       "gridX": 1,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -937,7 +937,7 @@
     },
     {
       "id": "building_103",
-      "typeKey": "2",
+      "typeKey": "b4",
       "gridX": 1,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -964,7 +964,7 @@
     },
     {
       "id": "building_106",
-      "typeKey": "b3",
+      "typeKey": "2",
       "gridX": 1,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -973,7 +973,7 @@
     },
     {
       "id": "building_107",
-      "typeKey": "3",
+      "typeKey": "b4",
       "gridX": 1,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -982,7 +982,7 @@
     },
     {
       "id": "building_108",
-      "typeKey": "b4",
+      "typeKey": "3",
       "gridX": 3,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -991,7 +991,7 @@
     },
     {
       "id": "building_109",
-      "typeKey": "b3",
+      "typeKey": "pentagon_defense",
       "gridX": 3,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -1000,7 +1000,7 @@
     },
     {
       "id": "building_110",
-      "typeKey": "4",
+      "typeKey": "pentagon_defense",
       "gridX": 3,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -1009,7 +1009,7 @@
     },
     {
       "id": "building_111",
-      "typeKey": "b3",
+      "typeKey": "pentagon_defense",
       "gridX": 3,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -1018,7 +1018,7 @@
     },
     {
       "id": "building_112",
-      "typeKey": "4",
+      "typeKey": "1",
       "gridX": 3,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -1027,7 +1027,7 @@
     },
     {
       "id": "building_113",
-      "typeKey": "3",
+      "typeKey": "2",
       "gridX": 3,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -1036,7 +1036,7 @@
     },
     {
       "id": "building_114",
-      "typeKey": "2",
+      "typeKey": "pentagon_defense",
       "gridX": 3,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -1045,7 +1045,7 @@
     },
     {
       "id": "building_115",
-      "typeKey": "2",
+      "typeKey": "1",
       "gridX": 5,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -1054,7 +1054,7 @@
     },
     {
       "id": "building_116",
-      "typeKey": "b3",
+      "typeKey": "pentagon_defense",
       "gridX": 5,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -1063,7 +1063,7 @@
     },
     {
       "id": "building_117",
-      "typeKey": "4",
+      "typeKey": "3",
       "gridX": 5,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -1072,7 +1072,7 @@
     },
     {
       "id": "building_118",
-      "typeKey": "1",
+      "typeKey": "4",
       "gridX": 5,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -1081,7 +1081,7 @@
     },
     {
       "id": "building_119",
-      "typeKey": "pentagon_defense",
+      "typeKey": "3",
       "gridX": 5,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -1099,7 +1099,7 @@
     },
     {
       "id": "building_121",
-      "typeKey": "pentagon_defense",
+      "typeKey": "2",
       "gridX": 5,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -1108,7 +1108,7 @@
     },
     {
       "id": "building_122",
-      "typeKey": "1",
+      "typeKey": "b3",
       "gridX": 7,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -1117,7 +1117,7 @@
     },
     {
       "id": "building_123",
-      "typeKey": "2",
+      "typeKey": "b4",
       "gridX": 7,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -1126,7 +1126,7 @@
     },
     {
       "id": "building_124",
-      "typeKey": "b4",
+      "typeKey": "3",
       "gridX": 7,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -1144,7 +1144,7 @@
     },
     {
       "id": "building_126",
-      "typeKey": "pentagon_defense",
+      "typeKey": "b4",
       "gridX": 7,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -1153,7 +1153,7 @@
     },
     {
       "id": "building_127",
-      "typeKey": "b4",
+      "typeKey": "4",
       "gridX": 7,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -1171,7 +1171,7 @@
     },
     {
       "id": "building_129",
-      "typeKey": "b3",
+      "typeKey": "b4",
       "gridX": 9,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -1180,7 +1180,7 @@
     },
     {
       "id": "building_130",
-      "typeKey": "1",
+      "typeKey": "4",
       "gridX": 9,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -1189,7 +1189,7 @@
     },
     {
       "id": "building_131",
-      "typeKey": "4",
+      "typeKey": "2",
       "gridX": 9,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -1198,7 +1198,7 @@
     },
     {
       "id": "building_132",
-      "typeKey": "4",
+      "typeKey": "3",
       "gridX": 9,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -1207,7 +1207,7 @@
     },
     {
       "id": "building_133",
-      "typeKey": "b3",
+      "typeKey": "2",
       "gridX": 9,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -1216,7 +1216,7 @@
     },
     {
       "id": "building_134",
-      "typeKey": "4",
+      "typeKey": "2",
       "gridX": 9,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -1225,7 +1225,7 @@
     },
     {
       "id": "building_135",
-      "typeKey": "b3",
+      "typeKey": "b4",
       "gridX": 9,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -1234,7 +1234,7 @@
     },
     {
       "id": "building_136",
-      "typeKey": "3",
+      "typeKey": "b3",
       "gridX": 11,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -1252,7 +1252,7 @@
     },
     {
       "id": "building_138",
-      "typeKey": "pentagon_defense",
+      "typeKey": "3",
       "gridX": 11,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -1261,7 +1261,7 @@
     },
     {
       "id": "building_139",
-      "typeKey": "1",
+      "typeKey": "b4",
       "gridX": 11,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -1270,7 +1270,7 @@
     },
     {
       "id": "building_140",
-      "typeKey": "b4",
+      "typeKey": "b3",
       "gridX": 11,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -1279,7 +1279,7 @@
     },
     {
       "id": "building_141",
-      "typeKey": "b4",
+      "typeKey": "4",
       "gridX": 11,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -1288,7 +1288,7 @@
     },
     {
       "id": "building_142",
-      "typeKey": "1",
+      "typeKey": "b3",
       "gridX": 11,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -1297,7 +1297,7 @@
     },
     {
       "id": "building_143",
-      "typeKey": "b4",
+      "typeKey": "4",
       "gridX": 13,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -1306,7 +1306,7 @@
     },
     {
       "id": "building_144",
-      "typeKey": "b3",
+      "typeKey": "3",
       "gridX": 13,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -1315,7 +1315,7 @@
     },
     {
       "id": "building_145",
-      "typeKey": "pentagon_defense",
+      "typeKey": "2",
       "gridX": 13,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -1324,7 +1324,7 @@
     },
     {
       "id": "building_146",
-      "typeKey": "3",
+      "typeKey": "2",
       "gridX": 13,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -1333,7 +1333,7 @@
     },
     {
       "id": "building_147",
-      "typeKey": "pentagon_defense",
+      "typeKey": "b3",
       "gridX": 13,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -1342,7 +1342,7 @@
     },
     {
       "id": "building_148",
-      "typeKey": "b4",
+      "typeKey": "4",
       "gridX": 13,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -1351,7 +1351,7 @@
     },
     {
       "id": "building_149",
-      "typeKey": "3",
+      "typeKey": "1",
       "gridX": 13,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -1360,7 +1360,7 @@
     },
     {
       "id": "building_150",
-      "typeKey": "1",
+      "typeKey": "pentagon_defense",
       "gridX": 1,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -1369,7 +1369,7 @@
     },
     {
       "id": "building_151",
-      "typeKey": "3",
+      "typeKey": "1",
       "gridX": 1,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -1378,7 +1378,7 @@
     },
     {
       "id": "building_152",
-      "typeKey": "4",
+      "typeKey": "pentagon_defense",
       "gridX": 1,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -1387,7 +1387,7 @@
     },
     {
       "id": "building_153",
-      "typeKey": "2",
+      "typeKey": "1",
       "gridX": 1,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -1396,7 +1396,7 @@
     },
     {
       "id": "building_154",
-      "typeKey": "4",
+      "typeKey": "2",
       "gridX": 1,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -1405,7 +1405,7 @@
     },
     {
       "id": "building_155",
-      "typeKey": "1",
+      "typeKey": "b4",
       "gridX": 1,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -1414,7 +1414,7 @@
     },
     {
       "id": "building_156",
-      "typeKey": "b4",
+      "typeKey": "2",
       "gridX": 1,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -1423,7 +1423,7 @@
     },
     {
       "id": "building_157",
-      "typeKey": "b4",
+      "typeKey": "pentagon_defense",
       "gridX": 3,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -1432,7 +1432,7 @@
     },
     {
       "id": "building_158",
-      "typeKey": "3",
+      "typeKey": "b4",
       "gridX": 3,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -1441,7 +1441,7 @@
     },
     {
       "id": "building_159",
-      "typeKey": "b3",
+      "typeKey": "4",
       "gridX": 3,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -1450,7 +1450,7 @@
     },
     {
       "id": "building_160",
-      "typeKey": "pentagon_defense",
+      "typeKey": "b3",
       "gridX": 3,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -1459,7 +1459,7 @@
     },
     {
       "id": "building_161",
-      "typeKey": "2",
+      "typeKey": "1",
       "gridX": 3,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -1468,7 +1468,7 @@
     },
     {
       "id": "building_162",
-      "typeKey": "b3",
+      "typeKey": "4",
       "gridX": 3,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -1477,7 +1477,7 @@
     },
     {
       "id": "building_163",
-      "typeKey": "1",
+      "typeKey": "4",
       "gridX": 3,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -1486,7 +1486,7 @@
     },
     {
       "id": "building_164",
-      "typeKey": "pentagon_defense",
+      "typeKey": "b3",
       "gridX": 5,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -1495,7 +1495,7 @@
     },
     {
       "id": "building_165",
-      "typeKey": "b4",
+      "typeKey": "4",
       "gridX": 5,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -1504,7 +1504,7 @@
     },
     {
       "id": "building_166",
-      "typeKey": "3",
+      "typeKey": "b3",
       "gridX": 5,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -1513,7 +1513,7 @@
     },
     {
       "id": "building_167",
-      "typeKey": "pentagon_defense",
+      "typeKey": "3",
       "gridX": 5,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -1522,7 +1522,7 @@
     },
     {
       "id": "building_168",
-      "typeKey": "b4",
+      "typeKey": "b3",
       "gridX": 5,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -1531,7 +1531,7 @@
     },
     {
       "id": "building_169",
-      "typeKey": "b3",
+      "typeKey": "pentagon_defense",
       "gridX": 5,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -1540,7 +1540,7 @@
     },
     {
       "id": "building_170",
-      "typeKey": "b3",
+      "typeKey": "1",
       "gridX": 5,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -1549,7 +1549,7 @@
     },
     {
       "id": "building_171",
-      "typeKey": "2",
+      "typeKey": "b4",
       "gridX": 7,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -1558,7 +1558,7 @@
     },
     {
       "id": "building_172",
-      "typeKey": "2",
+      "typeKey": "b4",
       "gridX": 7,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -1567,7 +1567,7 @@
     },
     {
       "id": "building_173",
-      "typeKey": "3",
+      "typeKey": "1",
       "gridX": 7,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -1576,7 +1576,7 @@
     },
     {
       "id": "building_174",
-      "typeKey": "pentagon_defense",
+      "typeKey": "b4",
       "gridX": 7,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -1585,7 +1585,7 @@
     },
     {
       "id": "building_175",
-      "typeKey": "2",
+      "typeKey": "b3",
       "gridX": 7,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -1594,7 +1594,7 @@
     },
     {
       "id": "building_176",
-      "typeKey": "b3",
+      "typeKey": "pentagon_defense",
       "gridX": 7,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -1603,7 +1603,7 @@
     },
     {
       "id": "building_177",
-      "typeKey": "pentagon_defense",
+      "typeKey": "3",
       "gridX": 7,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -1612,7 +1612,7 @@
     },
     {
       "id": "building_178",
-      "typeKey": "b3",
+      "typeKey": "pentagon_defense",
       "gridX": 9,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -1621,7 +1621,7 @@
     },
     {
       "id": "building_179",
-      "typeKey": "1",
+      "typeKey": "b4",
       "gridX": 9,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -1630,7 +1630,7 @@
     },
     {
       "id": "building_180",
-      "typeKey": "b3",
+      "typeKey": "3",
       "gridX": 9,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -1639,7 +1639,7 @@
     },
     {
       "id": "building_181",
-      "typeKey": "3",
+      "typeKey": "1",
       "gridX": 9,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -1648,7 +1648,7 @@
     },
     {
       "id": "building_182",
-      "typeKey": "4",
+      "typeKey": "3",
       "gridX": 9,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -1657,7 +1657,7 @@
     },
     {
       "id": "building_183",
-      "typeKey": "1",
+      "typeKey": "4",
       "gridX": 9,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -1666,7 +1666,7 @@
     },
     {
       "id": "building_184",
-      "typeKey": "1",
+      "typeKey": "2",
       "gridX": 9,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -1675,7 +1675,7 @@
     },
     {
       "id": "building_185",
-      "typeKey": "3",
+      "typeKey": "4",
       "gridX": 11,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -1684,7 +1684,7 @@
     },
     {
       "id": "building_186",
-      "typeKey": "pentagon_defense",
+      "typeKey": "1",
       "gridX": 11,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -1693,7 +1693,7 @@
     },
     {
       "id": "building_187",
-      "typeKey": "pentagon_defense",
+      "typeKey": "b4",
       "gridX": 11,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -1702,7 +1702,7 @@
     },
     {
       "id": "building_188",
-      "typeKey": "3",
+      "typeKey": "b4",
       "gridX": 11,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -1711,7 +1711,7 @@
     },
     {
       "id": "building_189",
-      "typeKey": "2",
+      "typeKey": "3",
       "gridX": 11,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -1720,7 +1720,7 @@
     },
     {
       "id": "building_190",
-      "typeKey": "1",
+      "typeKey": "b3",
       "gridX": 11,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -1729,7 +1729,7 @@
     },
     {
       "id": "building_191",
-      "typeKey": "2",
+      "typeKey": "pentagon_defense",
       "gridX": 11,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -1738,7 +1738,7 @@
     },
     {
       "id": "building_192",
-      "typeKey": "b3",
+      "typeKey": "2",
       "gridX": 13,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -1747,7 +1747,7 @@
     },
     {
       "id": "building_193",
-      "typeKey": "1",
+      "typeKey": "b3",
       "gridX": 13,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -1765,7 +1765,7 @@
     },
     {
       "id": "building_195",
-      "typeKey": "b4",
+      "typeKey": "pentagon_defense",
       "gridX": 13,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -1774,7 +1774,7 @@
     },
     {
       "id": "building_196",
-      "typeKey": "4",
+      "typeKey": "b4",
       "gridX": 13,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -1783,7 +1783,7 @@
     },
     {
       "id": "building_197",
-      "typeKey": "pentagon_defense",
+      "typeKey": "3",
       "gridX": 13,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -1792,7 +1792,7 @@
     },
     {
       "id": "building_198",
-      "typeKey": "1",
+      "typeKey": "pentagon_defense",
       "gridX": 13,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -1801,7 +1801,7 @@
     },
     {
       "id": "building_199",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 17,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -1810,7 +1810,7 @@
     },
     {
       "id": "building_200",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 17,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -1819,7 +1819,7 @@
     },
     {
       "id": "building_201",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 17,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -1828,7 +1828,7 @@
     },
     {
       "id": "building_202",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 17,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -1837,7 +1837,7 @@
     },
     {
       "id": "building_203",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 17,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -1855,7 +1855,7 @@
     },
     {
       "id": "building_205",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 17,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -1864,7 +1864,7 @@
     },
     {
       "id": "building_206",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 19,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -1873,7 +1873,7 @@
     },
     {
       "id": "building_207",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 19,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -1882,7 +1882,7 @@
     },
     {
       "id": "building_208",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 19,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -1891,7 +1891,7 @@
     },
     {
       "id": "building_209",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 19,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -1900,7 +1900,7 @@
     },
     {
       "id": "building_210",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 19,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -1918,7 +1918,7 @@
     },
     {
       "id": "building_212",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 19,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -1927,7 +1927,7 @@
     },
     {
       "id": "building_213",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 21,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -1936,7 +1936,7 @@
     },
     {
       "id": "building_214",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 21,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -1945,7 +1945,7 @@
     },
     {
       "id": "building_215",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 21,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -1954,7 +1954,7 @@
     },
     {
       "id": "building_216",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 21,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -1963,7 +1963,7 @@
     },
     {
       "id": "building_217",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 21,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -1981,7 +1981,7 @@
     },
     {
       "id": "building_219",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 21,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -1990,7 +1990,7 @@
     },
     {
       "id": "building_220",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -2017,7 +2017,7 @@
     },
     {
       "id": "building_223",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 23,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -2026,7 +2026,7 @@
     },
     {
       "id": "building_224",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -2035,7 +2035,7 @@
     },
     {
       "id": "building_225",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 23,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -2044,7 +2044,7 @@
     },
     {
       "id": "building_226",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -2053,7 +2053,7 @@
     },
     {
       "id": "building_227",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 25,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -2062,7 +2062,7 @@
     },
     {
       "id": "building_228",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 25,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -2071,7 +2071,7 @@
     },
     {
       "id": "building_229",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 25,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -2080,7 +2080,7 @@
     },
     {
       "id": "building_230",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 25,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -2107,7 +2107,7 @@
     },
     {
       "id": "building_233",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 25,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -2116,7 +2116,7 @@
     },
     {
       "id": "building_234",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 27,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -2125,7 +2125,7 @@
     },
     {
       "id": "building_235",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 27,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -2143,7 +2143,7 @@
     },
     {
       "id": "building_237",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 27,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -2152,7 +2152,7 @@
     },
     {
       "id": "building_238",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 27,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -2170,7 +2170,7 @@
     },
     {
       "id": "building_240",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 27,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -2179,7 +2179,7 @@
     },
     {
       "id": "building_241",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 29,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -2188,7 +2188,7 @@
     },
     {
       "id": "building_242",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 29,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -2206,7 +2206,7 @@
     },
     {
       "id": "building_244",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 29,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -2215,7 +2215,7 @@
     },
     {
       "id": "building_245",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 29,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -2224,7 +2224,7 @@
     },
     {
       "id": "building_246",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 29,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -2242,7 +2242,7 @@
     },
     {
       "id": "building_248",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 17,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -2251,7 +2251,7 @@
     },
     {
       "id": "building_249",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 17,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -2260,7 +2260,7 @@
     },
     {
       "id": "building_250",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 17,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -2287,7 +2287,7 @@
     },
     {
       "id": "building_253",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 19,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -2296,7 +2296,7 @@
     },
     {
       "id": "building_254",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 19,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -2305,7 +2305,7 @@
     },
     {
       "id": "building_255",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 19,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -2314,7 +2314,7 @@
     },
     {
       "id": "building_256",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 19,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -2323,7 +2323,7 @@
     },
     {
       "id": "building_257",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 19,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -2341,7 +2341,7 @@
     },
     {
       "id": "building_259",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 21,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -2359,7 +2359,7 @@
     },
     {
       "id": "building_261",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 21,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -2368,7 +2368,7 @@
     },
     {
       "id": "building_262",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 21,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -2377,7 +2377,7 @@
     },
     {
       "id": "building_263",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 21,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -2386,7 +2386,7 @@
     },
     {
       "id": "building_264",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 21,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -2395,7 +2395,7 @@
     },
     {
       "id": "building_265",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -2404,7 +2404,7 @@
     },
     {
       "id": "building_266",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -2413,7 +2413,7 @@
     },
     {
       "id": "building_267",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -2422,7 +2422,7 @@
     },
     {
       "id": "building_268",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -2440,7 +2440,7 @@
     },
     {
       "id": "building_270",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -2449,7 +2449,7 @@
     },
     {
       "id": "building_271",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 23,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -2458,7 +2458,7 @@
     },
     {
       "id": "building_272",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 25,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -2467,7 +2467,7 @@
     },
     {
       "id": "building_273",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 25,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -2476,7 +2476,7 @@
     },
     {
       "id": "building_274",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 25,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -2485,7 +2485,7 @@
     },
     {
       "id": "building_275",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 25,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -2494,7 +2494,7 @@
     },
     {
       "id": "building_276",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 25,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -2503,7 +2503,7 @@
     },
     {
       "id": "building_277",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 25,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -2521,7 +2521,7 @@
     },
     {
       "id": "building_279",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 27,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -2530,7 +2530,7 @@
     },
     {
       "id": "building_280",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 27,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -2539,7 +2539,7 @@
     },
     {
       "id": "building_281",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 27,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -2548,7 +2548,7 @@
     },
     {
       "id": "building_282",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 27,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -2557,7 +2557,7 @@
     },
     {
       "id": "building_283",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 27,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -2575,7 +2575,7 @@
     },
     {
       "id": "building_285",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 27,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -2584,7 +2584,7 @@
     },
     {
       "id": "building_286",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 29,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -2593,7 +2593,7 @@
     },
     {
       "id": "building_287",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 29,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -2602,7 +2602,7 @@
     },
     {
       "id": "building_288",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 29,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -2611,7 +2611,7 @@
     },
     {
       "id": "building_289",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 29,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -2620,7 +2620,7 @@
     },
     {
       "id": "building_290",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 29,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -2638,7 +2638,7 @@
     },
     {
       "id": "building_292",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 29,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -2647,7 +2647,7 @@
     },
     {
       "id": "building_293",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 17,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -2656,7 +2656,7 @@
     },
     {
       "id": "building_294",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 17,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -2674,7 +2674,7 @@
     },
     {
       "id": "building_296",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 17,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -2692,7 +2692,7 @@
     },
     {
       "id": "building_298",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 19,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -2701,7 +2701,7 @@
     },
     {
       "id": "building_299",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 19,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -2710,7 +2710,7 @@
     },
     {
       "id": "building_300",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 19,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -2719,7 +2719,7 @@
     },
     {
       "id": "building_301",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 19,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -2764,7 +2764,7 @@
     },
     {
       "id": "building_306",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 21,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -2773,7 +2773,7 @@
     },
     {
       "id": "building_307",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 21,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -2800,7 +2800,7 @@
     },
     {
       "id": "building_310",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 23,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -2818,7 +2818,7 @@
     },
     {
       "id": "building_312",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 23,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -2827,7 +2827,7 @@
     },
     {
       "id": "building_313",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -2836,7 +2836,7 @@
     },
     {
       "id": "building_314",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 23,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -2845,7 +2845,7 @@
     },
     {
       "id": "building_315",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 23,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -2854,7 +2854,7 @@
     },
     {
       "id": "building_316",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -2872,7 +2872,7 @@
     },
     {
       "id": "building_318",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 25,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -2881,7 +2881,7 @@
     },
     {
       "id": "building_319",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 25,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -2890,7 +2890,7 @@
     },
     {
       "id": "building_320",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 25,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -2908,7 +2908,7 @@
     },
     {
       "id": "building_322",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 25,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -2917,7 +2917,7 @@
     },
     {
       "id": "building_323",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 25,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -2926,7 +2926,7 @@
     },
     {
       "id": "building_324",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 27,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -2935,7 +2935,7 @@
     },
     {
       "id": "building_325",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 27,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -2953,7 +2953,7 @@
     },
     {
       "id": "building_327",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 27,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -2971,7 +2971,7 @@
     },
     {
       "id": "building_329",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 27,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -2980,7 +2980,7 @@
     },
     {
       "id": "building_330",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 27,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -2998,7 +2998,7 @@
     },
     {
       "id": "building_332",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 29,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -3016,7 +3016,7 @@
     },
     {
       "id": "building_334",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 29,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -3025,7 +3025,7 @@
     },
     {
       "id": "building_335",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 29,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -3034,7 +3034,7 @@
     },
     {
       "id": "building_336",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 29,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -3043,7 +3043,7 @@
     },
     {
       "id": "building_337",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 29,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -3052,7 +3052,7 @@
     },
     {
       "id": "building_338",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 17,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -3061,7 +3061,7 @@
     },
     {
       "id": "building_339",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 17,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -3079,7 +3079,7 @@
     },
     {
       "id": "building_341",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 17,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -3088,7 +3088,7 @@
     },
     {
       "id": "building_342",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 17,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -3106,7 +3106,7 @@
     },
     {
       "id": "building_344",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 17,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -3115,7 +3115,7 @@
     },
     {
       "id": "building_345",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 19,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -3133,7 +3133,7 @@
     },
     {
       "id": "building_347",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 19,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -3142,7 +3142,7 @@
     },
     {
       "id": "building_348",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 19,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -3160,7 +3160,7 @@
     },
     {
       "id": "building_350",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 19,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -3169,7 +3169,7 @@
     },
     {
       "id": "building_351",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 19,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -3178,7 +3178,7 @@
     },
     {
       "id": "building_352",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 21,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -3187,7 +3187,7 @@
     },
     {
       "id": "building_353",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 21,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -3196,7 +3196,7 @@
     },
     {
       "id": "building_354",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 21,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -3205,7 +3205,7 @@
     },
     {
       "id": "building_355",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 21,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -3214,7 +3214,7 @@
     },
     {
       "id": "building_356",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 21,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -3223,7 +3223,7 @@
     },
     {
       "id": "building_357",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 21,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -3232,7 +3232,7 @@
     },
     {
       "id": "building_358",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 21,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -3241,7 +3241,7 @@
     },
     {
       "id": "building_359",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -3250,7 +3250,7 @@
     },
     {
       "id": "building_360",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -3268,7 +3268,7 @@
     },
     {
       "id": "building_362",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 23,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -3277,7 +3277,7 @@
     },
     {
       "id": "building_363",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 23,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -3295,7 +3295,7 @@
     },
     {
       "id": "building_365",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 23,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -3304,7 +3304,7 @@
     },
     {
       "id": "building_366",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 25,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -3313,7 +3313,7 @@
     },
     {
       "id": "building_367",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 25,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -3322,7 +3322,7 @@
     },
     {
       "id": "building_368",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 25,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -3331,7 +3331,7 @@
     },
     {
       "id": "building_369",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 25,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -3340,7 +3340,7 @@
     },
     {
       "id": "building_370",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 25,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -3349,7 +3349,7 @@
     },
     {
       "id": "building_371",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 25,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -3367,7 +3367,7 @@
     },
     {
       "id": "building_373",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 27,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -3376,7 +3376,7 @@
     },
     {
       "id": "building_374",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 27,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -3385,7 +3385,7 @@
     },
     {
       "id": "building_375",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 27,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -3394,7 +3394,7 @@
     },
     {
       "id": "building_376",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 27,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -3421,7 +3421,7 @@
     },
     {
       "id": "building_379",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 29,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -3430,7 +3430,7 @@
     },
     {
       "id": "building_380",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 29,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -3439,7 +3439,7 @@
     },
     {
       "id": "building_381",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 29,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -3457,7 +3457,7 @@
     },
     {
       "id": "building_383",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 29,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -3466,7 +3466,7 @@
     },
     {
       "id": "building_384",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 29,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -3475,7 +3475,7 @@
     },
     {
       "id": "building_385",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 33,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -3493,7 +3493,7 @@
     },
     {
       "id": "building_387",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 33,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -3511,7 +3511,7 @@
     },
     {
       "id": "building_389",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 33,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -3520,7 +3520,7 @@
     },
     {
       "id": "building_390",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 33,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -3529,7 +3529,7 @@
     },
     {
       "id": "building_391",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 33,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -3538,7 +3538,7 @@
     },
     {
       "id": "building_392",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 35,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -3547,7 +3547,7 @@
     },
     {
       "id": "building_393",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 35,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -3556,7 +3556,7 @@
     },
     {
       "id": "building_394",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 35,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -3565,7 +3565,7 @@
     },
     {
       "id": "building_395",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 35,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -3574,7 +3574,7 @@
     },
     {
       "id": "building_396",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 35,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -3583,7 +3583,7 @@
     },
     {
       "id": "building_397",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 35,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -3592,7 +3592,7 @@
     },
     {
       "id": "building_398",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 35,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -3601,7 +3601,7 @@
     },
     {
       "id": "building_399",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 37,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -3628,7 +3628,7 @@
     },
     {
       "id": "building_402",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 37,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -3637,7 +3637,7 @@
     },
     {
       "id": "building_403",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 37,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -3646,7 +3646,7 @@
     },
     {
       "id": "building_404",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 37,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -3655,7 +3655,7 @@
     },
     {
       "id": "building_405",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 37,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -3664,7 +3664,7 @@
     },
     {
       "id": "building_406",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 39,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -3673,7 +3673,7 @@
     },
     {
       "id": "building_407",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 39,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -3682,7 +3682,7 @@
     },
     {
       "id": "building_408",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 39,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -3691,7 +3691,7 @@
     },
     {
       "id": "building_409",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 39,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -3700,7 +3700,7 @@
     },
     {
       "id": "building_410",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 39,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -3709,7 +3709,7 @@
     },
     {
       "id": "building_411",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 39,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -3718,7 +3718,7 @@
     },
     {
       "id": "building_412",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 39,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -3727,7 +3727,7 @@
     },
     {
       "id": "building_413",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 41,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -3736,7 +3736,7 @@
     },
     {
       "id": "building_414",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 41,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -3745,7 +3745,7 @@
     },
     {
       "id": "building_415",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 41,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -3754,7 +3754,7 @@
     },
     {
       "id": "building_416",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 41,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -3763,7 +3763,7 @@
     },
     {
       "id": "building_417",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 41,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -3781,7 +3781,7 @@
     },
     {
       "id": "building_419",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 41,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -3790,7 +3790,7 @@
     },
     {
       "id": "building_420",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 43,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -3808,7 +3808,7 @@
     },
     {
       "id": "building_422",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 43,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -3817,7 +3817,7 @@
     },
     {
       "id": "building_423",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 43,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -3826,7 +3826,7 @@
     },
     {
       "id": "building_424",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 43,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -3835,7 +3835,7 @@
     },
     {
       "id": "building_425",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 43,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -3853,7 +3853,7 @@
     },
     {
       "id": "building_427",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 45,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -3862,7 +3862,7 @@
     },
     {
       "id": "building_428",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 45,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -3871,7 +3871,7 @@
     },
     {
       "id": "building_429",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 45,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -3880,7 +3880,7 @@
     },
     {
       "id": "building_430",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 45,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -3889,7 +3889,7 @@
     },
     {
       "id": "building_431",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 45,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -3907,7 +3907,7 @@
     },
     {
       "id": "building_433",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 45,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -3916,7 +3916,7 @@
     },
     {
       "id": "building_434",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 33,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -3943,7 +3943,7 @@
     },
     {
       "id": "building_437",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 33,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -3952,7 +3952,7 @@
     },
     {
       "id": "building_438",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 33,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -3961,7 +3961,7 @@
     },
     {
       "id": "building_439",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 35,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -3979,7 +3979,7 @@
     },
     {
       "id": "building_441",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 35,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -3988,7 +3988,7 @@
     },
     {
       "id": "building_442",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 35,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -3997,7 +3997,7 @@
     },
     {
       "id": "building_443",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 35,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -4006,7 +4006,7 @@
     },
     {
       "id": "building_444",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 37,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -4015,7 +4015,7 @@
     },
     {
       "id": "building_445",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 37,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -4024,7 +4024,7 @@
     },
     {
       "id": "building_446",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 37,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -4042,7 +4042,7 @@
     },
     {
       "id": "building_448",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 37,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -4078,7 +4078,7 @@
     },
     {
       "id": "building_452",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 39,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -4087,7 +4087,7 @@
     },
     {
       "id": "building_453",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 39,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -4105,7 +4105,7 @@
     },
     {
       "id": "building_455",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 39,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -4114,7 +4114,7 @@
     },
     {
       "id": "building_456",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 39,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -4132,7 +4132,7 @@
     },
     {
       "id": "building_458",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 41,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -4141,7 +4141,7 @@
     },
     {
       "id": "building_459",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 41,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -4150,7 +4150,7 @@
     },
     {
       "id": "building_460",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 41,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -4159,7 +4159,7 @@
     },
     {
       "id": "building_461",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 41,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -4168,7 +4168,7 @@
     },
     {
       "id": "building_462",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 41,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -4177,7 +4177,7 @@
     },
     {
       "id": "building_463",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 41,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -4195,7 +4195,7 @@
     },
     {
       "id": "building_465",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 43,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -4231,7 +4231,7 @@
     },
     {
       "id": "building_469",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 43,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -4249,7 +4249,7 @@
     },
     {
       "id": "building_471",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 43,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -4258,7 +4258,7 @@
     },
     {
       "id": "building_472",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 45,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -4267,7 +4267,7 @@
     },
     {
       "id": "building_473",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 45,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -4276,7 +4276,7 @@
     },
     {
       "id": "building_474",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 45,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -4285,7 +4285,7 @@
     },
     {
       "id": "building_475",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 45,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -4303,7 +4303,7 @@
     },
     {
       "id": "building_477",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 45,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -4312,7 +4312,7 @@
     },
     {
       "id": "building_478",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 45,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -4321,7 +4321,7 @@
     },
     {
       "id": "building_479",
-      "typeKey": "b3",
+      "typeKey": "1",
       "gridX": 33,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -4330,7 +4330,7 @@
     },
     {
       "id": "building_480",
-      "typeKey": "1",
+      "typeKey": "pentagon_defense",
       "gridX": 33,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -4339,7 +4339,7 @@
     },
     {
       "id": "building_481",
-      "typeKey": "4",
+      "typeKey": "3",
       "gridX": 33,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -4357,7 +4357,7 @@
     },
     {
       "id": "building_483",
-      "typeKey": "2",
+      "typeKey": "b3",
       "gridX": 33,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -4366,7 +4366,7 @@
     },
     {
       "id": "building_484",
-      "typeKey": "3",
+      "typeKey": "2",
       "gridX": 33,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -4375,7 +4375,7 @@
     },
     {
       "id": "building_485",
-      "typeKey": "1",
+      "typeKey": "4",
       "gridX": 35,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -4384,7 +4384,7 @@
     },
     {
       "id": "building_486",
-      "typeKey": "b4",
+      "typeKey": "2",
       "gridX": 35,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -4393,7 +4393,7 @@
     },
     {
       "id": "building_487",
-      "typeKey": "4",
+      "typeKey": "1",
       "gridX": 35,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -4402,7 +4402,7 @@
     },
     {
       "id": "building_488",
-      "typeKey": "1",
+      "typeKey": "3",
       "gridX": 35,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -4411,7 +4411,7 @@
     },
     {
       "id": "building_489",
-      "typeKey": "b3",
+      "typeKey": "3",
       "gridX": 35,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -4429,7 +4429,7 @@
     },
     {
       "id": "building_491",
-      "typeKey": "b3",
+      "typeKey": "pentagon_defense",
       "gridX": 35,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -4438,7 +4438,7 @@
     },
     {
       "id": "building_492",
-      "typeKey": "b4",
+      "typeKey": "1",
       "gridX": 37,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -4447,7 +4447,7 @@
     },
     {
       "id": "building_493",
-      "typeKey": "b4",
+      "typeKey": "3",
       "gridX": 37,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -4456,7 +4456,7 @@
     },
     {
       "id": "building_494",
-      "typeKey": "b4",
+      "typeKey": "2",
       "gridX": 37,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -4474,7 +4474,7 @@
     },
     {
       "id": "building_496",
-      "typeKey": "b4",
+      "typeKey": "2",
       "gridX": 43,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -4483,7 +4483,7 @@
     },
     {
       "id": "building_497",
-      "typeKey": "2",
+      "typeKey": "b4",
       "gridX": 43,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -4492,7 +4492,7 @@
     },
     {
       "id": "building_498",
-      "typeKey": "3",
+      "typeKey": "1",
       "gridX": 43,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -4501,7 +4501,7 @@
     },
     {
       "id": "building_499",
-      "typeKey": "4",
+      "typeKey": "3",
       "gridX": 45,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -4510,7 +4510,7 @@
     },
     {
       "id": "building_500",
-      "typeKey": "1",
+      "typeKey": "pentagon_defense",
       "gridX": 45,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -4519,7 +4519,7 @@
     },
     {
       "id": "building_501",
-      "typeKey": "b4",
+      "typeKey": "b3",
       "gridX": 45,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -4528,7 +4528,7 @@
     },
     {
       "id": "building_502",
-      "typeKey": "3",
+      "typeKey": "pentagon_defense",
       "gridX": 33,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -4537,7 +4537,7 @@
     },
     {
       "id": "building_503",
-      "typeKey": "b3",
+      "typeKey": "4",
       "gridX": 33,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -4546,7 +4546,7 @@
     },
     {
       "id": "building_504",
-      "typeKey": "3",
+      "typeKey": "b3",
       "gridX": 33,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -4564,7 +4564,7 @@
     },
     {
       "id": "building_506",
-      "typeKey": "pentagon_defense",
+      "typeKey": "2",
       "gridX": 33,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -4573,7 +4573,7 @@
     },
     {
       "id": "building_507",
-      "typeKey": "1",
+      "typeKey": "2",
       "gridX": 35,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -4582,7 +4582,7 @@
     },
     {
       "id": "building_508",
-      "typeKey": "b4",
+      "typeKey": "pentagon_defense",
       "gridX": 35,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -4591,7 +4591,7 @@
     },
     {
       "id": "building_509",
-      "typeKey": "3",
+      "typeKey": "2",
       "gridX": 35,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -4600,7 +4600,7 @@
     },
     {
       "id": "building_510",
-      "typeKey": "b3",
+      "typeKey": "pentagon_defense",
       "gridX": 35,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -4609,7 +4609,7 @@
     },
     {
       "id": "building_511",
-      "typeKey": "3",
+      "typeKey": "pentagon_defense",
       "gridX": 35,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -4618,7 +4618,7 @@
     },
     {
       "id": "building_512",
-      "typeKey": "b4",
+      "typeKey": "2",
       "gridX": 35,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -4636,7 +4636,7 @@
     },
     {
       "id": "building_514",
-      "typeKey": "3",
+      "typeKey": "1",
       "gridX": 37,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -4645,7 +4645,7 @@
     },
     {
       "id": "building_515",
-      "typeKey": "4",
+      "typeKey": "2",
       "gridX": 37,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -4672,7 +4672,7 @@
     },
     {
       "id": "building_518",
-      "typeKey": "b3",
+      "typeKey": "pentagon_defense",
       "gridX": 39,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -4681,7 +4681,7 @@
     },
     {
       "id": "building_519",
-      "typeKey": "2",
+      "typeKey": "4",
       "gridX": 39,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -4690,7 +4690,7 @@
     },
     {
       "id": "building_520",
-      "typeKey": "2",
+      "typeKey": "pentagon_defense",
       "gridX": 41,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -4699,7 +4699,7 @@
     },
     {
       "id": "building_521",
-      "typeKey": "4",
+      "typeKey": "b4",
       "gridX": 41,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -4708,7 +4708,7 @@
     },
     {
       "id": "building_522",
-      "typeKey": "b4",
+      "typeKey": "pentagon_defense",
       "gridX": 43,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -4717,7 +4717,7 @@
     },
     {
       "id": "building_523",
-      "typeKey": "4",
+      "typeKey": "b4",
       "gridX": 43,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -4726,7 +4726,7 @@
     },
     {
       "id": "building_524",
-      "typeKey": "b4",
+      "typeKey": "pentagon_defense",
       "gridX": 45,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -4735,7 +4735,7 @@
     },
     {
       "id": "building_525",
-      "typeKey": "b4",
+      "typeKey": "2",
       "gridX": 45,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -4753,7 +4753,7 @@
     },
     {
       "id": "building_527",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 49,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -4762,7 +4762,7 @@
     },
     {
       "id": "building_528",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 49,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -4771,7 +4771,7 @@
     },
     {
       "id": "building_529",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 49,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -4780,7 +4780,7 @@
     },
     {
       "id": "building_530",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 49,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -4789,7 +4789,7 @@
     },
     {
       "id": "building_531",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 49,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -4798,7 +4798,7 @@
     },
     {
       "id": "building_532",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 49,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -4807,7 +4807,7 @@
     },
     {
       "id": "building_533",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 51,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -4816,7 +4816,7 @@
     },
     {
       "id": "building_534",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 51,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -4834,7 +4834,7 @@
     },
     {
       "id": "building_536",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 51,
       "gridZ": 7,
       "footprintWidth": 2,
@@ -4843,7 +4843,7 @@
     },
     {
       "id": "building_537",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 51,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -4852,7 +4852,7 @@
     },
     {
       "id": "building_538",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 51,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -4861,7 +4861,7 @@
     },
     {
       "id": "building_539",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 51,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -4870,7 +4870,7 @@
     },
     {
       "id": "building_540",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 53,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -4879,7 +4879,7 @@
     },
     {
       "id": "building_541",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 53,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -4888,7 +4888,7 @@
     },
     {
       "id": "building_542",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 53,
       "gridZ": 5,
       "footprintWidth": 2,
@@ -4906,7 +4906,7 @@
     },
     {
       "id": "building_544",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 53,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -4915,7 +4915,7 @@
     },
     {
       "id": "building_545",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 53,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -4924,7 +4924,7 @@
     },
     {
       "id": "building_546",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 53,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -4933,7 +4933,7 @@
     },
     {
       "id": "building_547",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 55,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -4942,7 +4942,7 @@
     },
     {
       "id": "building_548",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 55,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -4951,7 +4951,7 @@
     },
     {
       "id": "building_549",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 55,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -4960,7 +4960,7 @@
     },
     {
       "id": "building_550",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 57,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -4969,7 +4969,7 @@
     },
     {
       "id": "building_551",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 57,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -4978,7 +4978,7 @@
     },
     {
       "id": "building_552",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 57,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -4987,7 +4987,7 @@
     },
     {
       "id": "building_553",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 57,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -4996,7 +4996,7 @@
     },
     {
       "id": "building_554",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 57,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -5005,7 +5005,7 @@
     },
     {
       "id": "building_555",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 59,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -5014,7 +5014,7 @@
     },
     {
       "id": "building_556",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 59,
       "gridZ": 3,
       "footprintWidth": 2,
@@ -5041,7 +5041,7 @@
     },
     {
       "id": "building_559",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 59,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -5059,7 +5059,7 @@
     },
     {
       "id": "building_561",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 59,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -5068,7 +5068,7 @@
     },
     {
       "id": "building_562",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 61,
       "gridZ": 1,
       "footprintWidth": 2,
@@ -5077,7 +5077,7 @@
     },
     {
       "id": "building_563",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 61,
       "gridZ": 9,
       "footprintWidth": 2,
@@ -5086,7 +5086,7 @@
     },
     {
       "id": "building_564",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 61,
       "gridZ": 11,
       "footprintWidth": 2,
@@ -5095,7 +5095,7 @@
     },
     {
       "id": "building_565",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 61,
       "gridZ": 13,
       "footprintWidth": 2,
@@ -5104,7 +5104,7 @@
     },
     {
       "id": "building_566",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 49,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -5122,7 +5122,7 @@
     },
     {
       "id": "building_568",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 49,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -5131,7 +5131,7 @@
     },
     {
       "id": "building_569",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 49,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -5140,7 +5140,7 @@
     },
     {
       "id": "building_570",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 49,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -5149,7 +5149,7 @@
     },
     {
       "id": "building_571",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 49,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -5167,7 +5167,7 @@
     },
     {
       "id": "building_573",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 51,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -5185,7 +5185,7 @@
     },
     {
       "id": "building_575",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 51,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -5194,7 +5194,7 @@
     },
     {
       "id": "building_576",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 51,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -5203,7 +5203,7 @@
     },
     {
       "id": "building_577",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 51,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -5212,7 +5212,7 @@
     },
     {
       "id": "building_578",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 51,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -5221,7 +5221,7 @@
     },
     {
       "id": "building_579",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 51,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -5230,7 +5230,7 @@
     },
     {
       "id": "building_580",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 53,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -5239,7 +5239,7 @@
     },
     {
       "id": "building_581",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 53,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -5248,7 +5248,7 @@
     },
     {
       "id": "building_582",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 53,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -5257,7 +5257,7 @@
     },
     {
       "id": "building_583",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 53,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -5266,7 +5266,7 @@
     },
     {
       "id": "building_584",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 53,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -5275,7 +5275,7 @@
     },
     {
       "id": "building_585",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 53,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -5284,7 +5284,7 @@
     },
     {
       "id": "building_586",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 53,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -5293,7 +5293,7 @@
     },
     {
       "id": "building_587",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 55,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -5302,7 +5302,7 @@
     },
     {
       "id": "building_588",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 55,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -5311,7 +5311,7 @@
     },
     {
       "id": "building_589",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 55,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -5320,7 +5320,7 @@
     },
     {
       "id": "building_590",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 55,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -5329,7 +5329,7 @@
     },
     {
       "id": "building_591",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 55,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -5338,7 +5338,7 @@
     },
     {
       "id": "building_592",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 55,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -5347,7 +5347,7 @@
     },
     {
       "id": "building_593",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 55,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -5356,7 +5356,7 @@
     },
     {
       "id": "building_594",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 57,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -5365,7 +5365,7 @@
     },
     {
       "id": "building_595",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 57,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -5374,7 +5374,7 @@
     },
     {
       "id": "building_596",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 57,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -5383,7 +5383,7 @@
     },
     {
       "id": "building_597",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 57,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -5392,7 +5392,7 @@
     },
     {
       "id": "building_598",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 57,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -5401,7 +5401,7 @@
     },
     {
       "id": "building_599",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 57,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -5410,7 +5410,7 @@
     },
     {
       "id": "building_600",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 57,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -5419,7 +5419,7 @@
     },
     {
       "id": "building_601",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 59,
       "gridZ": 17,
       "footprintWidth": 2,
@@ -5428,7 +5428,7 @@
     },
     {
       "id": "building_602",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 59,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -5437,7 +5437,7 @@
     },
     {
       "id": "building_603",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 59,
       "gridZ": 21,
       "footprintWidth": 2,
@@ -5446,7 +5446,7 @@
     },
     {
       "id": "building_604",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 59,
       "gridZ": 23,
       "footprintWidth": 2,
@@ -5455,7 +5455,7 @@
     },
     {
       "id": "building_605",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 59,
       "gridZ": 25,
       "footprintWidth": 2,
@@ -5464,7 +5464,7 @@
     },
     {
       "id": "building_606",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 59,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -5473,7 +5473,7 @@
     },
     {
       "id": "building_607",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 59,
       "gridZ": 29,
       "footprintWidth": 2,
@@ -5491,7 +5491,7 @@
     },
     {
       "id": "building_609",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 61,
       "gridZ": 19,
       "footprintWidth": 2,
@@ -5518,7 +5518,7 @@
     },
     {
       "id": "building_612",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 61,
       "gridZ": 27,
       "footprintWidth": 2,
@@ -5536,7 +5536,7 @@
     },
     {
       "id": "building_614",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 49,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -5554,7 +5554,7 @@
     },
     {
       "id": "building_616",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 49,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -5563,7 +5563,7 @@
     },
     {
       "id": "building_617",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 51,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -5581,7 +5581,7 @@
     },
     {
       "id": "building_619",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 51,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -5590,7 +5590,7 @@
     },
     {
       "id": "building_620",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 55,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -5599,7 +5599,7 @@
     },
     {
       "id": "building_621",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 55,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -5608,7 +5608,7 @@
     },
     {
       "id": "building_622",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 55,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -5617,7 +5617,7 @@
     },
     {
       "id": "building_623",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 55,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -5626,7 +5626,7 @@
     },
     {
       "id": "building_624",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 57,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -5635,7 +5635,7 @@
     },
     {
       "id": "building_625",
-      "typeKey": "res_bronze",
+      "typeKey": "b2",
       "gridX": 57,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -5644,7 +5644,7 @@
     },
     {
       "id": "building_626",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 57,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -5653,7 +5653,7 @@
     },
     {
       "id": "building_627",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 57,
       "gridZ": 39,
       "footprintWidth": 2,
@@ -5662,7 +5662,7 @@
     },
     {
       "id": "building_628",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 57,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -5671,7 +5671,7 @@
     },
     {
       "id": "building_629",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 57,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -5689,7 +5689,7 @@
     },
     {
       "id": "building_631",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 59,
       "gridZ": 33,
       "footprintWidth": 2,
@@ -5698,7 +5698,7 @@
     },
     {
       "id": "building_632",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 59,
       "gridZ": 35,
       "footprintWidth": 2,
@@ -5707,7 +5707,7 @@
     },
     {
       "id": "building_633",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 59,
       "gridZ": 37,
       "footprintWidth": 2,
@@ -5725,7 +5725,7 @@
     },
     {
       "id": "building_635",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 59,
       "gridZ": 41,
       "footprintWidth": 2,
@@ -5734,7 +5734,7 @@
     },
     {
       "id": "building_636",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 59,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -5743,7 +5743,7 @@
     },
     {
       "id": "building_637",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 59,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -5770,7 +5770,7 @@
     },
     {
       "id": "building_640",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 61,
       "gridZ": 43,
       "footprintWidth": 2,
@@ -5779,7 +5779,7 @@
     },
     {
       "id": "building_641",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 61,
       "gridZ": 45,
       "footprintWidth": 2,
@@ -5788,7 +5788,7 @@
     },
     {
       "id": "building_642",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 49,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -5797,7 +5797,7 @@
     },
     {
       "id": "building_643",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 49,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -5806,7 +5806,7 @@
     },
     {
       "id": "building_644",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 51,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -5815,7 +5815,7 @@
     },
     {
       "id": "building_645",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 51,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -5833,7 +5833,7 @@
     },
     {
       "id": "building_647",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 51,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -5842,7 +5842,7 @@
     },
     {
       "id": "building_648",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 53,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -5860,7 +5860,7 @@
     },
     {
       "id": "building_650",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 53,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -5869,7 +5869,7 @@
     },
     {
       "id": "building_651",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 55,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -5887,7 +5887,7 @@
     },
     {
       "id": "building_653",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 55,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -5896,7 +5896,7 @@
     },
     {
       "id": "building_654",
-      "typeKey": "res_bronze",
+      "typeKey": "b1",
       "gridX": 57,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -5905,7 +5905,7 @@
     },
     {
       "id": "building_655",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b1",
       "gridX": 57,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -5914,7 +5914,7 @@
     },
     {
       "id": "building_656",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 57,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -5923,7 +5923,7 @@
     },
     {
       "id": "building_657",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 57,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -5932,7 +5932,7 @@
     },
     {
       "id": "building_658",
-      "typeKey": "b2",
+      "typeKey": "res_bronze",
       "gridX": 59,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -5941,7 +5941,7 @@
     },
     {
       "id": "building_659",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 59,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -5950,7 +5950,7 @@
     },
     {
       "id": "building_660",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b2",
       "gridX": 59,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -5959,7 +5959,7 @@
     },
     {
       "id": "building_661",
-      "typeKey": "b1",
+      "typeKey": "b2",
       "gridX": 59,
       "gridZ": 55,
       "footprintWidth": 2,
@@ -5968,7 +5968,7 @@
     },
     {
       "id": "building_662",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "res_bronze",
       "gridX": 59,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -5977,7 +5977,7 @@
     },
     {
       "id": "building_663",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "res_bronze",
       "gridX": 59,
       "gridZ": 59,
       "footprintWidth": 2,
@@ -5986,7 +5986,7 @@
     },
     {
       "id": "building_664",
-      "typeKey": "kenney_shop_blue",
+      "typeKey": "b1",
       "gridX": 59,
       "gridZ": 61,
       "footprintWidth": 2,
@@ -5995,7 +5995,7 @@
     },
     {
       "id": "building_665",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 61,
       "gridZ": 49,
       "footprintWidth": 2,
@@ -6004,7 +6004,7 @@
     },
     {
       "id": "building_666",
-      "typeKey": "b1",
+      "typeKey": "res_bronze",
       "gridX": 61,
       "gridZ": 51,
       "footprintWidth": 2,
@@ -6013,7 +6013,7 @@
     },
     {
       "id": "building_667",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 61,
       "gridZ": 53,
       "footprintWidth": 2,
@@ -6031,7 +6031,7 @@
     },
     {
       "id": "building_669",
-      "typeKey": "kenney_tower_office",
+      "typeKey": "b2",
       "gridX": 61,
       "gridZ": 57,
       "footprintWidth": 2,
@@ -6040,7 +6040,7 @@
     },
     {
       "id": "building_670",
-      "typeKey": "b2",
+      "typeKey": "b1",
       "gridX": 61,
       "gridZ": 59,
       "footprintWidth": 2,

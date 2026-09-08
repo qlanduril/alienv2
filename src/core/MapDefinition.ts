@@ -81,44 +81,39 @@ export const MAP_DEFINITION: MapDefinition = {
   ],
 
   roads: [
-    // ── 6 North-South Avenues (every 10 cells) ────────────────────────────────
-    { id: 'ave_6',  axis: 'NS', gx: 6,  gz: 0, length: 64 },
+    // ── 16-District Perimeter Road Grid (Intersections every 16 cells) ──────────────
+    { id: 'ave_0',  axis: 'NS', gx: 0,  gz: 0, length: 64 },
     { id: 'ave_16', axis: 'NS', gx: 16, gz: 0, length: 64 },
-    { id: 'ave_26', axis: 'NS', gx: 26, gz: 0, length: 64 },
-    { id: 'ave_36', axis: 'NS', gx: 36, gz: 0, length: 64 },
-    { id: 'ave_46', axis: 'NS', gx: 46, gz: 0, length: 64 },
-    { id: 'ave_56', axis: 'NS', gx: 56, gz: 0, length: 64 },
+    { id: 'ave_32', axis: 'NS', gx: 32, gz: 0, length: 64 },
+    { id: 'ave_48', axis: 'NS', gx: 48, gz: 0, length: 54 },
 
-    // ── 6 East-West Streets (every 10 cells) ──────────────────────────────────
-    { id: 'st_6',  axis: 'EW', gx: 0, gz: 6,  length: 54 },
-    { id: 'st_16', axis: 'EW', gx: 0, gz: 16, length: 54 },
-    { id: 'st_26', axis: 'EW', gx: 0, gz: 26, length: 54 },
-    { id: 'st_36', axis: 'EW', gx: 0, gz: 36, length: 54 },
-    { id: 'st_46', axis: 'EW', gx: 0, gz: 46, length: 54 },
-    { id: 'st_56', axis: 'EW', gx: 0, gz: 56, length: 54 },
+    { id: 'st_0',  axis: 'EW', gx: 0, gz: 0,  length: 64 },
+    { id: 'st_16', axis: 'EW', gx: 0, gz: 16, length: 64 },
+    { id: 'st_32', axis: 'EW', gx: 0, gz: 32, length: 64 },
+    { id: 'st_48', axis: 'EW', gx: 0, gz: 48, length: 54 },
   ],
 
   landmarks: [
-    // ── 1. EXACT MAP CENTER: 3D Skyscraper Landmark ───────────────────────────
-    { key: '5',                gx: 28, gz: 28, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // 3D Skyscraper at Map Center!
-    { key: 'mega_titan',       gx: 28, gz: 18, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 },
-    { key: 'pentagon_defense', gx: 18, gz: 28, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 },
-    { key: '3',                gx: 18, gz: 18, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // School
+    // ── 16-DISTRICT CENTER GRID SYSTEM (Landmarks placed at EXACT DISTRICT CENTERS) ──
+    // District (0,0) [gx 0..15, gz 0..15] Center: Alien Spaceship HQ 3D Focal Icon
+    { key: 'spaceship_hq',     gx: 6,  gz: 6,  terrain: TerrainType.SIDEWALK,    bufferTiles: 2 },
 
-    // ── 2. North-West Airfield Control Tower ──────────────────────────────────
-    { key: 'spaceship_hq', gx: 1, gz: 1, terrain: TerrainType.SIDEWALK, bufferTiles: 1 },
+    // District (2,0) [gx 32..47, gz 0..15] Center: Metro Financial Tower 3D Focal Icon
+    { key: 'financial_tower',  gx: 38, gz: 6,  terrain: TerrainType.PLAZA_STONE,  bufferTiles: 2 },
 
-    // ── 3. North-East Twin Sports Arenas ──────────────────────────────────────
-    { key: 'mega_stadium', gx: 38, gz: 1,  terrain: TerrainType.GRASS, bufferTiles: 1 },
-    { key: 'mega_stadium', gx: 38, gz: 14, terrain: TerrainType.GRASS, bufferTiles: 1 },
+    // District (1,1) [gx 16..31, gz 16..31] Center: Cyber Quantum Reactor 3D Focal Icon
+    { key: 'cyber_reactor',    gx: 22, gz: 22, terrain: TerrainType.PLAZA_STONE,  bufferTiles: 2 },
 
-    // ── 4. South-West Civic & Shopping ────────────────────────────────────────
-    { key: '1', gx: 8,  gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // Hospital
-    { key: '2', gx: 18, gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // Mall
+    // District (2,2) [gx 32..47, gz 32..47] Center: Apex Mega-Tower 3D Focal Icon
+    { key: 'mega_titan',       gx: 38, gz: 38, terrain: TerrainType.PLAZA_STONE,  bufferTiles: 2 },
 
-    // ── 5. South Docks Warehouses ──────────────────────────────────────────────
-    { key: '4', gx: 38, gz: 38, terrain: TerrainType.SIDEWALK, bufferTiles: 1 }, // Warehouse A
-    { key: '4', gx: 48, gz: 38, terrain: TerrainType.SIDEWALK, bufferTiles: 1 }, // Warehouse B
+    // ── OTHER DISTRICT CENTER LANDMARKS ──────────────────────────────────────────
+    { key: '3',                gx: 22, gz: 6,  terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (1,0) Center: School
+    { key: 'mega_stadium',     gx: 52, gz: 4,  terrain: TerrainType.GRASS,       bufferTiles: 1 }, // District (3,0) Center: Stadium Arena
+    { key: '1',                gx: 6,  gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (0,1) Center: Hospital
+    { key: 'pentagon_defense', gx: 22, gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (1,2) Center: Defense Bunker
+    { key: '2',                gx: 6,  gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (0,2) Center: Mall
+    { key: '4',                gx: 22, gz: 52, terrain: TerrainType.SIDEWALK,    bufferTiles: 1 }, // District (1,3) Center: Warehouse
   ],
 
   islands: [

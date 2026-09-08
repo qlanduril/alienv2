@@ -80,16 +80,27 @@ def generate_chunk_based_map(ref_image_path, seed=42):
             elif masks and masks["park_mask"][x][z] > 0.7:
                 tiles[x][z] = {"terrainType": 5, "overlayType": 0} # GRASS PARK
 
-    # Building catalog specs
-    high_rise_types = ["mega_titan", "sky_cyber", "sky_biotech", "sky_artdeco", "res_sky"]
-    mid_rise_types = ["1", "2", "3", "4", "b3", "b4", "pentagon_defense"]
+    # Building catalog specs:
+    # High-rise skyline across the city utilizes all 4 3D models!
+    high_rise_types = ["5", "sky_artdeco", "sky_biotech", "sky_cyber", "res_sky"]
+    mid_rise_types = ["b3", "b4", "4", "res_sky"]
     low_rise_types = ["b1", "b2", "res_bronze"]
 
-    # 2. Place Civic Landmark Hub Buildings (4x4) cleanly inside specific chunks
+    # 2. Place Civic Landmark Hub Buildings cleanly inside specific chunks with 1-tile buffer
     landmarks = [
         {"typeKey": "mega_titan", "w": 4, "h": 4, "lotType": "landmark", "preferredChunk": (1, 1)},
         {"typeKey": "spaceship_hq", "w": 4, "h": 4, "lotType": "landmark", "preferredChunk": (2, 1)},
-        {"typeKey": "mega_stadium", "w": 4, "h": 4, "lotType": "landmark", "preferredChunk": (1, 2)},
+        {"typeKey": "financial_tower", "w": 3, "h": 3, "lotType": "landmark", "preferredChunk": (1, 2)},
+        {"typeKey": "cyber_reactor", "w": 3, "h": 3, "lotType": "landmark", "preferredChunk": (2, 2)},
+        {"typeKey": "pentagon_defense", "w": 4, "h": 4, "lotType": "landmark", "preferredChunk": (0, 2)},
+        {"typeKey": "mega_stadium", "w": 4, "h": 4, "lotType": "landmark", "preferredChunk": (2, 0)},
+        {"typeKey": "statue_liberty", "w": 3, "h": 3, "lotType": "landmark", "preferredChunk": (0, 0)},
+        {"typeKey": "hospital_civic", "w": 3, "h": 3, "lotType": "civic", "preferredChunk": (0, 1)},
+        {"typeKey": "mall_shopping", "w": 3, "h": 3, "lotType": "commercial", "preferredChunk": (3, 1)},
+        {"typeKey": "school_civic", "w": 3, "h": 3, "lotType": "civic", "preferredChunk": (3, 2)},
+        {"typeKey": "1", "w": 3, "h": 3, "lotType": "civic", "preferredChunk": (1, 0)},
+        {"typeKey": "2", "w": 3, "h": 3, "lotType": "commercial", "preferredChunk": (3, 0)},
+        {"typeKey": "3", "w": 3, "h": 3, "lotType": "civic", "preferredChunk": (0, 3)},
     ]
 
     for lm in landmarks:
@@ -101,20 +112,47 @@ def generate_chunk_based_map(ref_image_path, seed=42):
         for rx in range(chunk_origin_x, chunk_origin_x + CHUNK_SIZE - lm["w"] - 1):
             for rz in range(chunk_origin_z, chunk_origin_z + CHUNK_SIZE - lm["h"] - 1):
                 fits = True
-                for dx in range(lm["w"]):
-                    for dz in range(lm["h"]):
+                # Require 1-tile buffer clearance around entire landmark perimeter
+                for dx in range(-1, lm["w"] + 1):
+                    for dz in range(-1, lm["h"] + 1):
                         gx, gz = rx + dx, rz + dz
-                        if gx >= GRID_DIM or gz >= GRID_DIM or occupied[gx][gz]:
+                        if gx < 0 or gz < 0 or gx >= GRID_DIM or gz >= GRID_DIM or occupied[gx][gz]:
                             fits = False
                             break
                     if not fits: break
 
                 if fits:
-                    for dx in range(lm["w"]):
-                        for dz in range(lm["h"]):
+                    # Mark footprint and perimeter buffer
+                    for dx in range(-1, lm["w"] + 1):
+                        for dz in range(-1, lm["h"] + 1):
                             gx, gz = rx + dx, rz + dz
-                            occupied[gx][gz] = True
-                            tiles[gx][gz] = {"terrainType": 4, "overlayType": 0} # PLAZA_STONE ground
+                            if 0 <= gx < GRID_DIM and 0 <= gz < GRID_DIM:
+                                occupied[gx][gz] = True
+                                if dx < 0 or dx >= lm["w"] or dz < 0 or dz >= lm["h"]:
+                                    tiles[gx][gz] = {"terrainType": 3, "overlayType": 0} # SIDEWALK buffer
+                                else:
+                                    tiles[gx][gz] = {"terrainType": 4, "overlayType": 0} # PLAZA_STONE ground
+
+                    # For 3D buildings, carve out empty plaza/promenade in the North direction (-Z and -X)
+                    # so no 2D sprites ever spawn directly behind or poke through the upper floors/balconies!
+                    is_3d_landmark = lm["typeKey"] in ('mega_titan', 'spaceship_hq', 'financial_tower', 'cyber_reactor')
+                    if is_3d_landmark:
+                        # Clear 6 tiles to the North (-Z)
+                        for dx in range(-2, lm["w"] + 2):
+                            for dz in range(-6, 0):
+                                gx, gz = rx + dx, rz + dz
+                                if 0 <= gx < GRID_DIM and 0 <= gz < GRID_DIM:
+                                    occupied[gx][gz] = True
+                                    if tiles[gx][gz].get("overlayType") != 1:
+                                        tiles[gx][gz] = {"terrainType": 4, "overlayType": 0} # PLAZA_STONE
+                        # Clear 4 tiles to the North-West (-X)
+                        for dz in range(-2, lm["h"] + 2):
+                            for dx in range(-4, 0):
+                                gx, gz = rx + dx, rz + dz
+                                if 0 <= gx < GRID_DIM and 0 <= gz < GRID_DIM:
+                                    occupied[gx][gz] = True
+                                    if tiles[gx][gz].get("overlayType") != 1:
+                                        tiles[gx][gz] = {"terrainType": 4, "overlayType": 0} # PLAZA_STONE
 
                     buildings.append({
                         "id": f"building_lm_{len(buildings)}",
@@ -142,37 +180,135 @@ def generate_chunk_based_map(ref_image_path, seed=42):
                 sample_z = min(chunk_z * CHUNK_SIZE + 8, GRID_DIM - 1)
                 avg_density = masks["density_mask"][sample_x][sample_z]
 
-            # Pack 2x2 buildings tightly inside inner chunk blocks
-            for x in range(min_x, max_x - 1, 2):
-                for z in range(min_z, max_z - 1, 2):
-                    if occupied[x][z] or occupied[x+1][z] or occupied[x][z+1] or occupied[x+1][z+1]:
-                        continue
+            # Central downtown chunks (1,1), (2,1), (1,2), (2,2) prioritize 3D skyscrapers & majestic plazas
+            is_downtown_chunk = (1 <= chunk_x <= 2) and (1 <= chunk_z <= 2)
+            # Dense commercial districts (East & West flanks of downtown)
+            is_dense_comm = (chunk_x in (0, 3)) and (1 <= chunk_z <= 2)
+            # Dense residential & apartment corridors (North & South flanks of downtown)
+            is_dense_res = (chunk_z in (0, 3)) and (1 <= chunk_x <= 2)
 
-                    # Select building type based on district density
-                    if avg_density > 0.7:
+            # Pedestrian alley / courtyard breezeways to divide dense blocks organically
+            mid_alley_x = min_x + 6
+            mid_alley_z = min_z + 6
+
+            if is_dense_comm:
+                # High-Density Commercial Market District: tight row-shops side-by-side along sidewalks
+                for x in range(min_x, max_x):
+                    for z in range(min_z, max_z):
+                        if x == mid_alley_x or z == mid_alley_z:
+                            tiles[x][z] = {"terrainType": 3, "overlayType": 0} # SIDEWALK pedestrian alley
+                            continue
+                        if occupied[x][z]:
+                            continue
+
+                        can_fit_2x2 = (x + 1 < max_x and z + 1 < max_z and 
+                                       x + 1 != mid_alley_x and z + 1 != mid_alley_z and
+                                       not occupied[x+1][z] and not occupied[x][z+1] and not occupied[x+1][z+1])
+                        if can_fit_2x2 and random.random() < 0.25:
+                            b_type = random.choice(mid_rise_types)
+                            fp_w, fp_h = 2, 2
+                            for dx in range(2):
+                                for dz in range(2):
+                                    occupied[x + dx][z + dz] = True
+                                    tiles[x + dx][z + dz] = {"terrainType": 3, "overlayType": 0}
+                            buildings.append({
+                                "id": f"building_{len(buildings)}",
+                                "typeKey": b_type,
+                                "gridX": x, "gridZ": z,
+                                "footprintWidth": fp_w, "footprintHeight": fp_h,
+                                "lotType": "commercial"
+                            })
+                        else:
+                            b_type = random.choice(low_rise_types)
+                            occupied[x][z] = True
+                            tiles[x][z] = {"terrainType": 3, "overlayType": 0}
+                            buildings.append({
+                                "id": f"building_{len(buildings)}",
+                                "typeKey": b_type,
+                                "gridX": x, "gridZ": z,
+                                "footprintWidth": 1, "footprintHeight": 1,
+                                "lotType": "commercial"
+                            })
+
+            elif is_dense_res:
+                # High-Density Residential Corridor: packed brownstones and mid-rise apartment blocks
+                for x in range(min_x, max_x):
+                    for z in range(min_z, max_z):
+                        if x == mid_alley_x or z == mid_alley_z:
+                            tiles[x][z] = {"terrainType": 3, "overlayType": 0}
+                            continue
+                        if occupied[x][z]:
+                            continue
+
+                        can_fit_2x2 = (x + 1 < max_x and z + 1 < max_z and 
+                                       x + 1 != mid_alley_x and z + 1 != mid_alley_z and
+                                       not occupied[x+1][z] and not occupied[x][z+1] and not occupied[x+1][z+1])
+                        if can_fit_2x2 and random.random() < 0.45:
+                            b_type = random.choice(mid_rise_types)
+                            fp_w, fp_h = 2, 2
+                            for dx in range(2):
+                                for dz in range(2):
+                                    occupied[x + dx][z + dz] = True
+                                    tiles[x + dx][z + dz] = {"terrainType": 3, "overlayType": 0}
+                            buildings.append({
+                                "id": f"building_{len(buildings)}",
+                                "typeKey": b_type,
+                                "gridX": x, "gridZ": z,
+                                "footprintWidth": fp_w, "footprintHeight": fp_h,
+                                "lotType": "residential"
+                            })
+                        else:
+                            b_type = random.choice(low_rise_types)
+                            occupied[x][z] = True
+                            tiles[x][z] = {"terrainType": 3, "overlayType": 0}
+                            buildings.append({
+                                "id": f"building_{len(buildings)}",
+                                "typeKey": b_type,
+                                "gridX": x, "gridZ": z,
+                                "footprintWidth": 1, "footprintHeight": 1,
+                                "lotType": "residential"
+                            })
+
+            elif is_downtown_chunk:
+                # Downtown High-Rise Core: 2x2 high-rise towers around wide 3D landmark plazas
+                for x in range(min_x, max_x - 1, 2):
+                    for z in range(min_z, max_z - 1, 2):
+                        if occupied[x][z] or occupied[x+1][z] or occupied[x][z+1] or occupied[x+1][z+1]:
+                            continue
                         b_type = random.choice(high_rise_types)
-                        ground_terrain = 4 # PLAZA_STONE for downtown
-                    elif avg_density > 0.4:
-                        b_type = random.choice(mid_rise_types)
-                        ground_terrain = 3 if (x + z) % 4 == 0 else 4 # SIDEWALK / PLAZA
-                    else:
-                        b_type = random.choice(low_rise_types)
-                        ground_terrain = 3 # SIDEWALK
+                        for dx in range(2):
+                            for dz in range(2):
+                                occupied[x + dx][z + dz] = True
+                                tiles[x + dx][z + dz] = {"terrainType": 4, "overlayType": 0} # PLAZA_STONE
+                        buildings.append({
+                            "id": f"building_{len(buildings)}",
+                            "typeKey": b_type,
+                            "gridX": x, "gridZ": z,
+                            "footprintWidth": 2, "footprintHeight": 2,
+                            "lotType": "commercial"
+                        })
 
-                    # Mark 2x2 ground tiles to match building footprint
-                    for dx in range(2):
-                        for dz in range(2):
-                            gx, gz = x + dx, z + dz
-                            occupied[gx][gz] = True
-                            tiles[gx][gz] = {"terrainType": ground_terrain, "overlayType": 0}
-
-                    buildings.append({
-                        "id": f"building_{len(buildings)}",
-                        "typeKey": b_type,
-                        "gridX": x, "gridZ": z,
-                        "footprintWidth": 2, "footprintHeight": 2,
-                        "lotType": "commercial" if avg_density > 0.5 else "residential"
-                    })
+            else:
+                # Outer Suburbs & Parklets: comfortable mix of shops, brownstones and garden courtyards
+                for x in range(min_x, max_x - 1, 2):
+                    for z in range(min_z, max_z - 1, 2):
+                        if occupied[x][z] or occupied[x+1][z] or occupied[x][z+1] or occupied[x+1][z+1]:
+                            continue
+                        if random.random() < 0.15:
+                            continue # Open courtyard / park pocket
+                        b_type = random.choice(low_rise_types + mid_rise_types)
+                        fp_size = 2 if b_type in mid_rise_types else 1
+                        for dx in range(2):
+                            for dz in range(2):
+                                occupied[x + dx][z + dz] = True
+                                tiles[x + dx][z + dz] = {"terrainType": 3, "overlayType": 0}
+                        buildings.append({
+                            "id": f"building_{len(buildings)}",
+                            "typeKey": b_type,
+                            "gridX": x, "gridZ": z,
+                            "footprintWidth": fp_size, "footprintHeight": fp_size,
+                            "lotType": "residential"
+                        })
 
     return {
         "version": "1.3.0",
@@ -181,7 +317,7 @@ def generate_chunk_based_map(ref_image_path, seed=42):
         "metadata": {
             "refImage": os.path.basename(ref_image_path) if ref_image_path else "None",
             "buildingCount": len(buildings),
-            "generationType": "Chunk-Based District Packing v1.4"
+            "generationType": "Chunk-Based District Packing v1.5 (High Density)"
         },
         "buildings": buildings,
         "tiles": tiles

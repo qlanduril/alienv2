@@ -68,12 +68,16 @@ export class AssetLoader {
     promises.push(this.loadTexture('building_b2_stage_0', '/buildingv2/shop_lowrise/png/state_000_pristine.png'));
     promises.push(this.loadTexture('building_b3_stage_0', '/buildingv2/tower_midrise/png/state_000_pristine.png'));
     promises.push(this.loadTexture('building_b4_stage_0', '/buildingv2/skyscraper_highrise/png/state_000_pristine.png'));
-    promises.push(this.loadTexture('building_res_bronze_stage_0', '/buildingv2/tower_midrise/png/state_000_pristine.png'));
-    promises.push(this.loadTexture('building_res_sky_stage_0', '/buildingv2/skyscraper_highrise/png/state_000_pristine.png'));
+    promises.push(this.loadTexture('building_res_bronze_stage_0', '/buildingv2/residential_bronze_penthouses/png/00_pristine.png'));
+    promises.push(this.loadTexture('building_res_sky_stage_0', '/buildingv2/residential_sky_gardens/png/00_pristine.png'));
 
-    promises.push(this.loadTexture('building_sky_cyber_stage_0', '/buildingv2/sky_cyber/png/state_000_pristine.png'));
-    promises.push(this.loadTexture('building_sky_artdeco_stage_0', '/buildingv2/sky_cyber/png/state_000_pristine.png'));
-    promises.push(this.loadTexture('building_sky_biotech_stage_0', '/buildingv2/sky_cyber/png/state_000_pristine.png'));
+    promises.push(this.loadTexture('building_sky_cyber_stage_0', '/buildingv2/skyscraper_cyber_spire/png/00_pristine.png'));
+    promises.push(this.loadTexture('building_sky_artdeco_stage_0', '/buildingv2/skyscraper_artdeco_titan/png/00_pristine.png'));
+    promises.push(this.loadTexture('building_sky_biotech_stage_0', '/buildingv2/skyscraper_biotech_helix/png/00_pristine.png'));
+
+    promises.push(this.loadTexture('building_hospital_civic_stage_0', '/buildingv2/hospital_civic/png/state_000_pristine.png'));
+    promises.push(this.loadTexture('building_mall_shopping_stage_0', '/buildingv2/mall_shopping/png/state_000_pristine.png'));
+    promises.push(this.loadTexture('building_school_civic_stage_0', '/buildingv2/school_civic/png/state_000_pristine.png'));
 
     promises.push(this.loadTexture('building_mega_titan_stage_0', '/buildingv2/mega_titan/png/state_000_pristine.png'));
     promises.push(this.loadTexture('building_spaceship_hq_stage_0', '/buildingv2/spaceship_hq/png/state_000_pristine.png'));
@@ -112,6 +116,26 @@ export class AssetLoader {
         this.loadTexture(`building_sky_artdeco_stage_${idx+1}`, `/buildingv2/sky_cyber/png/${f}`);
         this.loadTexture(`building_sky_biotech_stage_${idx+1}`, `/buildingv2/sky_cyber/png/${f}`);
       });
+      const hcFrames = ['state_033_ambulance_bay_blasted.png', 'state_033_helipad_destroyed.png', 'state_066_er_block_gutted.png', 'state_100_hospital_rubble.png'];
+      hcFrames.forEach((f, idx) => {
+        this.loadTexture(`building_hospital_civic_stage_${idx+1}`, `/buildingv2/hospital_civic/png/${f}`);
+      });
+      const msFrames = ['state_033_atrium_glass_caved.png', 'state_033_parking_plaza_crater.png', 'state_066_retail_wings_gutted.png', 'state_100_mall_rubble.png'];
+      msFrames.forEach((f, idx) => {
+        this.loadTexture(`building_mall_shopping_stage_${idx+1}`, `/buildingv2/mall_shopping/png/${f}`);
+      });
+      const scFrames = ['state_033_east_wing_breached.png', 'state_033_west_wing_breached.png', 'state_066_courtyard_crater.png', 'state_100_campus_rubble.png'];
+      scFrames.forEach((f, idx) => {
+        this.loadTexture(`building_school_civic_stage_${idx+1}`, `/buildingv2/school_civic/png/${f}`);
+      });
+      const pdFrames = ['state_033_helipad_tarmac_crater.png', 'state_033_outer_ring_breach.png', 'state_066_fortress_core_gutted.png', 'state_100_bunker_ruins.png'];
+      pdFrames.forEach((f, idx) => {
+        this.loadTexture(`building_pentagon_defense_stage_${idx+1}`, `/buildingv2/pentagon_defense/png/${f}`);
+      });
+      const slFrames = ['state_050_head_torch_snapped.png', 'state_100_pedestal_shattered.png'];
+      slFrames.forEach((f, idx) => {
+        this.loadTexture(`building_statue_liberty_stage_${idx+1}`, `/buildingv2/statue_liberty/png/${f}`);
+      });
     }, 100);
 
     // 7. Load FX Textures
@@ -129,7 +153,7 @@ export class AssetLoader {
   }
 
   public static async loadTexture(id: string, url: string, pixelated: boolean = true): Promise<THREE.Texture> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (this.textures.has(id)) {
         resolve(this.textures.get(id)!);
         return;
@@ -152,7 +176,7 @@ export class AssetLoader {
           resolve(texture);
         },
         undefined,
-        (error) => {
+        (_error) => {
           console.warn(`[AssetLoader] Texture '${id}' at ${url} failed to load. Proceeding with fallback.`);
           resolve(null as any);
         }

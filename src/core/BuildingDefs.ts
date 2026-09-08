@@ -23,25 +23,28 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   'b2': { width: 16, length: 16, height: 35, name: 'Brownstone', visualScale: 0.75, footprintTiles: 1, heightScale: 0.75, tier: 'foreground' },
 
   // --- Midground Urban Blockers (1x1 footprint) ---
-  'b3': { width: 16, length: 16, height: 85, name: 'Mid-rise Apartments', visualScale: 0.85, footprintTiles: 1, heightScale: 0.85, tier: 'midground' },
-  'b4': { width: 16, length: 16, height: 90, name: 'Mid-rise Office', visualScale: 0.90, footprintTiles: 1, heightScale: 0.90, tier: 'midground' },
-  'res_bronze': { width: 16, length: 16, height: 110, name: 'Bronze Penthouses', visualScale: 0.90, footprintTiles: 1, heightScale: 0.90, tier: 'midground' },
-  'res_sky': { width: 16, length: 16, height: 115, name: 'Sky Gardens', visualScale: 0.95, footprintTiles: 1, heightScale: 0.95, tier: 'midground' },
+  'b3': { width: 16, length: 16, height: 65, name: 'Mid-rise Apartments', visualScale: 0.85, footprintTiles: 1, heightScale: 0.85, tier: 'midground' },
+  'b4': { width: 16, length: 16, height: 70, name: 'Mid-rise Office', visualScale: 0.90, footprintTiles: 1, heightScale: 0.90, tier: 'midground' },
+  'res_bronze': { width: 16, length: 16, height: 75, name: 'Bronze Penthouses', visualScale: 0.90, footprintTiles: 1, heightScale: 0.90, tier: 'midground' },
+  'res_sky': { width: 16, length: 16, height: 80, name: 'Sky Gardens', visualScale: 0.95, footprintTiles: 1, heightScale: 0.95, tier: 'midground' },
 
-  // --- Background Skyscrapers (1x1 footprint — visualScale capped <= 0.95 so sprites sit cleanly inside 16-unit grid cell) ---
-  '5': { width: 16, length: 16, height: 220, name: 'Skyscraper', visualScale: 0.95, footprintTiles: 1, heightScale: 1.4, tier: 'background' },
-  'sky_artdeco': { width: 16, length: 16, height: 260, name: 'Art Deco Titan', visualScale: 0.95, footprintTiles: 1, heightScale: 1.5, tier: 'background' },
-  'sky_biotech': { width: 16, length: 16, height: 280, name: 'Biotech Helix', visualScale: 0.95, footprintTiles: 1, heightScale: 1.6, tier: 'background' },
-  'sky_cyber': { width: 16, length: 16, height: 320, name: 'Cyber Spire', visualScale: 0.95, footprintTiles: 1, heightScale: 1.7, tier: 'background' },
+  // --- Background Skyscrapers & High-Rises (2D Sprites across city for 60 FPS performance) ---
+  '5': { width: 28, length: 28, height: 110, name: 'Skyscraper', visualScale: 0.85, footprintTiles: 2, heightScale: 1.0, tier: 'background' },
+  'sky_artdeco': { width: 28, length: 28, height: 120, name: 'Art Deco Titan', visualScale: 0.85, footprintTiles: 2, heightScale: 1.0, tier: 'background' },
+  'sky_biotech': { width: 28, length: 28, height: 125, name: 'Biotech Helix', visualScale: 0.85, footprintTiles: 2, heightScale: 1.0, tier: 'background' },
+  'sky_cyber': { width: 28, length: 28, height: 135, name: 'Cyber Spire', visualScale: 0.85, footprintTiles: 2, heightScale: 1.0, tier: 'background' },
 
-  // --- Tier 4: Mega-Landmarks & Special Buildings ---
-  'mega_titan': { width: 64, length: 64, height: 400, name: 'Apex Mega-Tower', visualScale: 0.85, footprintTiles: 4, heightScale: 0.85, tier: 'background', is3D: true, gltfKey: 'skyscraper_demolition' },
-  'mega_stadium': { width: 64, length: 48, height: 120, name: 'Metropolitan Arena', visualScale: 0.90, footprintTiles: 4, heightScale: 0.90, tier: 'foreground' },
-  'spaceship_hq': { width: 64, length: 64, height: 350, name: 'Alien Spaceship HQ', visualScale: 0.85, footprintTiles: 4, heightScale: 0.85, tier: 'background', is3D: true, gltfKey: 'spaceship_hq' },
-  'cyber_reactor': { width: 48, length: 48, height: 280, name: 'Cyber Quantum Reactor', visualScale: 0.85, footprintTiles: 3, heightScale: 0.90, tier: 'background', is3D: true, gltfKey: 'cyber_reactor' },
-  'financial_tower': { width: 48, length: 48, height: 300, name: 'Metro Financial Tower', visualScale: 0.85, footprintTiles: 3, heightScale: 0.90, tier: 'background', is3D: true, gltfKey: 'financial_tower' },
-  'statue_liberty': { width: 48, length: 48, height: 350, name: 'Statue of Liberty', visualScale: 0.90, footprintTiles: 3, heightScale: 0.90, tier: 'foreground' },
-  'pentagon_defense': { width: 64, length: 64, height: 150, name: 'Defense Bunker', visualScale: 0.90, footprintTiles: 4, heightScale: 0.90, tier: 'foreground' },
+  // --- Tier 4: Mega-Landmarks (Each 3D Model used ONCE in the city) ---
+  'mega_titan': { width: 64, length: 64, height: 180, name: 'Apex Mega-Tower', visualScale: 1.0, footprintTiles: 4, heightScale: 1.0, tier: 'background', is3D: true, gltfKey: 'skyscraper_demolition' },
+  'mega_stadium': { width: 64, length: 48, height: 55, name: 'Metropolitan Arena', visualScale: 0.85, footprintTiles: 4, heightScale: 0.85, tier: 'foreground' },
+  'spaceship_hq': { width: 64, length: 64, height: 160, name: 'Alien Spaceship HQ', visualScale: 1.0, footprintTiles: 4, heightScale: 1.0, tier: 'background', is3D: true, gltfKey: 'spaceship_hq' },
+  'cyber_reactor': { width: 48, length: 48, height: 140, name: 'Cyber Quantum Reactor', visualScale: 1.0, footprintTiles: 3, heightScale: 1.0, tier: 'background', is3D: true, gltfKey: 'cyber_reactor' },
+  'financial_tower': { width: 48, length: 48, height: 160, name: 'Metro Financial Tower', visualScale: 1.0, footprintTiles: 3, heightScale: 1.0, tier: 'background', is3D: true, gltfKey: 'financial_tower' },
+  'statue_liberty': { width: 48, length: 48, height: 135, name: 'Statue of Liberty', visualScale: 0.85, footprintTiles: 3, heightScale: 0.85, tier: 'foreground' },
+  'pentagon_defense': { width: 64, length: 64, height: 45, name: 'Defense Bunker', visualScale: 0.85, footprintTiles: 4, heightScale: 0.85, tier: 'foreground' },
+  'hospital_civic': { width: 48, length: 48, height: 50, name: 'Civic Hospital', visualScale: 0.80, footprintTiles: 3, heightScale: 0.80, tier: 'foreground' },
+  'mall_shopping': { width: 48, length: 48, height: 45, name: 'Shopping Plaza', visualScale: 0.80, footprintTiles: 3, heightScale: 0.80, tier: 'foreground' },
+  'school_civic': { width: 48, length: 48, height: 45, name: 'Civic Academy', visualScale: 0.80, footprintTiles: 3, heightScale: 0.80, tier: 'foreground' },
 };
 
 export interface CityTileData {

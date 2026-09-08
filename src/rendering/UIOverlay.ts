@@ -38,6 +38,7 @@ export class UIOverlay {
   private static showcaseTools: HTMLElement;
   private static targetInfoPanel: HTMLElement;
   private static labelsContainer: HTMLElement;
+  private static targetReticle: HTMLElement;
 
   private static labelElements: Map<Entity, HTMLElement> = new Map();
 
@@ -96,6 +97,7 @@ export class UIOverlay {
     this.modeToggleButton.onclick = () => {
       ShowcaseManager.toggleMode();
       this.updateModeUI();
+      this.modeToggleButton.blur();
     };
 
     this.modeToggleButton.onmouseover = () => {
@@ -182,6 +184,36 @@ export class UIOverlay {
     this.flashOverlay.style.transition = 'opacity 0.08s ease-out';
     this.flashOverlay.style.zIndex = '9999';
     document.body.appendChild(this.flashOverlay);
+
+    // 5. Sci-Fi Aiming Reticle (Targeted building bracket)
+    this.targetReticle = document.createElement('div');
+    this.targetReticle.style.position = 'fixed';
+    this.targetReticle.style.pointerEvents = 'none';
+    this.targetReticle.style.display = 'none';
+    this.targetReticle.style.width = '48px';
+    this.targetReticle.style.height = '48px';
+    this.targetReticle.style.transform = 'translate(-50%, -50%)';
+    this.targetReticle.style.zIndex = '950';
+    this.targetReticle.style.transition = 'left 0.04s ease-out, top 0.04s ease-out';
+    this.targetReticle.innerHTML = `
+      <div style="position:absolute; top:0; left:0; width:10px; height:10px; border-top:2px solid #38bdf8; border-left:2px solid #38bdf8; filter:drop-shadow(0 0 4px #38bdf8);"></div>
+      <div style="position:absolute; top:0; right:0; width:10px; height:10px; border-top:2px solid #38bdf8; border-right:2px solid #38bdf8; filter:drop-shadow(0 0 4px #38bdf8);"></div>
+      <div style="position:absolute; bottom:0; left:0; width:10px; height:10px; border-bottom:2px solid #38bdf8; border-left:2px solid #38bdf8; filter:drop-shadow(0 0 4px #38bdf8);"></div>
+      <div style="position:absolute; bottom:0; right:0; width:10px; height:10px; border-bottom:2px solid #38bdf8; border-right:2px solid #38bdf8; filter:drop-shadow(0 0 4px #38bdf8);"></div>
+      <div style="position:absolute; top:50%; left:50%; width:4px; height:4px; transform:translate(-50%, -50%); border-radius:50%; background:#38bdf8; box-shadow:0 0 6px #38bdf8;"></div>
+    `;
+    document.body.appendChild(this.targetReticle);
+  }
+
+  public static setTargetReticle(pos: { x: number; y: number } | null): void {
+    if (!this.targetReticle) return;
+    if (!pos) {
+      this.targetReticle.style.display = 'none';
+      return;
+    }
+    this.targetReticle.style.left = `${pos.x}px`;
+    this.targetReticle.style.top = `${pos.y}px`;
+    this.targetReticle.style.display = 'block';
   }
 
   private static createActionButton(text: string, bgColor: string, ariaLabel: string, onClick: () => void): HTMLButtonElement {
@@ -197,7 +229,10 @@ export class UIOverlay {
     btn.style.cursor = 'pointer';
     btn.style.transition = 'transform 0.15s ease';
     btn.innerText = text;
-    btn.onclick = onClick;
+    btn.onclick = () => {
+      onClick();
+      btn.blur();
+    };
     btn.onmouseover = () => btn.style.transform = 'scale(1.05)';
     btn.onmouseout = () => btn.style.transform = 'scale(1.0)';
     btn.onfocus = () => {

@@ -8,13 +8,21 @@ export class InputManager {
 
   public static init() {
     window.addEventListener('keydown', (e) => {
-      this.keys[e.code] = true;
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+      if (e.code) this.keys[e.code] = true;
+      if (e.key) {
+        this.keys[e.key] = true;
+        this.keys[e.key.toLowerCase()] = true;
+      }
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code) || ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
         e.preventDefault();
       }
     });
     window.addEventListener('keyup', (e) => {
-      this.keys[e.code] = false;
+      if (e.code) this.keys[e.code] = false;
+      if (e.key) {
+        this.keys[e.key] = false;
+        this.keys[e.key.toLowerCase()] = false;
+      }
     });
     
     window.addEventListener('pointerdown', () => this.pointerDown = true);

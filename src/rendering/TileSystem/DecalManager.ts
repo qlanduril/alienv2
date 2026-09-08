@@ -3,7 +3,6 @@ import { SceneManager } from '../SceneManager';
 
 // --- DecalManager Constants ---
 const ZERO_VALUE = 0;
-const INITIAL_OPACITY = 1.0;
 const DECAL_LAYER_Y_ALTITUDE = 0.02;
 const MESH_Y_BASE_ALTITUDE = 0.01;
 const MESH_Y_JITTER_RANGE = 0.005;
@@ -27,7 +26,6 @@ const MAX_ACTIVE_DECALS = 50;
 
 export interface DecalInstance {
   id: string;
-  mesh: THREE.Mesh;
   worldX: number;
   worldZ: number;
   type: 'scorch' | 'crater' | 'rubble_spill';
@@ -35,10 +33,30 @@ export interface DecalInstance {
   opacity: number;
 }
 
+/**
+ * DecalManager.ts
+ *
+ * High-performance ground scorch & impact crater manager.
+ * Uses InstancedMesh batching to collapse up to 50 active decals into 2 draw calls,
+ * completely eliminating per-explosion PlaneGeometry and Material heap thrashing.
+ */
 export class DecalManager {
   private static decalGroup: THREE.Group;
-  private static decals: DecalInstance[] = [];
   private static decalTextures: Map<string, THREE.Texture> = new Map();
+
+  private static unitGeometry: THREE.PlaneGeometry;
+  private static scorchMaterial: THREE.MeshStandardMaterial;
+  private static craterMaterial: THREE.MeshStandardMaterial;
+
+  private static scorchMesh: THREE.InstancedMesh;
+  private static craterMesh: THREE.InstancedMesh;
+
+  private static scorchIndex: number = ZERO_VALUE;
+  private static scorchCount: number = ZERO_VALUE;
+  private static craterIndex: number = ZERO_VALUE;
+  private static craterCount: number = ZERO_VALUE;
+
+  private static dummy: THREE.Object3D = new THREE.Object3D();
 
   public static init() {
     this.decalGroup = new THREE.Group();
@@ -48,6 +66,42 @@ export class DecalManager {
 
     SceneManager.groundGroup.add(this.decalGroup);
     this.createDecalTextures();
+
+    // Shared unit plane geometry for all instanced decals
+    this.unitGeometry = new THREE.PlaneGeometry(1, 1);
+
+    const scorchTex = this.decalTextures.get('scorch')!;
+    const craterTex = this.decalTextures.get('crater')!;
+
+    this.scorchMaterial = new THREE.MeshStandardMaterial({
+      map: scorchTex,
+      transparent: true,
+      depthWrite: false,
+      roughness: DECAL_ROUGHNESS,
+      metalness: DECAL_METALNESS
+    });
+
+    this.craterMaterial = new THREE.MeshStandardMaterial({
+      map: craterTex,
+      transparent: true,
+      depthWrite: false,
+      roughness: DECAL_ROUGHNESS,
+      metalness: DECAL_METALNESS
+    });
+
+    // Pre-allocate InstancedMesh pools (MAX_ACTIVE_DECALS per type)
+    this.scorchMesh = new THREE.InstancedMesh(this.unitGeometry, this.scorchMaterial, MAX_ACTIVE_DECALS);
+    this.scorchMesh.count = ZERO_VALUE;
+    this.scorchMesh.receiveShadow = true;
+    this.scorchMesh.renderOrder = 10;
+
+    this.craterMesh = new THREE.InstancedMesh(this.unitGeometry, this.craterMaterial, MAX_ACTIVE_DECALS);
+    this.craterMesh.count = ZERO_VALUE;
+    this.craterMesh.receiveShadow = true;
+    this.craterMesh.renderOrder = 10;
+
+    this.decalGroup.add(this.scorchMesh);
+    this.decalGroup.add(this.craterMesh);
   }
 
   private static createDecalTextures() {
@@ -114,48 +168,39 @@ export class DecalManager {
     this.decalTextures.set('crater', createCraterTex());
   }
 
+  /**
+   * Spawns or recycles a decal in the pre-allocated InstancedMesh ring buffers.
+   * Zero heap allocations inside this function.
+   */
   public static spawnDecal(
     worldX: number,
     worldZ: number,
     type: 'scorch' | 'crater' | 'rubble_spill',
     size: number = DEFAULT_DECAL_SIZE
   ) {
-    const texture = this.decalTextures.get(type) || this.decalTextures.get('scorch')!;
+    const isCrater = type === 'crater';
+    const targetMesh = isCrater ? this.craterMesh : this.scorchMesh;
+    const targetIndex = isCrater ? this.craterIndex : this.scorchIndex;
 
-    const geometry = new THREE.PlaneGeometry(size, size);
-    const material = new THREE.MeshStandardMaterial({
-      map: texture,
-      transparent: true,
-      depthWrite: false,
-      roughness: DECAL_ROUGHNESS,
-      metalness: DECAL_METALNESS
-    });
+    this.dummy.position.set(worldX, MESH_Y_BASE_ALTITUDE + Math.random() * MESH_Y_JITTER_RANGE, worldZ);
+    this.dummy.rotation.set(DECAL_ROTATION_X, 0, Math.random() * Math.PI * 2);
+    this.dummy.scale.set(size, size, 1);
+    this.dummy.updateMatrix();
 
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.rotation.x = DECAL_ROTATION_X;
-    mesh.rotation.z = Math.random() * Math.PI * 2; // Random rotation for variation
-    mesh.position.set(worldX, MESH_Y_BASE_ALTITUDE + Math.random() * MESH_Y_JITTER_RANGE, worldZ);
-    mesh.receiveShadow = true;
+    targetMesh.setMatrixAt(targetIndex, this.dummy.matrix);
+    targetMesh.instanceMatrix.needsUpdate = true;
 
-    this.decalGroup.add(mesh);
-
-    this.decals.push({
-      id: `decal_${Date.now()}_${Math.random()}`,
-      mesh,
-      worldX,
-      worldZ,
-      type,
-      scale: size,
-      opacity: INITIAL_OPACITY
-    });
-
-    // Cap maximum active decals to prevent memory leaks
-    if (this.decals.length > MAX_ACTIVE_DECALS) {
-      const oldest = this.decals.shift();
-      if (oldest) {
-        this.decalGroup.remove(oldest.mesh);
-        oldest.mesh.geometry.dispose();
-        (oldest.mesh.material as THREE.Material).dispose();
+    if (isCrater) {
+      this.craterIndex = (this.craterIndex + 1) % MAX_ACTIVE_DECALS;
+      if (this.craterCount < MAX_ACTIVE_DECALS) {
+        this.craterCount++;
+        this.craterMesh.count = this.craterCount;
+      }
+    } else {
+      this.scorchIndex = (this.scorchIndex + 1) % MAX_ACTIVE_DECALS;
+      if (this.scorchCount < MAX_ACTIVE_DECALS) {
+        this.scorchCount++;
+        this.scorchMesh.count = this.scorchCount;
       }
     }
   }

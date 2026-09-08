@@ -1,8 +1,6 @@
 import { MapBaker } from './MapBaker';
-import { GeneratedMapData } from './GeneratedMapSchema';
 import { CityPresetName } from './CityConfig';
 
-let currentMapData: GeneratedMapData | null = null;
 let currentJsonString: string | null = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -39,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
         appendLog(`[Pass ${layer}/${total - 1}] ${msg}`);
       });
 
-      currentMapData = data;
       currentJsonString = jsonString;
 
       statusText.innerText = `100% — Bake Completed Successfully!`;

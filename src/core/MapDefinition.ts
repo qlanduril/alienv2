@@ -94,25 +94,25 @@ export const MAP_DEFINITION: MapDefinition = {
   ],
 
   landmarks: [
-    // ── 16-DISTRICT CENTER GRID SYSTEM (Landmarks placed at EXACT DISTRICT CENTERS) ──
-    // District (0,0) [gx 0..15, gz 0..15] Center: Alien Spaceship HQ 3D Focal Icon
+    // ── 16-DISTRICT CENTER GRID SYSTEM (Tall spires North/Background, Low buildings South/Foreground) ──
+    // District (0,0) [gx 0..15, gz 0..15] North-West: Alien Spaceship HQ 3D Spire
     { key: 'spaceship_hq',     gx: 6,  gz: 6,  terrain: TerrainType.SIDEWALK,    bufferTiles: 2 },
 
-    // District (2,0) [gx 32..47, gz 0..15] Center: Metro Financial Tower 3D Focal Icon
-    { key: 'financial_tower',  gx: 38, gz: 6,  terrain: TerrainType.PLAZA_STONE,  bufferTiles: 2 },
+    // District (1,0) [gx 16..31, gz 0..15] North-Center: Apex Mega-Tower (Tallest background landmark)
+    { key: 'mega_titan',       gx: 22, gz: 6,  terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
 
-    // District (1,1) [gx 16..31, gz 16..31] Center: Cyber Quantum Reactor 3D Focal Icon
-    { key: 'cyber_reactor',    gx: 22, gz: 22, terrain: TerrainType.PLAZA_STONE,  bufferTiles: 2 },
+    // District (2,0) [gx 32..47, gz 0..15] North-East: Metro Financial Tower 3D Spire
+    { key: 'financial_tower',  gx: 38, gz: 6,  terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
 
-    // District (2,2) [gx 32..47, gz 32..47] Center: Apex Mega-Tower 3D Focal Icon
-    { key: 'mega_titan',       gx: 38, gz: 38, terrain: TerrainType.PLAZA_STONE,  bufferTiles: 2 },
+    // District (0,1) [gx 0..15, gz 16..31] Mid-North Tech: Cyber Quantum Reactor
+    { key: 'cyber_reactor',    gx: 8,  gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
 
-    // ── OTHER DISTRICT CENTER LANDMARKS ──────────────────────────────────────────
-    { key: '3',                gx: 22, gz: 6,  terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (1,0) Center: School
-    { key: 'mega_stadium',     gx: 52, gz: 4,  terrain: TerrainType.GRASS,       bufferTiles: 1 }, // District (3,0) Center: Stadium Arena
-    { key: '1',                gx: 6,  gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (0,1) Center: Hospital
-    { key: 'pentagon_defense', gx: 22, gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (1,2) Center: Defense Bunker
+    // ── MID & SOUTH CIVIC / LOW-PROFILE LANDMARKS (Zero vertical occlusion of northern towers) ──
+    { key: '3',                gx: 22, gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (1,1) Center: School
+    { key: '1',                gx: 38, gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (2,1) Center: Hospital
     { key: '2',                gx: 6,  gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (0,2) Center: Mall
+    { key: 'pentagon_defense', gx: 22, gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (1,2) Center: Defense Bunker
+    { key: 'mega_stadium',     gx: 38, gz: 38, terrain: TerrainType.GRASS,       bufferTiles: 2 }, // District (2,2) Center: Stadium Arena (Low-rise)
     { key: '4',                gx: 22, gz: 52, terrain: TerrainType.SIDEWALK,    bufferTiles: 1 }, // District (1,3) Center: Warehouse
   ],
 

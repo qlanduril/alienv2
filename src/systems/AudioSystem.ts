@@ -1,5 +1,5 @@
 import { ECS } from '../core/ECS';
-import { DestructionSystem } from './DestructionSystem';
+import { FXEvent } from './DestructionSystem';
 
 /**
  * AudioSystem.ts
@@ -62,22 +62,33 @@ export class AudioSystem {
     }
   }
 
-  public static tick(_delta: number) {
-    if (!this.isInitialized || !this.ctx) return;
-    if (this.ctx.state === 'suspended') return;
+  /**
+   * Process gameplay FX events directly when popped from fxQueue in FXRenderer.
+   * Eliminates demolition audio desync caused by inter-tick queue draining.
+   */
+  public static processEvent(event: FXEvent) {
+    if (!this.isInitialized) {
+      this.ensureAudioContext();
+    }
+    if (!this.ctx || this.ctx.state === 'suspended') return;
 
-    // Peek at DestructionSystem.fxQueue for audio triggers
-    for (const event of DestructionSystem.fxQueue) {
-      if (event.type === 'laser') {
-        this.playLaserSFX();
-      } else if (event.type === 'blast' || event.type === 'blast_zonal') {
-        this.playExplosionSFX(1.0);
-      } else if (event.type === 'blast360') {
-        this.playExplosionSFX(1.4);
-      } else if (event.type === 'shake' && (event.data as any).intensity > 10) {
-        // High intensity shake = cluster explosion sub-bass boom
-        this.playClusterBoomSFX();
-      }
+    if (event.type === 'laser') {
+      this.playLaserSFX();
+    } else if (event.type === 'blast' || event.type === 'blast_zonal') {
+      this.playExplosionSFX(1.0);
+    } else if (event.type === 'blast360') {
+      this.playExplosionSFX(1.4);
+      this.playCollapseRumbleSFX();
+    } else if (event.type === 'shake' && (event.data as any).intensity > 10) {
+      // High intensity shake = cluster explosion sub-bass boom
+      this.playClusterBoomSFX();
+    }
+  }
+
+  public static tick(_delta: number) {
+    // Context lifecycle watchdog
+    if (this.ctx && this.ctx.state === 'suspended') {
+      // Will resume on next user gesture
     }
   }
 
@@ -174,5 +185,34 @@ export class AudioSystem {
 
     // Layer heavy low-pass noise blast
     this.playExplosionSFX(1.8);
+  }
+
+  // ─── Building Collapse Rumble Synthesizer ─────────────────────────────────
+  // Sine oscillator low-frequency sweep 45 Hz → 15 Hz over 1.2s per domain spec
+  public static playCollapseRumbleSFX() {
+    this.ensureAudioContext();
+    if (!this.ctx || !this.masterGain) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(45, now);
+    osc.frequency.exponentialRampToValueAtTime(15, now + 1.2);
+
+    gain.gain.setValueAtTime(0.6, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(now);
+    osc.stop(now + 1.2);
+
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
   }
 }

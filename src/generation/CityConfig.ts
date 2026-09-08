@@ -1,4 +1,4 @@
-export type CityPresetName = 'metropolitan_ny' | 'retro_arcade' | 'isometric_v1';
+export type CityPresetName = 'metropolitan_ny' | 'retro_arcade' | 'isometric_v1' | 'kenney_isometric' | 'osmnx';
 
 export interface CityGeneratorHyperparameters {
   name: string;
@@ -89,7 +89,8 @@ export const PRESET_ISOMETRIC_V1: CityGeneratorHyperparameters = {
 export const DEFAULT_CITY_HYPERPARAMETERS = PRESET_ISOMETRIC_V1;
 
 export function getCityPreset(preset: CityPresetName = 'isometric_v1'): CityGeneratorHyperparameters {
-  if (preset === 'isometric_v1') return PRESET_ISOMETRIC_V1;
-  return preset === 'metropolitan_ny' ? PRESET_METROPOLITAN_NY : PRESET_RETRO_ARCADE;
+  if (preset === 'isometric_v1' || preset === 'kenney_isometric') return PRESET_ISOMETRIC_V1;
+  if (preset === 'metropolitan_ny' || preset === 'osmnx') return PRESET_METROPOLITAN_NY;
+  return PRESET_RETRO_ARCADE;
 }
 

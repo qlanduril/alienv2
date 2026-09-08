@@ -28,7 +28,7 @@ export class MapLoader {
     const params = new URLSearchParams(window.location.search);
     const p = params.get('preset')?.toLowerCase();
     if (p === 'osmnx' || p === 'realworld') {
-      return 'osmnx' as any;
+      return 'osmnx';
     }
     if (p === 'ny' || p === 'metropolitan_ny' || p === 'gotham') {
       return 'metropolitan_ny';
@@ -50,7 +50,7 @@ export class MapLoader {
     try {
       const activePreset = this.getPresetFromUrl();
       const targetPath = jsonPath || (
-        (activePreset as string) === 'osmnx' ? '/generated_map_osmnx.json' :
+        activePreset === 'osmnx' ? '/generated_map_osmnx.json' :
         activePreset === 'kenney_isometric' ? '/generated_map_kenney.json' :
         activePreset === 'isometric_v1' ? '/generated_map_v1.json' :
         activePreset === 'metropolitan_ny' ? '/generated_map_ny.json' :
@@ -85,6 +85,10 @@ export class MapLoader {
 
       for (let gx = 0; gx < gridDim; gx++) {
         for (let gz = 0; gz < gridDim; gz++) {
+          let terrainType: TerrainType = TerrainType.GRASS;
+          let overlayType: OverlayTileType = OverlayTileType.NONE;
+          let isIntersection = false;
+          let roadAxis: 'NS' | 'EW' | 'DIAG' | undefined = undefined;
           let tileSprite: string | undefined = undefined;
 
           if (is2D) {
@@ -140,20 +144,97 @@ export class MapLoader {
         nextWaypoints: []
       }));
 
-      // ── Step 4: Spawn ECS Building Entities from serialized lots with Strict Road Safety ──────
+      // ── Step 4: Spawn ECS Building Entities with Strict Occupancy & Buffer Safety ──────
       let spawnedCount = 0;
+      const occupiedGrid = Array.from({ length: gridDim }, () => new Uint8Array(gridDim));
+
+      // Pre-seed occupied grid with all road cells (1 = Road / Hard impassable)
+      for (let x = 0; x < gridDim; x++) {
+        for (let z = 0; z < gridDim; z++) {
+          const c = TileMap.getCell(x, z);
+          if (c && c.overlayType === OverlayTileType.ROAD) {
+            occupiedGrid[x][z] = 1;
+          }
+        }
+      }
+
       for (const b of data.buildings || []) {
-        const cell = TileMap.getCell(b.gx, b.gz);
-        if (cell && cell.overlayType === OverlayTileType.ROAD) {
-          console.warn(`[MapLoader] Skipping building '${b.typeKey}' at (${b.gx}, ${b.gz}) — overlaps road tile!`);
+        const gx = b.gx ?? (b as any).gridX ?? 0;
+        const gz = b.gz ?? (b as any).gridZ ?? 0;
+        const rawW = b.w ?? (b as any).footprintWidth ?? 1;
+        const rawH = b.h ?? (b as any).footprintHeight ?? 1;
+        const def = BUILDING_DEFS[b.typeKey];
+        const fpW = def?.footprintTiles ?? rawW;
+        const fpH = def?.footprintTiles ?? rawH;
+
+        // Boundary safety
+        if (gx < 0 || gz < 0 || gx + fpW > gridDim || gz + fpH > gridDim) {
+          console.warn(`[MapLoader] Skipping building '${b.typeKey}' at (${gx}, ${gz}) — exceeds grid bounds!`);
           continue;
+        }
+
+        // Buffer requirement: large buildings and landmarks (>= 3x3) require 1-tile clearance buffer
+        const buf = (fpW >= 3 || fpH >= 3) ? 1 : 0;
+        let collides = false;
+
+        // Check footprint + buffer clearance
+        for (let dx = -buf; dx < fpW + buf; dx++) {
+          for (let dz = -buf; dz < fpH + buf; dz++) {
+            const tx = gx + dx;
+            const tz = gz + dz;
+            if (tx < 0 || tx >= gridDim || tz < 0 || tz >= gridDim) continue;
+
+            // Inside actual footprint: cannot touch road, building, or buffer
+            const isInsideFootprint = dx >= 0 && dx < fpW && dz >= 0 && dz < fpH;
+            if (isInsideFootprint) {
+              if (occupiedGrid[tx][tz] !== 0) {
+                collides = true;
+                break;
+              }
+            } else if (buf > 0) {
+              // Landmark buffer zone: cannot touch other buildings
+              if (occupiedGrid[tx][tz] === 2) { // 2 = building footprint
+                collides = true;
+                break;
+              }
+            }
+          }
+          if (collides) break;
+        }
+
+        if (collides) {
+          console.warn(`[MapLoader] Skipping overlapping building '${b.typeKey}' at (${gx}, ${gz})`);
+          continue;
+        }
+
+        // Reserve footprint (2 = building) and surrounding buffer (3 = reserved buffer)
+        for (let dx = -buf; dx < fpW + buf; dx++) {
+          for (let dz = -buf; dz < fpH + buf; dz++) {
+            const tx = gx + dx;
+            const tz = gz + dz;
+            if (tx < 0 || tx >= gridDim || tz < 0 || tz >= gridDim) continue;
+            const isInsideFootprint = dx >= 0 && dx < fpW && dz >= 0 && dz < fpH;
+            if (isInsideFootprint) {
+              occupiedGrid[tx][tz] = 2;
+            } else if (occupiedGrid[tx][tz] === 0) {
+              occupiedGrid[tx][tz] = 3;
+            }
+          }
+        }
+
+        let centerWorldX = b.centerWorldX;
+        let centerWorldZ = b.centerWorldZ;
+        if (centerWorldX === undefined || centerWorldZ === undefined) {
+          const pos = LotManager.computeLotWorldPos(gx, gz, fpW, fpH);
+          centerWorldX = pos.x;
+          centerWorldZ = pos.z;
         }
 
         const entity = ECS.createEntity();
         const lot = LotManager.calculateAndRegisterLot(
           entity,
-          b.centerWorldX,
-          b.centerWorldZ,
+          centerWorldX,
+          centerWorldZ,
           b.typeKey,
           b.lotType
         );

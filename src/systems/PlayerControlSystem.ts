@@ -13,20 +13,22 @@ import { PlayerRenderer } from '../rendering/PlayerRenderer';
 import { BuildingRenderer } from '../rendering/BuildingRenderer';
 
 // --- System Constants ---
-const GROUND_PROXIMITY_RADIUS = 40;
-const SQUARED_PROXIMITY_RADIUS = GROUND_PROXIMITY_RADIUS * GROUND_PROXIMITY_RADIUS;
 const ZONAL_DAMAGE_AMOUNT = 20; // 20 dmg per hit for smooth multi-stage damage progression
 const WEAPON_HEAT_DEFAULT = 0;
 const LERP_FOLLOW_SPEED = 8.0; // Buoyant, smooth asynchronous UFO motion speed
-const WASD_SPEED = 65;
+const WASD_SPEED = 90;
+const MAX_HOVER_SCREEN_RADIUS_NDC = 0.10; // ~65px screen radius on 1080p
 
 export class PlayerControlSystem {
   private static groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private static midHeightPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -30);
 
   // Reusable static instances to prevent GC frame drops
   private static raycaster = new THREE.Raycaster();
   private static pointerVector = new THREE.Vector2();
   private static groundIntersectPoint = new THREE.Vector3();
+  private static midIntersectPoint = new THREE.Vector3();
+  private static tempProj = new THREE.Vector3();
 
   // Asynchronous UFO movement state
   private static targetPos = { x: 0, y: 0 };
@@ -36,6 +38,7 @@ export class PlayerControlSystem {
   private static lastHoverCheckTime = 0;
   private static cachedHoveredHit: HitZoneResult | null = null;
   private static cachedHoveredEntity: Entity | null = null;
+  private static cachedFallbackPoint: THREE.Vector3 | null = null;
   private static HOVER_CHECK_INTERVAL = 0.033; // ~30 FPS inspection throttling
 
   public static init() {
@@ -57,20 +60,32 @@ export class PlayerControlSystem {
           this.initializedTarget = true;
         }
 
-        // 1. WASD Input Processing
+        // 1. WASD & Arrow Key Input Processing (Isometric screen-aligned vectors)
         let dirX = 0;
         let dirZ = 0;
 
-        if (InputManager.isKeyDown('KeyW') || InputManager.isKeyDown('ArrowUp')) { dirX -= 1; dirZ -= 1; }
-        if (InputManager.isKeyDown('KeyS') || InputManager.isKeyDown('ArrowDown')) { dirX += 1; dirZ += 1; }
-        if (InputManager.isKeyDown('KeyA') || InputManager.isKeyDown('ArrowLeft')) { dirX -= 1; dirZ += 1; }
-        if (InputManager.isKeyDown('KeyD') || InputManager.isKeyDown('ArrowRight')) { dirX += 1; dirZ -= 1; }
+        if (InputManager.isKeyDown('KeyW') || InputManager.isKeyDown('ArrowUp') || InputManager.isKeyDown('w')) {
+          dirX -= 1; dirZ -= 1; // Screen UP
+        }
+        if (InputManager.isKeyDown('KeyS') || InputManager.isKeyDown('ArrowDown') || InputManager.isKeyDown('s')) {
+          dirX += 1; dirZ += 1; // Screen DOWN
+        }
+        if (InputManager.isKeyDown('KeyA') || InputManager.isKeyDown('ArrowLeft') || InputManager.isKeyDown('a')) {
+          dirX -= 1; dirZ += 1; // Screen LEFT
+        }
+        if (InputManager.isKeyDown('KeyD') || InputManager.isKeyDown('ArrowRight') || InputManager.isKeyDown('d')) {
+          dirX += 1; dirZ -= 1; // Screen RIGHT (Fixed: was dirZ += 1 which moved down)
+        }
 
         const len = Math.sqrt(dirX * dirX + dirZ * dirZ);
         if (len > 0) {
           // Keyboard input directly shifts target location
           this.targetPos.x += (dirX / len) * WASD_SPEED * delta;
           this.targetPos.y += (dirZ / len) * WASD_SPEED * delta;
+
+          // Clamp within map boundaries (-480 to +480)
+          this.targetPos.x = Math.max(-480, Math.min(480, this.targetPos.x));
+          this.targetPos.y = Math.max(-480, Math.min(480, this.targetPos.y));
         }
 
         // 2. Asynchronous Smooth Exponential Lerp
@@ -85,12 +100,19 @@ export class PlayerControlSystem {
           this.lastHoverCheckTime = 0;
 
           this.cachedHoveredHit = HitZoneManager.getHitZone(SceneManager.camera);
-          this.cachedHoveredEntity = this.cachedHoveredHit ? this.cachedHoveredHit.entity : null;
+          this.cachedFallbackPoint = null;
 
-          if (!this.cachedHoveredEntity) {
-            const groundPoint = this.getMouseGroundPosition();
-            if (groundPoint) {
-              this.cachedHoveredEntity = this.findClosestBuildingNear(groundPoint.x, groundPoint.z, SQUARED_PROXIMITY_RADIUS);
+          if (this.cachedHoveredHit) {
+            this.cachedHoveredEntity = this.cachedHoveredHit.entity;
+          } else {
+            const ndc = InputManager.getMouseNDC();
+            this.pointerVector.set(ndc.x, ndc.y);
+            const fallback = this.findBestBuildingNearCursor(this.pointerVector, SceneManager.camera);
+            if (fallback) {
+              this.cachedHoveredEntity = fallback.entity;
+              this.cachedFallbackPoint = fallback.point;
+            } else {
+              this.cachedHoveredEntity = null;
             }
           }
 
@@ -114,8 +136,23 @@ export class PlayerControlSystem {
               maxHp: maxHp,
               frame: frame
             });
+
+            const center = BuildingRenderer.getVisualCenter(this.cachedHoveredEntity) || BuildingRenderer.getSpritePosition(this.cachedHoveredEntity);
+            if (center) {
+              this.tempProj.copy(center).project(SceneManager.camera);
+              if (this.tempProj.z <= 1) {
+                const screenX = (this.tempProj.x * 0.5 + 0.5) * window.innerWidth;
+                const screenY = (-this.tempProj.y * 0.5 + 0.5) * window.innerHeight;
+                UIOverlay.setTargetReticle({ x: screenX, y: screenY });
+              } else {
+                UIOverlay.setTargetReticle(null);
+              }
+            } else {
+              UIOverlay.setTargetReticle(null);
+            }
           } else {
             UIOverlay.updateTargetInspector(null);
+            UIOverlay.setTargetReticle(null);
           }
         }
 
@@ -130,7 +167,7 @@ export class PlayerControlSystem {
           if (InputManager.isKeyDown('Space')) {
             targetEntity = this.findClosestBuildingNear(pos.worldX, pos.worldY, Infinity);
             if (targetEntity) {
-              impactPoint = BuildingRenderer.getSpritePosition(targetEntity);
+              impactPoint = BuildingRenderer.getVisualCenter(targetEntity) || BuildingRenderer.getSpritePosition(targetEntity);
             }
           } else {
             if (this.cachedHoveredHit) {
@@ -138,14 +175,24 @@ export class PlayerControlSystem {
               targetZone = this.cachedHoveredHit.zone;
               targetUV = this.cachedHoveredHit.uvCenter;
               impactPoint = this.cachedHoveredHit.point;
+            } else if (this.cachedHoveredEntity !== null) {
+              targetEntity = this.cachedHoveredEntity;
+              targetZone = DamageZone.CENTER;
+              targetUV = { x: 0.5, y: 0.5 };
+              impactPoint = this.cachedFallbackPoint || BuildingRenderer.getVisualCenter(targetEntity) || BuildingRenderer.getSpritePosition(targetEntity);
             } else {
-              const groundPoint = this.getMouseGroundPosition();
-              if (groundPoint) {
-                impactPoint = groundPoint;
-                if (this.cachedHoveredEntity) {
-                  targetEntity = this.cachedHoveredEntity;
-                } else {
-                  targetEntity = this.findClosestBuildingNear(groundPoint.x, groundPoint.z, SQUARED_PROXIMITY_RADIUS);
+              const ndc = InputManager.getMouseNDC();
+              this.pointerVector.set(ndc.x, ndc.y);
+              const fallback = this.findBestBuildingNearCursor(this.pointerVector, SceneManager.camera);
+              if (fallback) {
+                targetEntity = fallback.entity;
+                targetZone = DamageZone.CENTER;
+                targetUV = { x: 0.5, y: 0.5 };
+                impactPoint = fallback.point;
+              } else {
+                const groundPoint = this.getMouseGroundPosition();
+                if (groundPoint) {
+                  impactPoint = groundPoint;
                 }
               }
             }
@@ -168,6 +215,21 @@ export class PlayerControlSystem {
                 tz: impactPoint.z
               }
             });
+          } else if (impactPoint !== null) {
+            // Weapon fired into ground (miss)
+            weapon.heatLevel = weapon.fireRate;
+            const ufoPos = PlayerRenderer.getPlayerMeshPosition() || new THREE.Vector3(pos.worldX, 75, pos.worldY);
+            DestructionSystem.fxQueue.push({
+              type: 'laser' as any,
+              x: ufoPos.x,
+              y: ufoPos.y - 3,
+              z: ufoPos.z,
+              data: {
+                tx: impactPoint.x,
+                ty: impactPoint.y,
+                tz: impactPoint.z
+              }
+            });
           }
         }
 
@@ -177,6 +239,52 @@ export class PlayerControlSystem {
         }
       }
     }
+  }
+
+  /**
+   * Screen-space candidate search near cursor to allow easily picking small buildings
+   * or resolving buildings packed tightly together.
+   */
+  private static findBestBuildingNearCursor(ndc: THREE.Vector2, camera: THREE.Camera): { entity: Entity; point: THREE.Vector3 } | null {
+    this.raycaster.setFromCamera(ndc, camera);
+    const hasMidHit = this.raycaster.ray.intersectPlane(this.midHeightPlane, this.midIntersectPoint);
+    const searchX = hasMidHit ? this.midIntersectPoint.x : 0;
+    const searchZ = hasMidHit ? this.midIntersectPoint.z : 0;
+
+    const candidates = SpatialGrid.queryRadius(searchX, searchZ, 64);
+    if (candidates.length === 0) return null;
+
+    let bestCandidate: { entity: Entity; point: THREE.Vector3 } | null = null;
+    let minScore = MAX_HOVER_SCREEN_RADIUS_NDC;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const entity = candidates[i];
+      const health = HealthComponent.get(entity);
+      if (!health || health.currentHP <= 0) continue;
+
+      const center = BuildingRenderer.getVisualCenter(entity) || BuildingRenderer.getSpritePosition(entity);
+      if (!center) continue;
+
+      this.tempProj.copy(center).project(camera);
+      const dx = this.tempProj.x - ndc.x;
+      const dy = this.tempProj.y - ndc.y;
+      let dist = Math.hypot(dx, dy);
+
+      const renderState = RenderStateComponent.get(entity);
+      const { def } = BuildingRenderer.getTypeInfo(entity, renderState ? renderState.texturePrefix : '');
+      if (def && (def.tier === 'foreground' || def.width <= 32 || (def.height && def.height <= 60))) {
+        dist *= 0.60; // Small building priority boost
+      } else if (def && def.tier === 'landmark') {
+        dist *= 1.25;
+      }
+
+      if (dist < minScore) {
+        minScore = dist;
+        bestCandidate = { entity, point: center };
+      }
+    }
+
+    return bestCandidate;
   }
 
   private static getMouseGroundPosition(): THREE.Vector3 | null {

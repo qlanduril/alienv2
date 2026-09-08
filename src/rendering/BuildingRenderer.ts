@@ -45,9 +45,11 @@ const SPRITE_PLANE_SIZE = 1.0;
  * NEVER uses worldY (altitude) — tall buildings must NOT outrank closer shorter ones.
  */
 export function calculateIsoOrder(worldX: number, worldZ: number): number {
-  // Objects with larger (worldX + worldZ) are closer to the isometric camera and render later
-  const depthValue = Math.floor((worldX + worldZ) * 0.5);
-  return Math.min(600, Math.max(10, 10 + depthValue));
+  // Objects with larger (worldX + worldZ) are closer to the isometric camera and render later.
+  // Map world coordinates [-512, 512] (summing to [-1024, 1024]) into [100, 750] range for painter's order
+  // sorting above ground (0) and decals (10), while staying below player shadow ring (800) and UFO (1000).
+  const normalized = (worldX + worldZ + 1024) / 2048;
+  return Math.min(750, Math.max(100, 100 + Math.floor(normalized * 650)));
 }
 
 
@@ -139,6 +141,10 @@ const BUILDING_FRAGMENT_SHADER = `
 export class BuildingRenderer {
   private static sprites = new Map<Entity, THREE.Mesh>();
   private static models3D = new Map<Entity, THREE.Object3D>();
+  private static shadowMeshes = new Map<Entity, THREE.Mesh>();
+  private static sharedShadowGeo: THREE.PlaneGeometry | null = null;
+  private static sharedShadowMat: THREE.MeshBasicMaterial | null = null;
+  private static sharedShadowTex: THREE.Texture | null = null;
   private static mixers = new Map<Entity, THREE.AnimationMixer>();
   private static animActions = new Map<Entity, AnimData3D>();
   private static dummyHitSprites = new Map<Entity, THREE.Mesh>();
@@ -162,6 +168,62 @@ export class BuildingRenderer {
   private static displayFrameMap = new Map<Entity, number>();
   private static demoStateMap = new Map<Entity, { isDemolishing: boolean; elapsedTime: number; maxDuration: number }>();
   private static partialDamageTimeMap = new Map<Entity, number>();
+
+  /**
+   * Lazily generates a procedural soft contact ambient occlusion texture
+   * to ground 2D sprite buildings firmly into the terrain.
+   */
+  private static getSharedShadowTexture(): THREE.Texture {
+    if (!this.sharedShadowTex) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const grad = ctx.createRadialGradient(32, 32, 4, 32, 32, 30);
+        grad.addColorStop(0, 'rgba(0, 0, 0, 0.65)');
+        grad.addColorStop(0.45, 'rgba(0, 0, 0, 0.35)');
+        grad.addColorStop(0.8, 'rgba(0, 0, 0, 0.12)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(32, 32, 30, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      this.sharedShadowTex = new THREE.CanvasTexture(canvas);
+      this.sharedShadowTex.generateMipmaps = false;
+      this.sharedShadowTex.minFilter = THREE.LinearFilter;
+    }
+    return this.sharedShadowTex;
+  }
+
+  private static getOrCreateShadow(entity: Entity, pos: any, size: number): THREE.Mesh {
+    let shadow = this.shadowMeshes.get(entity);
+    if (!shadow) {
+      if (!this.sharedShadowGeo) {
+        this.sharedShadowGeo = new THREE.PlaneGeometry(1, 1);
+      }
+      if (!this.sharedShadowMat) {
+        this.sharedShadowMat = new THREE.MeshBasicMaterial({
+          map: this.getSharedShadowTexture(),
+          transparent: true,
+          opacity: 0.45,
+          depthWrite: false,
+          depthTest: true
+        });
+      }
+      shadow = new THREE.Mesh(this.sharedShadowGeo, this.sharedShadowMat);
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.rotation.z = Math.PI / 4; // 45-deg isometric lot orientation
+      shadow.renderOrder = 4; // Ground layer: above terrain (0), below decals (10) and buildings (100+)
+      const s = size * 1.35;
+      shadow.scale.set(s, s, 1);
+      shadow.position.set(pos.worldX, 0.04, pos.worldY);
+      SceneManager.groundGroup.add(shadow);
+      this.shadowMeshes.set(entity, shadow);
+    }
+    return shadow;
+  }
 
   /**
    * Helper to resolve typeKey and def with caching per entity.
@@ -213,6 +275,16 @@ export class BuildingRenderer {
     if (model) return model.position.clone();
     const sprite = this.sprites.get(entity);
     return sprite ? sprite.position.clone() : null;
+  }
+
+  public static getVisualCenter(entity: Entity): THREE.Vector3 | null {
+    const dummy = this.dummyHitSprites.get(entity);
+    if (dummy) return dummy.position.clone();
+    const sprite = this.sprites.get(entity);
+    if (sprite) return sprite.position.clone();
+    const model = this.models3D.get(entity);
+    if (model) return new THREE.Vector3(model.position.x, 30, model.position.z);
+    return null;
   }
 
   public static getSpriteScale(entity: Entity): THREE.Vector3 | null {
@@ -373,7 +445,7 @@ export class BuildingRenderer {
         transparent: true,
         side: THREE.DoubleSide,
         depthWrite: false,
-        depthTest: false
+        depthTest: true // Correctly tests depth against 3D buildings; ground plane (depthWrite: false) never slices sprites!
       });
       sprite = new THREE.Mesh(this.sharedGeometry, material);
       sprite.castShadow = false;
@@ -520,7 +592,27 @@ export class BuildingRenderer {
     const w = offset ? offset.w : (texture?.image?.width || DEFAULT_CANVAS_SIZE);
     const h = offset ? offset.h : (texture?.image?.height || DEFAULT_CANVAS_SIZE);
     const dx = (offset ? offset.dx : -w / HALF_DIVISOR) + GLOBAL_SPRITE_DX_OFFSET;
-    const groundY = (offset ? (typeof offset.y_max === 'number' ? offset.y_max : (typeof offset.base_cy === 'number' ? offset.base_cy : h)) : h) + GLOBAL_SPRITE_DY_OFFSET;
+
+    // In isometric projection, the ground diamond center is located at base_cy.
+    // Validate base_cy: must be >= 0.55 * h and within reasonable distance of y_max (not sampled on roof/midsection).
+    // If base_cy is invalid or missing, derive from y_max - half diamond height.
+    const yMax = (offset && typeof offset.y_max === 'number') ? offset.y_max : h * 0.95;
+    const yMin = (offset && typeof offset.y_min === 'number') ? offset.y_min : 0;
+    const halfDiamond = Math.min(w * 0.25, Math.max(16, (yMax - yMin) * 0.25));
+    const derivedGround = yMax - halfDiamond;
+
+    let groundY: number;
+    if (
+      offset &&
+      typeof offset.base_cy === 'number' &&
+      offset.base_cy >= h * 0.55 &&
+      (yMax - offset.base_cy) <= h * 0.45
+    ) {
+      groundY = offset.base_cy;
+    } else {
+      groundY = derivedGround;
+    }
+    groundY += GLOBAL_SPRITE_DY_OFFSET;
 
     // Physical quad width equals ground diagonal (footprintWidth * Math.SQRT2) scaled by vScale
     const meshWidth = footprintWidth * Math.SQRT2 * vScale;
@@ -539,7 +631,7 @@ export class BuildingRenderer {
     const tx = pos.worldX + world_dx + fx.shudderDX;
     const tz = pos.worldY + world_dz + fx.shudderDZ;
 
-    // Align groundY (y_max) pixel in PNG directly with ground level pos.worldZ + BUILDING_BASE_LIFT
+    // Align groundY (base_cy) pixel in PNG directly with ground level pos.worldZ + BUILDING_BASE_LIFT
     const normBaseY = (groundY - h / HALF_DIVISOR) / h;
     const y_mesh = (pos.worldZ || 0) + normBaseY * meshHeight + BUILDING_BASE_LIFT;
 
@@ -571,6 +663,19 @@ export class BuildingRenderer {
       sprite.scale.set(sx, sy, INITIAL_SCALE_UNIT);
       sprite.rotation.set(0, ISOMETRIC_ROTATION_Y, 0);
       sprite.position.set(tx, y_mesh, tz);
+    }
+
+    // 5. Ground Contact Ambient Occlusion Shadow for 2D sprites
+    const shadow = this.getOrCreateShadow(entity, pos, footprintWidth * vScale);
+    if (shadow) {
+      shadow.position.set(pos.worldX + fx.shudderDX * 0.2, 0.04, pos.worldY + fx.shudderDZ * 0.2);
+      shadow.visible = renderState.visible;
+      const mat = shadow.material as THREE.MeshBasicMaterial;
+      if (collapse) {
+        mat.opacity = Math.max(0, 0.45 - collapse.tiltAngle * 0.5);
+      } else {
+        mat.opacity = 0.45 * (renderState.opacity ?? 1.0);
+      }
     }
   }
 
@@ -783,15 +888,16 @@ export class BuildingRenderer {
 
       model = SkeletonUtils.clone(gltf.scene);
 
-      // Sort 3D models by ground-plane footprint only — no height bias (height inflates sort order causing tall spires to occlude closer buildings)
+      // Sort 3D models by ground-plane footprint only — no height bias
       const isoOrder = calculateIsoOrder(pos.worldX, pos.worldY);
       model.renderOrder = isoOrder;
 
-      // Setup materials for depth, shadow casting & hit flash + Hide GroundPlane base mesh
+      // Remove GroundPlane completely so it doesn't inflate the bounding box or waste vertex processing
+      const toRemove: THREE.Object3D[] = [];
       model.traverse((child) => {
         child.renderOrder = isoOrder;
-        if (child.name === 'GroundPlane' || child.name.toLowerCase().includes('ground')) {
-          child.visible = false;
+        if (child.name === 'GroundPlane' || child.name.toLowerCase().includes('ground') || child.name.toLowerCase().includes('pixelground')) {
+          toRemove.push(child);
         }
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh;
@@ -800,9 +906,6 @@ export class BuildingRenderer {
           if (mesh.material) {
             const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
             mats.forEach((m: any) => {
-              if (m.name === 'PixelGround' || m.name.toLowerCase().includes('ground')) {
-                mesh.visible = false;
-              }
               m.depthWrite = true;
               m.depthTest = true;
               m.side = THREE.DoubleSide;
@@ -817,8 +920,11 @@ export class BuildingRenderer {
           }
         }
       });
+      for (const r of toRemove) {
+        if (r.parent) r.parent.remove(r);
+      }
 
-      // Initialize AnimationMixer & play ALL animation tracks (all 590 demolition clips)
+      // Initialize AnimationMixer & play ALL animation tracks (demolition clips)
       if (gltf.animations && gltf.animations.length > 0) {
         const mixer = new THREE.AnimationMixer(model);
         const actions: THREE.AnimationAction[] = [];
@@ -842,18 +948,20 @@ export class BuildingRenderer {
         mixer.setTime(0);
       }
 
-      // Compute bounding box at t = 0 pose to set scale and base pivot
+      // Compute bounding box strictly from actual building meshes (excluding ground plane)
       model.updateMatrixWorld(true);
       const bbox = new THREE.Box3().setFromObject(model);
       const size = new THREE.Vector3();
       bbox.getSize(size);
 
-      // Target sizing: compute scale using def.height, def.width, and def.visualScale
+      // Target sizing: scale primarily by targetHeight so iconic skyscrapers and spires reach full grandeur
       const vScale = def ? (def.visualScale || 1.0) : 1.0;
-      const targetHeight = (def.height || 220) * vScale;
+      const targetHeight = (def.height || 180) * vScale;
       const targetFootprint = (def.width || 64) * vScale;
       const scaleByHeight = size.y > 0.1 ? (targetHeight / size.y) : 1.0;
-      const scaleByWidth = (size.x > 0.1 && size.z > 0.1) ? (targetFootprint / Math.max(size.x, size.z)) : scaleByHeight;
+      // Allow width to expand up to the diagonal of the multi-tile lot (targetFootprint * Math.SQRT2)
+      const maxAllowedWidth = targetFootprint * Math.SQRT2;
+      const scaleByWidth = (size.x > 0.1 && size.z > 0.1) ? (maxAllowedWidth / Math.max(size.x, size.z)) : scaleByHeight;
       const targetScale = Math.min(scaleByHeight, scaleByWidth);
 
       model.scale.set(targetScale, targetScale, targetScale);
@@ -875,16 +983,19 @@ export class BuildingRenderer {
 
       this.models3D.set(entity, model);
 
-      // Create hit zones for raycasting / targeting HUD
+      // Create hit zones for raycasting / targeting HUD scaled to the actual mesh bounds
+      const actualHeight = Math.max(30, scaledBbox.max.y - scaledBbox.min.y);
+      const actualFootprint = Math.max(20, Math.max(scaledBbox.max.x - scaledBbox.min.x, scaledBbox.max.z - scaledBbox.min.z));
       const zones = BUILDING_ZONES[typeKey] || BUILDING_ZONES['mega_titan'];
       if (zones) {
         const dummySprite = new THREE.Mesh(
-          this.sharedGeometry,
+          new THREE.PlaneGeometry(1, 1),
           new THREE.MeshBasicMaterial({ visible: true, transparent: true, opacity: 0, depthWrite: false })
         );
-        dummySprite.position.set(pos.worldX, (def.height || 400) / 2, pos.worldY);
-        dummySprite.scale.set(def.width || 64, def.height || 400, 1);
+        dummySprite.position.set(pos.worldX, actualHeight / 2, pos.worldY);
+        dummySprite.scale.set(actualFootprint, actualHeight, 1);
         dummySprite.rotation.y = ISOMETRIC_ROTATION_Y;
+        dummySprite.userData = { entity };
         SceneManager.cityGroup.add(dummySprite);
         HitZoneManager.createZonesForBuilding(entity, dummySprite, zones);
         this.dummyHitSprites.set(entity, dummySprite);
@@ -942,6 +1053,11 @@ export class BuildingRenderer {
         } else {
           sprite.material.dispose();
         }
+        const shadow = this.shadowMeshes.get(entity);
+        if (shadow) {
+          SceneManager.groundGroup.remove(shadow);
+          this.shadowMeshes.delete(entity);
+        }
         this.sprites.delete(entity);
         this.hitFxMap.delete(entity);
         this.flashMap.delete(entity);
@@ -977,6 +1093,11 @@ export class BuildingRenderer {
           dummy.geometry.dispose();
           this.dummyHitSprites.delete(entity);
         }
+        const shadow = this.shadowMeshes.get(entity);
+        if (shadow) {
+          SceneManager.groundGroup.remove(shadow);
+          this.shadowMeshes.delete(entity);
+        }
         this.models3D.delete(entity);
         this.mixers.delete(entity);
         this.animActions.delete(entity);
@@ -1000,6 +1121,10 @@ export class BuildingRenderer {
         sprite.material.dispose();
       }
     }
+    for (const [, shadow] of this.shadowMeshes.entries()) {
+      SceneManager.groundGroup.remove(shadow);
+    }
+    this.shadowMeshes.clear();
     for (const [, model] of this.models3D.entries()) {
       SceneManager.cityGroup.remove(model);
       model.traverse((child) => {

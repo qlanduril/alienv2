@@ -5,8 +5,7 @@ import {
 } from './WFCTilePrototypes';
 import {
   WFCMacroModule,
-  WFC_MACRO_MODULES,
-  areMacroSocketsCompatible
+  WFC_MACRO_MODULES
 } from './WFCMacroModules';
 
 export interface WFCSolvedCell {

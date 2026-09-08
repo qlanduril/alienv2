@@ -10,14 +10,22 @@ Governs static asset preloading, image texture caching lifecycle, sprite offset 
 
 ## 2. Mathematical Invariants & Constants
 - **Offset Contract Schema (`sprite_offsets.json`):**
-  - `{ w, h, dx, dy, base_cy }`
+  - `{ w, h, dx, dy, base_cy, y_min, y_max }`
   - `w`, `h`: Source frame pixel width and height.
   - `dx`, `dy`: Centroid origin shift offsets in pixels.
   - `base_cy`: Ground-contact pivot offset in pixels for isometric anchor placement.
+- **Roof-Sample Rejection Invariant:**
+  - Automated offset extractors can inadvertently sample roof features instead of ground diamonds (e.g., Shopping Mall `base_cy = 369` on a `768` height sprite).
+  - Validation rule: `base_cy >= h * 0.55 && (yMax - base_cy) <= h * 0.45`.
+  - Fallback: Derive ground contact from `yMax - halfDiamond`.
+- **3D Landmark Asset Ingestion:**
+  - Capped at **exactly 1 instance per 3D model** (`mega_titan`, `spaceship_hq`, `financial_tower`, `cyber_reactor`) to restrict active animation mixers to 4 and preserve 60 FPS.
 - **Pixelated Texture Filtering:**
   - `minFilter = THREE.NearestFilter`, `magFilter = THREE.NearestFilter`, `generateMipmaps = false`. Applied to pixel art building and unit textures to preserve crispness and save VRAM.
 - **Background Texture Filtering:**
   - `minFilter = THREE.LinearMipmapLinearFilter`, `magFilter = THREE.LinearFilter`. Applied to large background terrain textures.
+- **Ground VRAM Cleanup Protocol:**
+  - `TileRenderer.dispose()` must walk all ground meshes and explicitly call `geometry.dispose()`, `material.map.dispose()`, and `material.dispose()` on world reloads to prevent VRAM accumulation.
 - **Texture Cache Store:** $O(1)$ lookup via `AssetLoader.getTexture(id)` backed by `Map<string, THREE.Texture>`.
 
 ## 3. Code & File Dependencies

@@ -44,20 +44,61 @@ if (freeIndex !== undefined) {
 
 ---
 
-## 4. View Frustum Culling
+## 4. View Frustum Culling & FX Optimization
 
-Particle simulation and explosion FX checks verify camera viewport bounds before triggering calculations:
+Particle simulation, explosion FX checks, and laser renders verify camera viewport bounds via [`CameraController.isPointInView`](file:///home/berkans/development/alienv2/src/rendering/CameraController.ts#L92) before triggering calculations or GPU updates:
 
 ```typescript
-if (!CameraController.isPointInView(x, y)) {
-  // Skip expensive particle spawner allocation for off-screen explosions
-  return;
+// FXRenderer.ts frustum culling
+if (event.type === 'laser') {
+  const ufoInView = CameraController.isPointInView(event.x, event.z);
+  const targetInView = CameraController.isPointInView(event.data.tx, event.data.tz);
+  if (!ufoInView && !targetInView) return; // Skip off-screen beam rendering
+} else if (!CameraController.isPointInView(event.x, event.y)) {
+  return; // Skip off-screen blast rings, sparks, and point lights
 }
 ```
 
 ---
 
-## 5. Verification Checklist & Anti-Pattern Prohibition
+## 5. Instanced Decal Pooling (`DecalManager.ts`)
+
+Instead of dynamically creating Three.js textured quad meshes or redrawing ground canvas textures per impact:
+- Pre-allocates two `THREE.InstancedMesh` pools of 50 instances each (`scorchMesh` and `craterMesh`) on Layer 2 (`Y = 0.02`).
+- Collapses up to 100 simultaneous ground decals into **exactly 2 draw calls**.
+- Uses an $O(1)$ ring buffer `(index + 1) % MAX_ACTIVE_DECALS` to mutate instance transform matrices in-place, achieving 0 runtime heap allocations.
+
+---
+
+## 6. Pre-Allocated Laser Beam Pool (`FXRenderer.ts`)
+
+Rapid-fire weapon mechanics allocate zero runtime objects:
+- `MAX_POOLED_LASERS = 8` pre-allocated line and impact ring meshes.
+- In-place vertex buffer mutations (`laser.posAttr.needsUpdate = true`).
+- Oldest-elapsed LRU recycling guarantees stable memory footprint under hyper-rapid fire.
+
+---
+
+## 7. Ground VRAM Disposal & Texture Lifecycle (`TileRenderer.ts`)
+
+During procedural city regeneration or map reloads:
+- `TileRenderer.dispose()` walks ground mesh children and explicitly calls `.geometry.dispose()`, `material.map.dispose()`, and `material.dispose()`.
+- Eliminates multi-megabyte VRAM memory leaks from orphaned 4,096-tile vertex buffers and Canvas textures.
+
+---
+
+## 8. 3D Animation Mixer CPU Budget & Hybrid Landmark Pipeline
+
+A critical performance bottleneck occurs when multiple animated 3D GLTF models are placed across a procedural city:
+- **The Bottleneck**: Each 3D skyscraper model (`skyscraper_demolition.glb`) contains **590 animation clips** (separate fracture chunk keyframe tracks). Placing 135 models meant the browser was ticking over **70,000 keyframe tracks per frame**, collapsing CPU framerate from 60 FPS down to 15–20 FPS.
+- **The Solution**: 
+  1. Each 3D model is allocated to **exactly 1 unique landmark** on the map (`mega_titan`, `spaceship_hq`, `financial_tower`, `cyber_reactor`), reducing total active animation mixers from 135 down to **4** (~97% CPU overhead reduction).
+  2. All standard high-rise towers (`5`, `sky_artdeco`, `sky_cyber`, `sky_biotech`) are rendered as lightweight 2D billboard sprites.
+  3. The city achieves high visual density (880+ buildings) with buttery-smooth **60 FPS** gameplay.
+
+---
+
+## 9. Verification Checklist & Anti-Pattern Prohibition
 
 When extending or modifying the codebase, enforce these rules:
 

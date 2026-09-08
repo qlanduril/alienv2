@@ -73,8 +73,9 @@ graph TD
 
 1. **Strict Decoupling of Engine & Renderer**: All gameplay state (positions, HP, zonal damage, velocity, collision) lives strictly inside raw ECM data structures (`Map<Entity, Component>`). Three.js is treated strictly as an output view layer.
 2. **Mathematical Rigor in 2.5D Isometric Space**: Camera pitch ($\approx 35.264^\circ$) and yaw ($45^\circ$) are mathematically paired with vertical billboard plane rotations (`ISOMETRIC_ROTATION_Y = Math.PI / 4`) and Y-foreshortening compensation ($\sqrt{1.5} \approx 1.2247$) to prevent perspective tearing.
-3. **Zero Garbage Collection Allocation**: Frame loops avoid instantiating new objects, vectors, or arrays. Particle systems run on pre-allocated index-stack free-lists.
-4. **Procedural Sound Synthesis**: 100% of sound effects (lasers, explosions, cluster sub-bass booms) are generated procedurally via the WebAudio API without external WAV/MP3 downloads.
+3. **The Dual Depth Buffer Breakthrough**: Ground tiles render with `depthWrite: false`, preventing diagonal ground slicing of vertical 2D billboards, while 2D sprites render with `depthTest: true` against 3D landmark meshes (`depthWrite: true`), ensuring 3D towers naturally occlude 2D buildings behind them without visual popping.
+4. **Hybrid 3D Landmarks & Zero-GC Infill**: 4 unique 3D GLTF landmarks are capped at 1 instance per model to fit within the 60 FPS animation mixer budget (avoiding 70,000+ keyframe evaluations/frame), while 880+ buildings across 23 types provide dense, vibrant urban infill with $O(1)$ pooled decals and lasers.
+5. **Procedural Sound Synthesis**: 100% of sound effects (lasers, explosions, cluster sub-bass booms, collapse rumbles) are generated procedurally via the WebAudio API without external WAV/MP3 downloads.
 
 ---
 

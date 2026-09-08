@@ -45,10 +45,67 @@ When a major 3D mega-tower or heavy structure collapses, [`DestructionSystem.app
    $$\text{damage} = \text{maxDamage} \times \left(1 - \frac{\text{dist}}{\text{radius}}\right)$$
 3. **Zonal Impact & Scorch Marks**: Inflicts damage on random structural zones (`CENTER`, `TOP_CENTER`, `BASE_CENTER`, `BASE_LEFT`, `BASE_RIGHT`), updates global building health states, and spawns hit sparks, smoke plumes, and scorch decals.
 4. **Multi-Height Demolition Shaft Explosions**: During 3D tower implosion ($t = 1.0\text{s}, 2.5\text{s}, 4.0\text{s}$), multi-stage explosions detonate at random height elevations along the skyscraper shaft, accompanied by camera screen rumbles.
+5. **Demolition Audio Synchronization**: To prevent audio desync between visual debris collapse and audio playback, demolition sound triggers are synchronized directly via `AudioSystem.processEvent(event)` as events are popped and rendered by `FXRenderer`.
 
 ---
 
-## 3. O(1) Free-List Particle Pool Architecture
+## 4. View Frustum Culling for Explosions & Lasers
+
+To avoid wasting GPU fill rate and particle simulation ticks on off-screen destruction events, [`FXRenderer.ts`](file:///home/berkans/development/alienv2/src/rendering/FXRenderer.ts) performs camera frustum culling before spawning visual effects:
+
+```typescript
+// FXRenderer.ts frustum verification
+if (event.type === 'laser') {
+  const ufoInView = CameraController.isPointInView(event.x, event.z);
+  const targetInView = CameraController.isPointInView(event.data.tx, event.data.tz);
+  if (!ufoInView && !targetInView) return; // Discard off-screen laser render
+} else if (!CameraController.isPointInView(event.x, event.y)) {
+  return; // Discard off-screen blast rings, sparks, and point lights
+}
+```
+
+Off-screen events still mutate logical ECS health data via `DestructionSystem`, but GPU draw calls and mesh allocations are eliminated entirely.
+
+---
+
+## 5. Instanced Scorch & Crater Decal Pooling (`DecalManager.ts`)
+
+Instead of creating individual textured quad meshes or redrawing ground canvas textures per impact, [`DecalManager.ts`](file:///home/berkans/development/alienv2/src/rendering/TileSystem/DecalManager.ts) pools all dynamic ground decals into hardware-instanced ring buffers:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ DecalManager Layer 2 (Y = 0.02)                                        │
+│ • scorchMesh: THREE.InstancedMesh(unitGeo, scorchMat, MAX_ACTIVE=50)  │
+│ • craterMesh: THREE.InstancedMesh(unitGeo, craterMat, MAX_ACTIVE=50)  │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ Ring Buffer Recycle:
+                                    ▼ (index + 1) % MAX_ACTIVE_DECALS
+```
+
+- **Draw Call Batching**: Collapses up to 100 simultaneous ground decals into **exactly 2 draw calls** (1 for scorch, 1 for crater).
+- **Procedural Textures**: Generates high-contrast radial burnt ash and jagged impact crater textures on startup via HTML5 Canvas.
+- **Zero-GC Ring Buffer**: New impacts advance `(index + 1) % MAX_ACTIVE_DECALS`, updating the 4x4 transform matrix in-place (`instanceMatrix.needsUpdate = true`) without allocating Three.js objects or textures.
+
+---
+
+## 6. Pre-Allocated Laser Beam Pool (`FXRenderer.ts`)
+
+Laser beams are pre-allocated at bootstrap to guarantee 0 bytes allocated during rapid weapon fire:
+
+- **Pool Size**: `MAX_POOLED_LASERS = 8` pre-allocated beam records.
+- **Compound Line & Core**: Each pooled beam contains an outer glow line (`THREE.LineBasicMaterial`, cyan `0x00ffff`, linewidth 3), an inner pure-white energy core line (`0xffffff`), and a camera-oriented impact ring mesh (`THREE.RingGeometry(0.3, 1.8, 16)`).
+- **Mutable Vertex Buffers**: Firing a laser updates the underlying `Float32Array` buffer attribute positions in-place:
+  ```typescript
+  laser.positions[0] = sx; laser.positions[1] = sy; laser.positions[2] = sz;
+  laser.positions[3] = tx; laser.positions[4] = ty; laser.positions[5] = tz;
+  laser.posAttr.needsUpdate = true;
+  laser.geometry.computeBoundingSphere();
+  ```
+- **LRU Recycling**: If all 8 beams are active during hyper-rapid firing, the beam with the longest elapsed time is recycled automatically.
+
+---
+
+## 7. O(1) Free-List Particle Pool Architecture
 
 Particle simulation ([`ParticleRenderer.ts`](file:///home/berkans/development/alienv2/src/rendering/ParticleRenderer.ts)) manages thousands of debris particles (rubble, dust, smoke, sparks) with **zero runtime memory allocation**:
 
@@ -71,7 +128,7 @@ State│ Active   │ Inactive │ Active   │ Inactive │ Inactive │ Active
 
 ---
 
-## 4. Bouncy Debris Physics Simulation
+## 8. Bouncy Debris Physics Simulation
 
 Debris particles exhibit realistic gravity and ground-bounce dynamics:
 
@@ -86,7 +143,7 @@ $$\mathbf{p}_{t+\Delta t} = \mathbf{p}_t + \mathbf{v}_{t+\Delta t} \cdot \Delta 
 
 ---
 
-## 5. Cluster Explosion Detection System
+## 9. Cluster Explosion Detection System
 
 When multiple nearby buildings sustain severe structural damage, [`DestructionSystem.checkClusterExplosions`](file:///home/berkans/development/alienv2/src/systems/DestructionSystem.ts#L78) triggers chain-reaction cluster blasts:
 

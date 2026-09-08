@@ -11,9 +11,20 @@ Governs player WASD & pointer input handling, mouse raycasting, 3D sub-mesh dama
 ## 2. Mathematical Invariants & Constants
 - **NDC Transformation:**
   $$\text{ndc.x} = \left(\frac{\text{mouseX}}{\text{screenWidth}}\right) \times 2 - 1, \quad \text{ndc.y} = -\left(\frac{\text{mouseY}}{\text{screenHeight}}\right) \times 2 + 1$$
-- **Asynchronous UFO Flight Lerp:**
-  - `LERP_FOLLOW_SPEED = 8.0`. Position update: `pos += (targetPos - pos) * (1 - Math.exp(-8.0 * delta))`.
+- **Asynchronous UFO Flight Lerp & Bounds:**
+  - `LERP_FOLLOW_SPEED = 8.0` (or `14.0` under high responsiveness). Position update: `pos += (targetPos - pos) * (1 - Math.exp(-\lambda * delta))`.
   - WASD Speed: `WASD_SPEED = 65` world units/sec.
+  - Flight Boundary Clamping: `targetPos.x, targetPos.y` clamped to $[-480, 480]$.
+- **Screen-Aligned Isometric Keyboard Vectors:**
+  - W / ArrowUp: `dirX -= 1; dirZ -= 1` (Screen UP)
+  - S / ArrowDown: `dirX += 1; dirZ += 1` (Screen DOWN)
+  - A / ArrowLeft: `dirX -= 1; dirZ += 1` (Screen LEFT)
+  - D / ArrowRight: `dirX += 1; dirZ -= 1` (Screen RIGHT)
+- **Precision Hit Disambiguation & Small-Building Weights:**
+  - `SMALL_BUILDING_PRIORITY_WEIGHT = 0.36` (applied when $h \le 65$ or $w \le 38$).
+  - `MEGA_LANDMARK_PENALTY_WEIGHT = 1.30` (applied when $h \ge 140$).
+  - Score formula: `score = distSq * weight + (uvDx^2 + uvDy^2) * 0.002`.
+  - Screen-space fallback: `PlayerControlSystem.findBestBuildingNearCursor` using `SpatialGrid.queryRadius(x, z, 64)`.
 - **Throttled Hover Raycast:**
   - `HOVER_CHECK_INTERVAL = 0.033s` (~30 FPS). Prevents raycasting against all invisible hit meshes every single frame.
 - **Weapon Heat Cooldown:**

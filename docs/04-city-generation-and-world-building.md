@@ -26,27 +26,26 @@ flowchart TD
 
 ---
 
-## 2. District Zoning & Central Focal Point Layout
+## 2. District Zoning & Chunk-Based High-Density Packing
 
-The city is partitioned into 5 thematic urban districts defined in [`MapDefinition.ts`](file:///home/berkans/development/alienv2/src/core/MapDefinition.ts) around the **Central 3D Skyscraper Focal Point**:
+The city map is generated via a 16-chunk grid ($4 \times 4$ macro-districts of $16 \times 16$ tiles each) defined in [`bake_assets.py`](file:///home/berkans/development/alienv2/scripts/bake_assets.py):
 
-| District Zone | Grid Region | Landmark / Centerpiece | Building Types |
+| District Archetype | Chunk Coordinates | Character & Layout | Building Catalog Pools |
 | :--- | :--- | :--- | :--- |
-| **Central Downtown Core** | Map Center ($gx=28, gz=28$) | **3D Skyscraper (`'5'`)**, Art Deco Titan | Cyber Spires, Glass Commercial Towers |
-| **North-West Airfield** | North-West ($gx=0..15, gz=0..15$) | Spaceship HQ Control Tower (`spaceship_hq`) | Tarmac Runway, Flight Apron, Hangers |
-| **North-East Sports & Parks** | North-East ($gx=37..63, gz=0..25$) | **Twin Stadium Arenas (`mega_stadium`)** | Sports Arenas, Green Park Belts, Trees |
-| **South-East Harbor & Docks** | South-East ($gx=37..63, gz=37..63$) | **Statue of Liberty Island**, Canal | Water Canal, Docks, Warehouses (`4`) |
-| **South-West Residential** | South-West ($gx=0..25, gz=37..63$) | **Hospital (`1`)**, **Shopping Mall (`2`)** | Brownstones (`b1`, `b2`), Civic Buildings |
+| **Downtown Core & Skyline** | Chunks `(1,1), (2,1), (1,2), (2,2)` | 4 Unique 3D Mega-Landmarks with grand stone plazas (`PLAZA_STONE`), surrounded by 2D skyscrapers on $2\times 2$ lots | `mega_titan`, `spaceship_hq`, `financial_tower`, `cyber_reactor`, `5`, `sky_artdeco`, `sky_cyber`, `sky_biotech`, `res_sky` |
+| **High-Density Commercial Market** | Chunks `(0,1), (0,2), (3,1), (3,2)` | Bustling urban market strips with 1x1 shops packed side-by-side (step 1) along sidewalks and mid-block pedestrian breezeways | `b1` (Shop), `b2` (Brownstone), `res_bronze`, with occasional mid-rises (`b3`, `b4`, `mall_shopping`) |
+| **High-Density Residential Corridors** | Chunks `(1,0), (2,0), (1,3), (2,3)` | Dense townhouse blocks, brownstone rows, and mid-rise apartments | `b2`, `res_bronze`, `b3` (Apartments), `b4` (Office), `res_sky` |
+| **Civic & Suburban Perimeter** | Chunks `(0,0), (3,0), (0,3), (3,3)` | Major civic landmark institutions, green parklet pockets, and low-rise neighborhoods | `pentagon_defense`, `mega_stadium`, `statue_liberty`, `hospital_civic`, `school_civic`, `1`, `2`, `3`, `4` |
 
-```typescript
-const ZONE_DENSITY: Partial<Record<ZoneId, number>> = {
-  financial:   0.55,
-  tech:        0.50,
-  civic:       0.58,
-  residential: 0.42,
-  docks:       0.35,
-};
-```
+### 3D Landmark Allocation & North Clearance Buffers
+To ensure rock-solid 60 FPS performance without CPU animation mixer bottlenecks:
+- **Exactly 1 Instance per 3D Model**: The 4 GLTF 3D models are each placed **exactly once** in designated downtown lots:
+  - `mega_titan` $\rightarrow$ `skyscraper_demolition.glb` (Apex Mega-Tower, height $\sim 157$ units)
+  - `spaceship_hq` $\rightarrow$ `spaceship_hq.glb` (Alien Spaceship HQ)
+  - `financial_tower` $\rightarrow$ `financial_tower.glb` (Metro Financial Tower)
+  - `cyber_reactor` $\rightarrow$ `cyber_reactor.glb` (Cyber Quantum Reactor)
+- **North Corridor Clearance**: Behind each 3D landmark, a 6-tile corridor to the North ($-Z$) and 4-tile corridor to the North-West ($-X$) is reserved as open `PLAZA_STONE` paving with `occupied = true`, keeping the dramatic skyline view open and clear.
+- **High-Density 2D Infill**: The remaining city infill uses 880+ lightweight 2D billboard sprites across 23 building types, resulting in an alive, packed metropolis with **0 footprint overlaps**.
 
 ---
 

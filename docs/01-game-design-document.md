@@ -40,13 +40,14 @@ flowchart TD
 ### UFO Flight & Movement
 - **Positioning**: The player UFO hovers at a high flight altitude ($Z = 75$ world units) above city skyscrapers.
 - **Flight Mechanics**: Handled by [`PlayerControlSystem.ts`](file:///home/berkans/development/alienv2/src/systems/PlayerControlSystem.ts), following mouse pointer position smoothly across the isometric ground plane using frame-rate independent exponential damping ($\lambda = 14$).
+- **WASD / Arrow Key Directional Navigation**: In addition to mouse following, keyboard inputs (`WASD` or Arrow keys) apply screen-aligned directional translation vectors (Up: $-X, -Z$; Down: $+X, +Z$; Left: $-X, +Z$; Right: $+X, -Z$) at $65\text{ units/s}$ with hard map boundary clamping ($-480$ to $+480$).
 - **Dynamic Surface Targeting Ring**: Projects a glowing cyan alien targeting ring beneath the mothership that dynamically lerps between street level ($Y=0.1$) and building roof height ($Y_{roof}$) when hovering over structures, rendered above buildings (`renderOrder = 800`).
 
-### Laser Weapon System
+### Laser Weapon System & Precision Aim Disambiguation
 - **Primary Weapon**: High-energy pulsed laser beam.
-- **Targeting**: Clicking or holding mouse button casts a 3D ray through the isometric view camera ([`Raycaster.ts`](file:///home/berkans/development/alienv2/src/input/Raycaster.ts)) into candidate building hit zones.
+- **Targeting & Precision Disambiguation**: Clicking or holding mouse button casts a 3D ray through the isometric view camera ([`Raycaster.ts`](file:///home/berkans/development/alienv2/src/input/Raycaster.ts)) into candidate building hit zones. When multiple buildings overlap along the sightline, the engine applies **Small-Building Priority Weighting** (`SMALL_BUILDING_PRIORITY_WEIGHT = 0.36` vs. `MEGA_LANDMARK_PENALTY_WEIGHT = 1.30`) with screen-space candidate proximity, allowing players to target low-rise shops and brownstones directly adjacent to massive towers without the large tower's hitbox swallowing the click.
 - **Fire Rate**: Governed by `WeaponComponent` fire rate timers (e.g., $0.2\text{s}$ per burst).
-- **Beam FX**: Instantiates dynamic neon laser beam line meshes (`renderOrder = 2000`) from UFO underbelly ($Z=75$) directly down to impact target coordinates, rendered unobscured over intermediate building facades.
+- **Beam FX**: Instantiates dynamic neon laser beam line meshes (`renderOrder = 2000`) from UFO underbelly ($Z=75$) directly down to impact target coordinates, powered by an 8-beam pre-allocated geometry pool.
 
 ---
 
@@ -75,8 +76,10 @@ stateDiagram-v2
 ### Advanced Destruction Features
 - **GLSL Shader Cross-Dissolve Blending**: 2D building sprites cross-dissolve seamlessly between damage stages over $0.3\text{s}$ using custom GLSL shader blending (`mixRatio` $0.0 \to 1.0$), eliminating visual state pops.
 - **Upright 3D Keyframe Demolition**: 3D Skyscraper mega-towers remain strictly upright along their vertical axis, playing 590 GLTF animation tracks to crumble vertically into a settled rubble pile without sideways tipping.
+- **Demolition Audio Synchronization**: Demolition audio cues are triggered synchronously with visual collapse events when drained from `FXRenderer`, completely eliminating audio desync between visual debris collapse and audio playback.
 - **Multi-Height Shaft Blasts**: During 3D tower implosion, multi-stage blast explosions detonate at random height elevations along the skyscraper shaft, accompanied by camera screen rumbles.
 - **Radial Collateral Damage**: Demolishing a mega-structure emits distance-attenuated shockwaves (`applyCollateralDamage`) that damage and scorch surrounding building facade/roof/base zones within a 64-unit radius.
+- **Hybrid City Composition**: The metropolis features 4 unique 3D landmark towers anchored in downtown civic plazas (`mega_titan`, `spaceship_hq`, `financial_tower`, `cyber_reactor`) accompanied by 880+ dense 2D billboard buildings spanning 23 architectural varieties.
 
 ---
 

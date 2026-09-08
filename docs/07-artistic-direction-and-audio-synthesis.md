@@ -90,8 +90,33 @@ graph TD
 - **Frequency Envelope**: $f(t): 65\text{Hz} \rightarrow 15\text{Hz}$ over $0.9\text{s}$.
 - **Gain Envelope**: $g(t): 0.7 \rightarrow 0.001$ over $0.95\text{s}$.
 
-### Master Safety Ceiling
-Master volume is strictly clamped to $0.7$ ($-3\text{dB}$) to prevent clipping during simultaneous multi-building explosions.
+### 4. Building Collapse & Implosion Rumble Synthesizer
+- **Waveform**: `sine` low-frequency pulse oscillator combined with low-pass filtered noise burst.
+- **Frequency Envelope**: $f(t): 45\text{Hz} \rightarrow 15\text{Hz}$ with random frequency modulation over $1.2\text{s}$.
+- **Gain Envelope**: $g(t): 0.6 \rightarrow 0.001$ exponential decay over $1.2\text{s}$, triggered on `blast360` 3D skyscraper demolition events.
+
+---
+
+## 5. Demolition Audio Synchronization Architecture
+
+In earlier iterations, asynchronous polling of `fxQueue` across independent logic and render ticks caused audible desync (explosions sounding hundreds of milliseconds after buildings collapsed, or audio double-firing on lag spikes).
+
+ALINV-3D resolves this with **Direct FX Event Processing**:
+
+```
+DestructionSystem (Logic)
+       │
+       ▼ fxQueue.push(event)
+FXRenderer.tick() (Render Loop)
+       │
+       ├─► CameraController.isPointInView() ──► Spawn Visual Meshes
+       │
+       └─► AudioSystem.processEvent(event) ──► Instant WebAudio Dispatch
+```
+
+1. **Synchronous Dispatch**: `AudioSystem.processEvent(event)` is called directly within `FXRenderer.tick()` as each `FXEvent` is popped and validated.
+2. **Deterministic Playback**: Visual flash meshes and synthesized audio envelopes fire within the exact same frame boundary ($\Delta t \le 16.6\text{ms}$).
+3. **Master Safety Ceiling**: Master volume is strictly clamped to $0.7$ ($-3\text{dB}$) to prevent clipping during simultaneous multi-building chain collapses.
 
 ---
 *Back to [Documentation Sitemap](file:///home/berkans/development/alienv2/docs/README.md)*

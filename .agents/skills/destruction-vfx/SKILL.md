@@ -17,11 +17,20 @@ Governs destruction events, 150ms visual juice flinch transforms, explosion bill
   - Particle Pool: `maxParticles = 500` (sparks, dust, smoke).
   - Debris Pool: `maxDebris = 300` (brick chunks). Gravity $= 35.0$, bounce restitution $= 0.35$, friction $= 0.7$, max bounces $= 5$.
   - Free-list index stacks (`freeParticleIndices`, `freeDebrisIndices`) guarantee $O(1)$ allocation without GC heap allocations.
+- **Instanced Decal Pooling (`DecalManager.ts`):**
+  - `MAX_ACTIVE_DECALS = 50` per type (`scorch` and `crater`) pre-allocated as `THREE.InstancedMesh` on Layer 2 (`Y = 0.02`).
+  - Collapses 100 decals into 2 draw calls. Matrix updates use $(index + 1) \pmod{50}$ ring buffer.
+- **Laser Beam Geometry Pooling (`FXRenderer.ts`):**
+  - `MAX_POOLED_LASERS = 8` pre-allocated line pairs and ring impact meshes.
+  - Updates buffer attribute `Float32Array` in place (`needsUpdate = true`). Discards off-screen beams via `CameraController.isPointInView`.
+- **View Frustum Culling:**
+  - `CameraController.isPointInView(x, z)` must be evaluated before allocating or triggering explosion rings, sparks, or point lights.
+- **Synchronized Audio Triggering:**
+  - `AudioSystem.processEvent(event)` is invoked directly inside `FXRenderer.tick()` as events are popped, eliminating inter-tick audio desync.
 - **Explosion Peak-Frame Swap:**
   - `PEAK_FRAME_BLAST = 2` (frame 2 of 11).
   - `PEAK_FRAME_BLAST360 = 3` (frame 3 of 7).
   - Texture swaps trigger at peak explosion frame via `DestructionSystem.executeTextureSwap()`.
-- **Decal Limits:** `MAX_ACTIVE_DECALS = 50` on Layer 2 (`Y = 0.02`).
 
 ## 3. Code & File Dependencies
 - [DestructionSystem.ts](file:///home/berkans/development/alienv2/src/systems/DestructionSystem.ts) — Damage calculation, zonal health reduction, and `fxQueue` message bus.

@@ -13,8 +13,7 @@ import {
 } from '../core/Components';
 import { CityGenerator } from '../systems/CityGenerator';
 import { GeneratedMapData, SerializedTile } from './GeneratedMapSchema';
-
-
+import { AssetLoader } from '../assets/AssetLoader';
 
 export class MapLoader {
   /**
@@ -22,11 +21,13 @@ export class MapLoader {
    */
   public static async loadAndInstantiate(jsonPath: string = '/map_data.json'): Promise<boolean> {
     try {
-      console.log(`[MapLoader] Fetching authoritative city map from ${jsonPath}...`);
-      let response = await fetch(`${jsonPath}?t=${Date.now()}`, { cache: 'no-store' });
+      const resolvedPath = AssetLoader.getAssetUrl(jsonPath);
+      console.log(`[MapLoader] Fetching authoritative city map from ${resolvedPath}...`);
+      let response = await fetch(`${resolvedPath}?t=${Date.now()}`, { cache: 'no-store' });
 
       if (!response.ok && jsonPath !== '/generated_map.json') {
-        response = await fetch(`/generated_map.json?t=${Date.now()}`, { cache: 'no-store' });
+        const fallbackPath = AssetLoader.getAssetUrl('/generated_map.json');
+        response = await fetch(`${fallbackPath}?t=${Date.now()}`, { cache: 'no-store' });
       }
 
       let data: GeneratedMapData | null = null;

@@ -11,6 +11,15 @@ export class AssetLoader {
   public static mapData: any[] = [];
   public static spriteOffsets: any = {};
 
+  public static getAssetUrl(path: string): string {
+    if (!path || path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) {
+      return path;
+    }
+    const base = import.meta.env.BASE_URL || './';
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    return base.endsWith('/') ? `${base}${cleanPath}` : `${base}/${cleanPath}`;
+  }
+
   public static async loadAll(): Promise<void> {
     // Configure DRACOLoader for compressed GLTF models
     this.dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/gltf/');
@@ -34,7 +43,7 @@ export class AssetLoader {
 
     // 1. Load Map Data
     promises.push(
-      fetch(`/map_data.json?t=${Date.now()}`, { cache: 'no-store' })
+      fetch(this.getAssetUrl(`/map_data.json?t=${Date.now()}`), { cache: 'no-store' })
         .then(res => res.json())
         .then(data => { this.mapData = data; })
         .catch(err => console.error("Failed to load map data:", err))
@@ -42,7 +51,7 @@ export class AssetLoader {
 
     // 1.5 Load Sprite Offsets
     promises.push(
-      fetch(`/sprite_offsets.json?t=${Date.now()}`, { cache: 'no-store' })
+      fetch(this.getAssetUrl(`/sprite_offsets.json?t=${Date.now()}`), { cache: 'no-store' })
         .then(res => res.json())
         .then(data => { this.spriteOffsets = data; })
         .catch(err => console.error("Failed to load sprite offsets:", err))
@@ -153,6 +162,7 @@ export class AssetLoader {
   }
 
   public static async loadTexture(id: string, url: string, pixelated: boolean = true): Promise<THREE.Texture> {
+    const finalUrl = this.getAssetUrl(url);
     return new Promise((resolve) => {
       if (this.textures.has(id)) {
         resolve(this.textures.get(id)!);
@@ -160,7 +170,7 @@ export class AssetLoader {
       }
 
       this.loader.load(
-        url,
+        finalUrl,
         (texture) => {
           if (pixelated) {
             texture.minFilter = THREE.NearestFilter;
@@ -212,6 +222,7 @@ export class AssetLoader {
   }
 
   public static async loadGLTF(id: string, url: string): Promise<GLTF | null> {
+    const finalUrl = this.getAssetUrl(url);
     return new Promise((resolve) => {
       if (this.gltfModels.has(id)) {
         resolve(this.gltfModels.get(id)!);
@@ -219,7 +230,7 @@ export class AssetLoader {
       }
 
       this.gltfLoader.load(
-        url,
+        finalUrl,
         (gltf) => {
           console.log(`[AssetLoader] Successfully loaded 3D GLTF asset [${id}] from ${url}`, gltf);
           this.gltfModels.set(id, gltf);

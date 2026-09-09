@@ -93,7 +93,7 @@ export class DecalManager {
 
     // If preloaded crater texture was still pending, load asynchronously and swap
     if (!loadedCraterTex) {
-      new THREE.TextureLoader().load('/crater.png', (tex) => {
+      new THREE.TextureLoader().load(AssetLoader.getAssetUrl('/crater.png'), (tex) => {
         tex.minFilter = THREE.LinearMipmapLinearFilter;
         tex.magFilter = THREE.LinearFilter;
         this.craterMaterial.map = tex;

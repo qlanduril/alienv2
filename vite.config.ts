@@ -19,6 +19,7 @@ function watchStaticMapsPlugin(): Plugin {
 }
 
 export default defineConfig({
+  base: './',
   plugins: [watchStaticMapsPlugin()],
   publicDir: 'static',
   server: {

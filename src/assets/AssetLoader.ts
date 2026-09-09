@@ -15,9 +15,18 @@ export class AssetLoader {
     if (!path || path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) {
       return path;
     }
-    const base = import.meta.env.BASE_URL || './';
     const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    return base.endsWith('/') ? `${base}${cleanPath}` : `${base}/${cleanPath}`;
+    let base = import.meta.env.BASE_URL || './';
+    if (typeof document !== 'undefined' && document.baseURI) {
+      try {
+        const pathname = new URL(document.baseURI).pathname;
+        if (pathname && pathname !== '/') {
+          base = pathname;
+        }
+      } catch {}
+    }
+    const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+    return `${normalizedBase}${cleanPath}`;
   }
 
   public static async loadAll(): Promise<void> {

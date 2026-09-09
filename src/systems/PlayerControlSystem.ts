@@ -13,7 +13,7 @@ import { PlayerRenderer } from '../rendering/PlayerRenderer';
 import { BuildingRenderer } from '../rendering/BuildingRenderer';
 
 // --- System Constants ---
-const ZONAL_DAMAGE_AMOUNT = 20; // 20 dmg per hit for smooth multi-stage damage progression
+const ZONAL_DAMAGE_AMOUNT = 25; // 25 dmg per hit (little buildings 60-75 HP take 2-3 shots)
 const WEAPON_HEAT_DEFAULT = 0;
 const LERP_FOLLOW_SPEED = 8.0; // Buoyant, smooth asynchronous UFO motion speed
 const WASD_SPEED = 90;

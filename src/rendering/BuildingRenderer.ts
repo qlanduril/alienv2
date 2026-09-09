@@ -10,6 +10,8 @@ import { HitZoneManager } from './HitZoneManager';
 import { BUILDING_ZONES } from '../core/ZoneDefs';
 import { BUILDING_DEFS } from '../core/BuildingDefs';
 import { DestructionSystem } from '../systems/DestructionSystem';
+import { DecalManager } from './TileSystem/DecalManager';
+import { CameraController } from './CameraController';
 
 // --- Rendering Constants ---
 const HALF_DIVISOR = 2.0;
@@ -106,6 +108,14 @@ interface BlendState {
   isBlending: boolean;
 }
 
+interface Demolition2DState {
+  elapsed: number;
+  duration: number;
+  footprintSize: number;
+  craterSpawned: boolean;
+  palette?: number[];
+}
+
 const BUILDING_VERTEX_SHADER = `
   varying vec2 vUv;
   void main() {
@@ -168,6 +178,7 @@ export class BuildingRenderer {
   private static displayFrameMap = new Map<Entity, number>();
   private static demoStateMap = new Map<Entity, { isDemolishing: boolean; elapsedTime: number; maxDuration: number }>();
   private static partialDamageTimeMap = new Map<Entity, number>();
+  private static demo2DMap = new Map<Entity, Demolition2DState>();
 
   /**
    * Lazily generates a procedural soft contact ambient occlusion texture
@@ -249,6 +260,17 @@ export class BuildingRenderer {
     if (!this.collapseMap.has(entity)) {
       this.collapseMap.set(entity, { tiltAngle: ZERO_VALUE, impactVector: impactDir.clone().normalize() });
     }
+  }
+
+  public static trigger2DDemolition(entity: Entity, footprintSize: number, palette?: number[]) {
+    if (this.demo2DMap.has(entity)) return;
+    this.demo2DMap.set(entity, {
+      elapsed: ZERO_VALUE,
+      duration: 1.2,
+      footprintSize,
+      craterSpawned: false,
+      palette
+    });
   }
 
   public static crushBuildingsInTrajectory(originPos: any, impactDir: THREE.Vector3, range: number = CRUSH_RANGE_DEFAULT) {
@@ -370,7 +392,112 @@ export class BuildingRenderer {
       const { texture, offset } = this.updateTextureAndOffset(entity, renderState, material, delta);
       const fx = this.processHitEffects(entity, delta);
 
-      this.updateTransformAndPhysics(entity, sprite, pos, renderState, typeKey, offset, texture, delta, fx);
+      // Check 2D demolition state
+      const demo2D = this.demo2DMap.get(entity);
+      let demoSinkOffset = ZERO_VALUE;
+      let demoTiltZ = ZERO_VALUE;
+
+      if (demo2D) {
+        demo2D.elapsed += delta;
+        const progress = Math.min(1.0, demo2D.elapsed / demo2D.duration);
+
+        // Continuous demolition secondary pops & sparks while sinking
+        if (progress < 0.95 && Math.random() < 0.22) {
+          const randX = pos.worldX + (Math.random() - RANDOM_CENTER_OFFSET) * (demo2D.footprintSize * 0.35);
+          const randZ = pos.worldY + (Math.random() - RANDOM_CENTER_OFFSET) * (demo2D.footprintSize * 0.35);
+          const randH = 4 + Math.random() * 20;
+          if (Math.random() < 0.4) {
+            DestructionSystem.fxQueue.push({
+              type: 'blast360',
+              x: randX, y: randZ, z: randH,
+              data: { entityId: entity, targetFrame: 0 }
+            });
+          } else {
+            DestructionSystem.fxQueue.push({
+              type: 'smoke',
+              x: randX, y: randZ, z: randH,
+              data: { count: 3, entityId: entity }
+            });
+          }
+          if (Math.random() < 0.3) {
+            DestructionSystem.fxQueue.push({
+              type: 'sparks',
+              x: randX, y: randZ, z: randH,
+              data: { count: 5, entityId: entity }
+            });
+          }
+        }
+
+        demoSinkOffset = progress * 24.0;
+        demoTiltZ = Math.sin(progress * Math.PI) * 0.08;
+
+        if (progress > 0.35) {
+          renderState.opacity = Math.max(0, 1.0 - (progress - 0.35) / 0.65);
+        }
+
+        if (progress >= 1.0) {
+          renderState.visible = false;
+          renderState.opacity = 0;
+
+          if (!demo2D.craterSpawned) {
+            demo2D.craterSpawned = true;
+            DecalManager.spawnDecal(pos.worldX, pos.worldY, 'crater', demo2D.footprintSize);
+
+            DestructionSystem.fxQueue.push({
+              type: 'smoke',
+              x: pos.worldX, y: pos.worldY, z: 1,
+              data: { count: 16, entityId: entity }
+            });
+            DestructionSystem.fxQueue.push({
+              type: 'sparks',
+              x: pos.worldX, y: pos.worldY, z: 2,
+              data: { count: 10, entityId: entity }
+            });
+
+            if (sprite) {
+              RaycasterHelper.unregisterObject(sprite);
+            }
+            const shadow = this.shadowMeshes.get(entity);
+            if (shadow) {
+              shadow.visible = false;
+            }
+          }
+        }
+      } else {
+        // Active damage smoldering stream for living damaged buildings (curHp < maxHp * 0.5)
+        const zonal = ZonalHealthComponent.get(entity);
+        const health = HealthComponent.get(entity);
+        const curHp = zonal ? zonal.totalHp : (health ? health.currentHP : 100);
+        const maxHp = zonal ? zonal.maxTotalHp : (health ? health.maxHP : 100);
+
+        if (curHp > 0 && curHp < maxHp * 0.5 && Math.random() < 0.035) {
+          if (CameraController.isPointInView(pos.worldX, pos.worldY)) {
+            const h = def ? (def.height || 40) * (def.visualScale || 1.0) : 30;
+            const randSmokeX = pos.worldX + (Math.random() - RANDOM_CENTER_OFFSET) * 6;
+            const randSmokeY = pos.worldY + (Math.random() - RANDOM_CENTER_OFFSET) * 6;
+            const randSmokeZ = h * 0.5 + Math.random() * (h * 0.3);
+            if (Math.random() < 0.6) {
+              DestructionSystem.fxQueue.push({
+                type: 'smoke',
+                x: randSmokeX,
+                y: randSmokeY,
+                z: randSmokeZ,
+                data: { count: 2, entityId: entity }
+              });
+            } else {
+              DestructionSystem.fxQueue.push({
+                type: 'fire',
+                x: randSmokeX,
+                y: randSmokeY,
+                z: randSmokeZ,
+                data: { entityId: entity }
+              });
+            }
+          }
+        }
+      }
+
+      this.updateTransformAndPhysics(entity, sprite, pos, renderState, typeKey, offset, texture, delta, fx, demoSinkOffset, demoTiltZ);
       this.processHitFlash(entity, material, delta);
 
       sprite.visible = renderState.visible;
@@ -389,9 +516,9 @@ export class BuildingRenderer {
     'b1': 3,
     'b2': 3,
     'b3': 3,
-    'b4': 3,
+    'b4': 2,
     'res_bronze': 3,
-    'res_sky': 3,
+    'res_sky': 2,
     'sky_artdeco': 3,
     'sky_biotech': 3,
     'sky_cyber': 3,
@@ -596,7 +723,9 @@ export class BuildingRenderer {
     offset: any,
     texture: THREE.Texture | null | undefined,
     delta: number,
-    fx: { scaleXMult: number; scaleYMult: number; shudderDX: number; shudderDZ: number }
+    fx: { scaleXMult: number; scaleYMult: number; shudderDX: number; shudderDZ: number },
+    demoSinkOffset: number = ZERO_VALUE,
+    demoTiltZ: number = ZERO_VALUE
   ) {
     // 1. Footprint & Mesh Sizing (Aligned to Grid Cell Lot Dimensions)
     const { def } = this.getTypeInfo(entity, renderState.texturePrefix);
@@ -674,11 +803,11 @@ export class BuildingRenderer {
         renderState.currentFrame = this.BUILDING_MAX_FRAMES[typeKey] ?? RUBBLE_STAGE_FRAME;
       }
     } else {
-      // Clean upright vertical placement facing isometric camera
+      // Clean upright vertical placement facing isometric camera, with demolition sink & tilt
       sprite.matrixAutoUpdate = true;
       sprite.scale.set(sx, sy, INITIAL_SCALE_UNIT);
-      sprite.rotation.set(0, ISOMETRIC_ROTATION_Y, 0);
-      sprite.position.set(tx, y_mesh, tz);
+      sprite.rotation.set(0, ISOMETRIC_ROTATION_Y, demoTiltZ);
+      sprite.position.set(tx, y_mesh - demoSinkOffset, tz);
     }
 
     // 5. Ground Contact Ambient Occlusion Shadow for 2D sprites
@@ -733,12 +862,12 @@ export class BuildingRenderer {
 
     let demoState = this.demoStateMap.get(entity);
 
-    // Partial damage timeline scrubbing (Frames 1-40 mapped to 0..1.33 seconds)
-    const PARTIAL_DAMAGE_MAX_TIME = 1.33;
+    // Partial damage timeline scrubbing (Frames 1-20 mapped to 0..0.80 seconds for structural tension)
+    const PARTIAL_DAMAGE_MAX_TIME = 0.80;
 
     // Trigger full video demolition when HP reaches 0
     if (curHp <= 0 && !demoState) {
-      const currentPartialTime = this.partialDamageTimeMap.get(entity) || PARTIAL_DAMAGE_MAX_TIME;
+      const currentPartialTime = this.partialDamageTimeMap.get(entity) || 0.0;
       demoState = {
         isDemolishing: true,
         elapsedTime: currentPartialTime,
@@ -822,6 +951,17 @@ export class BuildingRenderer {
             type: 'debris',
             x: pos.worldX, y: pos.worldY, z: pos.worldZ,
             data: { count: 5, entityId: entity, palette: [0x888888, 0x555555, 0xaaaaaa] }
+          });
+        }
+
+        // Final catastrophic ground zero crater impact when demolition reaches full duration
+        if (prevTime < demoState.maxDuration && demoState.elapsedTime >= demoState.maxDuration) {
+          DecalManager.spawnDecal(pos.worldX, pos.worldY, 'crater', 38);
+          DestructionSystem.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: 16 } });
+          DestructionSystem.fxQueue.push({
+            type: 'blast360',
+            x: pos.worldX, y: pos.worldY, z: 4,
+            data: { entityId: entity, targetFrame: 0 }
           });
         }
       }
@@ -1084,6 +1224,7 @@ export class BuildingRenderer {
         this.cachedDef.delete(entity);
         this.displayFrameMap.delete(entity);
         this.demoStateMap.delete(entity);
+        this.demo2DMap.delete(entity);
         this.blendMap.delete(entity);
       }
     }
@@ -1123,6 +1264,7 @@ export class BuildingRenderer {
         this.cachedDef.delete(entity);
         this.displayFrameMap.delete(entity);
         this.demoStateMap.delete(entity);
+        this.demo2DMap.delete(entity);
         this.blendMap.delete(entity);
       }
     }
@@ -1171,5 +1313,6 @@ export class BuildingRenderer {
     this.cachedOffset.clear();
     this.cachedTypeKey.clear();
     this.cachedDef.clear();
+    this.demo2DMap.clear();
   }
 }

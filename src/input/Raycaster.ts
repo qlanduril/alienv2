@@ -19,6 +19,14 @@ export class RaycasterHelper {
     this.objectToEntityMap.set(object.uuid, entity);
   }
 
+  public static unregisterObject(object: THREE.Object3D) {
+    const idx = this.intersectableObjects.indexOf(object);
+    if (idx !== -1) {
+      this.intersectableObjects.splice(idx, 1);
+    }
+    this.objectToEntityMap.delete(object.uuid);
+  }
+
   public static getIntersectedEntity(): Entity | null {
     if (!this.camera) return null;
 

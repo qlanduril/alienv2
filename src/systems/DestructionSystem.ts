@@ -5,7 +5,7 @@ import { DamageZone } from '../core/ZoneDefs';
 import { DamageStateTree, DamageLevel } from '../core/DamageStateTree';
 import { DecalManager } from '../rendering/TileSystem/DecalManager';
 import { BuildingRenderer } from '../rendering/BuildingRenderer';
-import * as THREE from 'three';
+import { ParticleSimSystem } from './ParticleSimSystem';
 
 export type FXEvent =
   | { type: 'blast' | 'blast360'; x: number; y: number; z: number; data: { entityId: Entity; targetFrame: number } }
@@ -116,6 +116,11 @@ export class DestructionSystem {
           zone.hp = Math.max(0, zone.hp - damage);
           zonal.totalHp = Math.max(0, zonal.totalHp - damage);
 
+          const health = HealthComponent.get(entity);
+          if (health) {
+            health.currentHP = zonal.totalHp;
+          }
+
           const newLevel = DamageStateTree.computeZoneLevel(zone.hp / zone.maxHp);
           if (newLevel > zone.level) {
             zone.level = newLevel;
@@ -220,6 +225,11 @@ export class DestructionSystem {
     zone.hp = Math.max(0, zone.hp - amount);
     zonalHealth.totalHp = Math.max(0, zonalHealth.totalHp - amount);
 
+    const health = HealthComponent.get(entity);
+    if (health) {
+      health.currentHP = zonalHealth.totalHp;
+    }
+
     // Update damage level for zone (drives collapse flag)
     const newLevel = DamageStateTree.computeZoneLevel(zone.hp / zone.maxHp);
     const levelChanged = newLevel > zone.level;
@@ -232,16 +242,25 @@ export class DestructionSystem {
     }
 
     // ── 1. Calculate target damage frame (swap deferred to peak explosion frame mask) ──
-    const { typeKey } = BuildingRenderer.getTypeInfo(entity, renderState.texturePrefix);
+    const { typeKey, def } = BuildingRenderer.getTypeInfo(entity, renderState.texturePrefix);
     const maxFrame    = BuildingRenderer.BUILDING_MAX_FRAMES[typeKey] ?? 14;
 
     // Direct mapping: damage fraction → targetFrame
     const dmgFraction = 1 - zonalHealth.totalHp / zonalHealth.maxTotalHp;
     const targetFrame = Math.min(Math.floor(dmgFraction * maxFrame), maxFrame);
 
+    // Compute footprint-scaled size for crater / effects
+    const vScale = def ? (def.visualScale || 1.0) : 1.0;
+    const footprintWidth = def ? (def.width || 16) : 16;
+    const footprintDiagonal = footprintWidth * Math.SQRT2 * vScale;
+    const craterSize = Math.max(18, Math.round(footprintDiagonal * 1.15));
+
     // ── 2. Scorch / crater decal ─────────────────────────────────────────
-    const decalType = (dmgFraction > 0.6 || zonalHealth.totalHp <= 0) ? 'crater' : 'scorch';
-    DecalManager.spawnDecal(pos.worldX, pos.worldY, decalType, 12 + newLevel * 4);
+    if (zonalHealth.totalHp > 0) {
+      const decalType = dmgFraction > 0.6 ? 'crater' : 'scorch';
+      const decalSize = dmgFraction > 0.6 ? Math.round(craterSize * 0.6) : (10 + newLevel * 3);
+      DecalManager.spawnDecal(pos.worldX, pos.worldY, decalType, decalSize);
+    }
 
     // ── 3. Zonal blast FX ────────────────────────────────────────────────
     this.fxQueue.push({
@@ -267,9 +286,21 @@ export class DestructionSystem {
     this.fxQueue.push({ type: 'fire',   x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
     this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: (levelChanged || newLevel >= 2) ? 'heavy' : 'light' } });
 
-    // ── 6. Mega building collapse when totally destroyed ─────────────────
-    if (renderState.texturePrefix.includes('mega_') && zonalHealth.totalHp <= 0) {
-      BuildingRenderer.triggerCollapse(entity, new THREE.Vector3(0.707, 0, 0.707));
+    // ── 6. Building demolition & collapse when totally destroyed ─────────
+    if (zonalHealth.totalHp <= 0) {
+      if (def && def.is3D) {
+        // 3D building handled by update3DBuilding timeline
+      } else {
+        // 2D building demolition lifecycle (crumble, sink, footprint-scaled crater)
+        BuildingRenderer.trigger2DDemolition(entity, craterSize, palette);
+        ParticleSimSystem.spawnDemolitionVolcano(pos.worldX, 1, pos.worldY, craterSize, palette);
+        this.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: 12 } });
+        this.fxQueue.push({
+          type: 'blast360',
+          x: pos.worldX, y: pos.worldY, z: 6,
+          data: { entityId: entity, targetFrame: maxFrame }
+        });
+      }
     }
   }
 
@@ -281,15 +312,35 @@ export class DestructionSystem {
     if (!health || !renderState || !pos) return;
 
     health.currentHP = Math.max(0, health.currentHP - amount);
+    const zonalHealth = ZonalHealthComponent.get(entity);
+    if (zonalHealth) {
+      zonalHealth.totalHp = health.currentHP;
+    }
 
     const prefixMatch = renderState.texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/);
     const typeKey     = prefixMatch ? prefixMatch[1] : '3';
     const maxFrame    = BuildingRenderer.BUILDING_MAX_FRAMES[typeKey] ?? 14;
     const newFrameIndex = DamageCalc.computeFrameIndex(health.currentHP, health.maxHP, maxFrame);
 
+    let palette = [0x884422, 0xaa5533, 0x663311];
+    if (typeKey === '1') palette = [0xffffff, 0xdddddd, 0xaaaaaa, 0xff4444];
+    else if (typeKey === '3') palette = [0xd2b48c, 0xaaaaaa, 0x888888, 0x5c4033];
+
     if (newFrameIndex !== health.state) {
       health.state = newFrameIndex;
-      DecalManager.spawnDecal(pos.worldX, pos.worldY, 'scorch', 15);
+
+      const { def } = BuildingRenderer.getTypeInfo(entity, renderState.texturePrefix);
+      const vScale = def ? (def.visualScale || 1.0) : 1.0;
+      const footprintWidth = def ? (def.width || 16) : 16;
+      const craterSize = Math.max(18, Math.round(footprintWidth * Math.SQRT2 * vScale * 1.15));
+
+      if (health.currentHP <= 0 && (!def || !def.is3D)) {
+        BuildingRenderer.trigger2DDemolition(entity, craterSize, palette);
+        ParticleSimSystem.spawnDemolitionVolcano(pos.worldX, 1, pos.worldY, craterSize, palette);
+        this.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: 12 } });
+      } else {
+        DecalManager.spawnDecal(pos.worldX, pos.worldY, 'scorch', 15);
+      }
 
       this.fxQueue.push({
         type: newFrameIndex === maxFrame ? 'blast' : 'blast360',
@@ -297,10 +348,6 @@ export class DestructionSystem {
         data: { entityId: entity, targetFrame: newFrameIndex }
       });
       this.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: 8 } });
-
-      let palette = [0x884422, 0xaa5533, 0x663311];
-      if (typeKey === '1') palette = [0xffffff, 0xdddddd, 0xaaaaaa, 0xff4444];
-      else if (typeKey === '3') palette = [0xd2b48c, 0xaaaaaa, 0x888888, 0x5c4033];
 
       this.fxQueue.push({ type: 'debris', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: Math.min(newFrameIndex * 3, 30), entityId: entity, palette } });
       this.fxQueue.push({ type: 'dust',   x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 15, entityId: entity } });

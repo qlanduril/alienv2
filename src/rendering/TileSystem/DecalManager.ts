@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SceneManager } from '../SceneManager';
+import { AssetLoader } from '../../assets/AssetLoader';
 
 // --- DecalManager Constants ---
 const ZERO_VALUE = 0;
@@ -22,7 +23,7 @@ const DEFAULT_DECAL_SIZE = 15;
 const DECAL_ROTATION_X = -Math.PI / 2;
 const DECAL_ROUGHNESS = 0.95;
 const DECAL_METALNESS = 0.05;
-const MAX_ACTIVE_DECALS = 50;
+const MAX_ACTIVE_DECALS = 80;
 
 export interface DecalInstance {
   id: string;
@@ -37,7 +38,7 @@ export interface DecalInstance {
  * DecalManager.ts
  *
  * High-performance ground scorch & impact crater manager.
- * Uses InstancedMesh batching to collapse up to 50 active decals into 2 draw calls,
+ * Uses InstancedMesh batching to collapse up to 80 active decals into 2 draw calls,
  * completely eliminating per-explosion PlaneGeometry and Material heap thrashing.
  */
 export class DecalManager {
@@ -71,7 +72,8 @@ export class DecalManager {
     this.unitGeometry = new THREE.PlaneGeometry(1, 1);
 
     const scorchTex = this.decalTextures.get('scorch')!;
-    const craterTex = this.decalTextures.get('crater')!;
+    const loadedCraterTex = AssetLoader.getTexture('fx_crater');
+    const craterTex = loadedCraterTex || this.decalTextures.get('crater')!;
 
     this.scorchMaterial = new THREE.MeshStandardMaterial({
       map: scorchTex,
@@ -88,6 +90,16 @@ export class DecalManager {
       roughness: DECAL_ROUGHNESS,
       metalness: DECAL_METALNESS
     });
+
+    // If preloaded crater texture was still pending, load asynchronously and swap
+    if (!loadedCraterTex) {
+      new THREE.TextureLoader().load('/crater.png', (tex) => {
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        this.craterMaterial.map = tex;
+        this.craterMaterial.needsUpdate = true;
+      });
+    }
 
     // Pre-allocate InstancedMesh pools (MAX_ACTIVE_DECALS per type)
     this.scorchMesh = new THREE.InstancedMesh(this.unitGeometry, this.scorchMaterial, MAX_ACTIVE_DECALS);

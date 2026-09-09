@@ -57,6 +57,30 @@ export class ParticleSimSystem {
     }
   }
 
+  // Glowing burning embers — draft upwards, linger ~1.5 - 2.5s
+  public static spawnEmberBurst(x: number, y: number, z: number, count: number) {
+    for (let i = 0; i < count; i++) {
+      const vx = (Math.random() - 0.5) * 4.0;
+      const vy = Math.random() * 5.0 + 3.0; // upward draft
+      const vz = (Math.random() - 0.5) * 4.0;
+      physicsModel.spawnParticle(x, y, z, vx, vy, vz, 1.5 + Math.random() * 1.0, 'fire_ember');
+    }
+  }
+
+  // Catastrophic demolition explosion: combines high-velocity debris, dust ring, sparks, smoke and embers
+  public static spawnDemolitionVolcano(x: number, y: number, z: number, size: number = 20, palette?: number[]) {
+    const debrisCount = Math.min(60, Math.floor(size * 1.5));
+    const sparkCount = Math.min(45, Math.floor(size * 1.2));
+    const smokeCount = Math.min(30, Math.floor(size * 0.8));
+    const emberCount = Math.min(25, Math.floor(size * 0.7));
+
+    this.spawnBrickBurst(x, y, z, debrisCount, palette);
+    this.spawnSparkBurst(x, y, z, sparkCount);
+    this.spawnSmokePlume(x, y, z, smokeCount);
+    this.spawnDustCloud(x, y, z, Math.floor(smokeCount * 0.8));
+    this.spawnEmberBurst(x, y, z, emberCount);
+  }
+
   // Legacy generic debris burst
   public static spawnDebrisBurst(x: number, y: number, z: number, count: number) {
     for (let i = 0; i < count; i++) {

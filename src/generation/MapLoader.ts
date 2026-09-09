@@ -2,7 +2,7 @@ import { TileMap, TerrainType, OverlayTileType, BuildingLot } from '../rendering
 import { LotManager } from '../rendering/TileSystem/LotManager';
 import { SpatialGrid } from '../core/SpatialGrid';
 import { ECS } from '../core/ECS';
-import { BUILDING_DEFS } from '../core/BuildingDefs';
+import { BUILDING_DEFS, getBuildingMaxHP } from '../core/BuildingDefs';
 import { BUILDING_ZONES } from '../core/ZoneDefs';
 import {
   PositionComponent,
@@ -14,7 +14,7 @@ import {
 import { CityGenerator } from '../systems/CityGenerator';
 import { GeneratedMapData, SerializedTile } from './GeneratedMapSchema';
 
-const HP_PER_ZONE = 60;
+
 
 export class MapLoader {
   /**
@@ -112,11 +112,11 @@ export class MapLoader {
       let spawnedCount = 0;
       const occupiedGrid = Array.from({ length: gridDim }, () => new Uint8Array(gridDim));
 
-      // Pre-seed occupied grid with all road cells (1 = Road / Hard impassable)
+      // Pre-seed occupied grid with all road and water cells (1 = Road / Water impassable)
       for (let x = 0; x < gridDim; x++) {
         for (let z = 0; z < gridDim; z++) {
           const c = TileMap.getCell(x, z);
-          if (c && c.overlayType === OverlayTileType.ROAD) {
+          if (c && (c.overlayType === OverlayTileType.ROAD || c.terrainType === TerrainType.WATER)) {
             occupiedGrid[x][z] = 1;
           }
         }
@@ -206,6 +206,58 @@ export class MapLoader {
         spawnedCount++;
       }
 
+      // ── Step 4.5: Urban Infill Pass (Density boost along streets/sidewalks) ──
+      // Populate vacant non-road, non-water cells with low/mid-rise buildings ('b1', 'b2', 'b3', 'b4', 'res_bronze', 'res_sky')
+      let seed = ((data.seed as number) || 424242) ^ 0x9e3779b9;
+      const nextRand = () => {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        return seed / 4294967296;
+      };
+
+      const infillTypes: Array<{ typeKey: string; lotType: string }> = [
+        { typeKey: 'b1', lotType: 'commercial' },
+        { typeKey: 'b2', lotType: 'residential' },
+        { typeKey: 'b3', lotType: 'residential' },
+        { typeKey: 'b4', lotType: 'commercial' },
+        { typeKey: 'res_bronze', lotType: 'residential' },
+        { typeKey: 'res_sky', lotType: 'residential' }
+      ];
+
+      for (let gx = 1; gx < gridDim - 1; gx++) {
+        for (let gz = 1; gz < gridDim - 1; gz++) {
+          if (occupiedGrid[gx][gz] === 0) {
+            // Prefer lots adjacent to streets or sidewalks for realistic urban frontage
+            let nearStreet = false;
+            for (let dx = -1; dx <= 1; dx++) {
+              for (let dz = -1; dz <= 1; dz++) {
+                const adjCell = TileMap.getCell(gx + dx, gz + dz);
+                if (adjCell && (adjCell.overlayType === OverlayTileType.ROAD || adjCell.overlayType === OverlayTileType.SIDEWALK)) {
+                  nearStreet = true;
+                  break;
+                }
+              }
+              if (nearStreet) break;
+            }
+
+            if (nearStreet && nextRand() < 0.44) {
+              occupiedGrid[gx][gz] = 2;
+              const pick = infillTypes[Math.floor(nextRand() * infillTypes.length)];
+              const pos = LotManager.computeLotWorldPos(gx, gz, 1, 1);
+              const entity = ECS.createEntity();
+              const lot = LotManager.calculateAndRegisterLot(
+                entity,
+                pos.x,
+                pos.z,
+                pick.typeKey,
+                pick.lotType
+              );
+              this.spawnBuildingEntity(entity, lot, pick.typeKey);
+              spawnedCount++;
+            }
+          }
+        }
+      }
+
       // ── Step 5: Rebuild spatial hash grid for raycasting / collision ──
       SpatialGrid.rebuild();
 
@@ -235,18 +287,22 @@ export class MapLoader {
       worldZ: 0.0               // Ground level
     });
 
-    HealthComponent.set(entity, { currentHP: 100, maxHP: 100, state: 0 });
+    const buildingMaxHp = getBuildingMaxHP(def);
+    const zonesDef = BUILDING_ZONES[typeKey] || BUILDING_ZONES['3'];
+    const hpPerZone = Math.max(5, Math.round(buildingMaxHp / zonesDef.length));
+    const totalHp = hpPerZone * zonesDef.length;
+
+    HealthComponent.set(entity, { currentHP: totalHp, maxHP: totalHp, state: 0 });
 
     const zoneMap = new Map();
-    const zonesDef = BUILDING_ZONES[typeKey] || BUILDING_ZONES['3'];
     for (const zd of zonesDef) {
-      zoneMap.set(zd.id, { id: zd.id, level: 0, hp: HP_PER_ZONE, maxHp: HP_PER_ZONE });
+      zoneMap.set(zd.id, { id: zd.id, level: 0, hp: hpPerZone, maxHp: hpPerZone });
     }
 
     ZonalHealthComponent.set(entity, {
       zones: zoneMap,
-      totalHp: HP_PER_ZONE * zonesDef.length,
-      maxTotalHp: HP_PER_ZONE * zonesDef.length,
+      totalHp: totalHp,
+      maxTotalHp: totalHp,
       globalDamageLevel: 0
     });
 

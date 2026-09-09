@@ -1,5 +1,5 @@
 import { ECS } from '../core/ECS';
-import { BUILDING_DEFS } from '../core/BuildingDefs';
+import { BUILDING_DEFS, getBuildingMaxHP } from '../core/BuildingDefs';
 import {
   PositionComponent,
   HealthComponent,
@@ -40,8 +40,7 @@ const ZONE_DENSITY: Partial<Record<ZoneId, number>> = {
   docks:       1.0,
 };
 
-// HP per zone (3 zones × HP_PER_ZONE = 180 total HP per building)
-const HP_PER_ZONE = 60;
+
 
 export class CityGenerator {
   public static generateCity() {
@@ -283,20 +282,23 @@ export class CityGenerator {
       worldZ: 0.0               // Ground level
     });
 
-    HealthComponent.set(entity, { currentHP: 100, maxHP: 100, state: 0 });
-
-    // ── Zonal Health — each zone starts at HP_PER_ZONE (50).
-    // With ZONAL_DAMAGE_AMOUNT=25, each zone takes 2 hits, total 6 hits to destroy.
-    const zoneMap = new Map();
+    // ── Life points based on size & footprint ──────────────────────────────
+    const buildingMaxHp = getBuildingMaxHP(def);
     const zonesDef = BUILDING_ZONES[typeKey] || BUILDING_ZONES['3'];
+    const hpPerZone = Math.max(5, Math.round(buildingMaxHp / zonesDef.length));
+    const totalHp = hpPerZone * zonesDef.length;
+
+    HealthComponent.set(entity, { currentHP: totalHp, maxHP: totalHp, state: 0 });
+
+    const zoneMap = new Map();
     for (const zd of zonesDef) {
-      zoneMap.set(zd.id, { id: zd.id, level: 0, hp: HP_PER_ZONE, maxHp: HP_PER_ZONE });
+      zoneMap.set(zd.id, { id: zd.id, level: 0, hp: hpPerZone, maxHp: hpPerZone });
     }
 
     ZonalHealthComponent.set(entity, {
       zones: zoneMap,
-      totalHp: HP_PER_ZONE * zonesDef.length,
-      maxTotalHp: HP_PER_ZONE * zonesDef.length,
+      totalHp: totalHp,
+      maxTotalHp: totalHp,
       globalDamageLevel: 0
     });
 

@@ -24,10 +24,11 @@ const BASE_FULL_SCALE = 1.0;
 
 // Color palette for particle types
 const PARTICLE_COLORS: Record<string, THREE.Color> = {
-  spark: new THREE.Color(0xffdd44),
-  dust:  new THREE.Color(0xaa8866),
-  smoke: new THREE.Color(0x444444),
-  brick: new THREE.Color(0x884422),
+  spark:      new THREE.Color(0xffdd44),
+  dust:       new THREE.Color(0xaa8866),
+  smoke:      new THREE.Color(0x444444),
+  brick:      new THREE.Color(0x884422),
+  fire_ember: new THREE.Color(0xff6611),
 };
 
 export class ParticleRenderer {
@@ -36,9 +37,11 @@ export class ParticleRenderer {
   
   private static dummy = new THREE.Object3D();
   private static tempColor = new THREE.Color();
+  private static emberHotColor = new THREE.Color(0xffcc33);
+  private static emberCoolColor = new THREE.Color(0xcc2200);
 
   public static init() {
-    // 1. Particles (sparks, dust, smoke)
+    // 1. Particles (sparks, dust, smoke, fire_embers)
     const particleGeo = new THREE.SphereGeometry(PARTICLE_SPHERE_RADIUS, PARTICLE_SPHERE_WIDTH_SEGMENTS, PARTICLE_SPHERE_HEIGHT_SEGMENTS);
     const particleMat = new THREE.MeshBasicMaterial({ color: BASE_WHITE_HEX }); // white base, tinted per-instance
     this.particleMesh = new THREE.InstancedMesh(particleGeo, particleMat, physicsModel.particles.length);
@@ -80,6 +83,10 @@ export class ParticleRenderer {
           // Smoke grows as it dissipates
           const smokeScale = SMOKE_BASE_SCALE + lifeRatio * SMOKE_GROWTH_FACTOR;
           this.dummy.scale.set(smokeScale, smokeScale, smokeScale);
+        } else if (p.type === 'fire_ember') {
+          // Embers stay visible, slight shrink
+          const emberScale = Math.max(PARTICLE_MIN_SCALE, 0.45 * (BASE_FULL_SCALE - lifeRatio * 0.5));
+          this.dummy.scale.set(emberScale, emberScale, emberScale);
         } else {
           // Others shrink as they die
           const scale = Math.max(PARTICLE_MIN_SCALE, BASE_FULL_SCALE - lifeRatio);
@@ -90,7 +97,12 @@ export class ParticleRenderer {
         this.particleMesh.setMatrixAt(pCount, this.dummy.matrix);
 
         // Per-instance color
-        this.tempColor.copy(PARTICLE_COLORS[p.type] || PARTICLE_COLORS.spark);
+        if (p.type === 'fire_ember') {
+          // Cool from bright yellow-orange to dark ember red
+          this.tempColor.copy(this.emberHotColor).lerp(this.emberCoolColor, lifeRatio);
+        } else {
+          this.tempColor.copy(PARTICLE_COLORS[p.type] || PARTICLE_COLORS.spark);
+        }
 
         // Fade smoke to transparent gray
         if (p.type === 'smoke') {

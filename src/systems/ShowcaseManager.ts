@@ -1,5 +1,5 @@
 import { ECS, Entity } from '../core/ECS';
-import { BUILDING_DEFS, BuildingDef } from '../core/BuildingDefs';
+import { BUILDING_DEFS, BuildingDef, getBuildingMaxHP } from '../core/BuildingDefs';
 import { BUILDING_ZONES } from '../core/ZoneDefs';
 import {
   PositionComponent,
@@ -110,27 +110,31 @@ export class ShowcaseManager {
         worldZ: 0.0 // Ground level
       });
 
+      const buildingMaxHp = getBuildingMaxHP(def);
+      const zonesDef = BUILDING_ZONES[typeKey] || BUILDING_ZONES['3'];
+      const hpPerZone = Math.max(5, Math.round(buildingMaxHp / zonesDef.length));
+      const totalHp = hpPerZone * zonesDef.length;
+
       HealthComponent.set(entity, {
-        currentHP: 100,
-        maxHP: 100,
+        currentHP: totalHp,
+        maxHP: totalHp,
         state: 0
       });
 
       const zoneMap = new Map();
-      const zonesDef = BUILDING_ZONES[typeKey] || BUILDING_ZONES['3'];
       for (const zd of zonesDef) {
         zoneMap.set(zd.id, {
           id: zd.id,
           level: 0,
-          hp: 100,
-          maxHp: 100
+          hp: hpPerZone,
+          maxHp: hpPerZone
         });
       }
 
       ZonalHealthComponent.set(entity, {
         zones: zoneMap,
-        totalHp: 100 * zonesDef.length,
-        maxTotalHp: 100 * zonesDef.length,
+        totalHp: totalHp,
+        maxTotalHp: totalHp,
         globalDamageLevel: 0
       });
 

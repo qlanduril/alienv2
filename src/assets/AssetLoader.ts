@@ -104,7 +104,7 @@ export class AssetLoader {
         this.loadTexture(`building_b3_stage_${idx+1}`, `/buildingv2/tower_midrise/png/${f}`);
         this.loadTexture(`building_res_bronze_stage_${idx+1}`, `/buildingv2/tower_midrise/png/${f}`);
       });
-      const highriseFrames = ['state_033_spire_blast.png', 'state_066_midsection_crater.png', 'state_100_skeleton_ruin.png'];
+      const highriseFrames = ['state_066_midsection_crater.png', 'state_100_skeleton_ruin.png'];
       highriseFrames.forEach((f, idx) => {
         this.loadTexture(`building_b4_stage_${idx+1}`, `/buildingv2/skyscraper_highrise/png/${f}`);
         this.loadTexture(`building_res_sky_stage_${idx+1}`, `/buildingv2/skyscraper_highrise/png/${f}`);
@@ -147,6 +147,7 @@ export class AssetLoader {
     for (let i = 0; i < 10; i++) {
       promises.push(this.loadTexture(`fx_fire_${i}`, `/fire/frame_${i}.png`));
     }
+    promises.push(this.loadTexture('fx_crater', '/crater.png', false));
 
     await Promise.all(promises);
   }

@@ -1,4 +1,4 @@
-export type ParticleType = 'spark' | 'dust' | 'smoke' | 'brick';
+export type ParticleType = 'spark' | 'dust' | 'smoke' | 'brick' | 'fire_ember';
 
 export interface ParticleData {
   x: number;
@@ -36,7 +36,7 @@ export class PhysicsModel {
   private freeParticleIndices: number[] = [];
   private freeDebrisIndices: number[] = [];
 
-  constructor(maxParticles: number = 500, maxDebris: number = 300) {
+  constructor(maxParticles: number = 1000, maxDebris: number = 600) {
     // Pre-allocate pools
     for (let i = 0; i < maxParticles; i++) {
       this.particles.push({
@@ -67,6 +67,11 @@ export class PhysicsModel {
         // Slow down horizontal drift
         p.vx *= (1 - 0.5 * delta);
         p.vz *= (1 - 0.5 * delta);
+      } else if (p.type === 'fire_ember') {
+        p.vy += 2.4 * delta; // embers draft upward faster
+        // Turbulent flutter
+        p.vx += Math.sin(p.life * 12.0) * 0.8 * delta;
+        p.vz += Math.cos(p.life * 12.0) * 0.8 * delta;
       }
 
       p.x += p.vx * delta;

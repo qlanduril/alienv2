@@ -46,10 +46,12 @@ export class InputManager {
       e.preventDefault();
     });
     
-    window.addEventListener('pointermove', (e) => {
+    const updatePointerPos = (e: MouseEvent | PointerEvent) => {
       this.mouseX = e.clientX;
       this.mouseY = e.clientY;
-    });
+    };
+    window.addEventListener('pointermove', updatePointerPos, { passive: true });
+    window.addEventListener('mousemove', updatePointerPos, { passive: true });
 
     window.addEventListener('resize', () => {
       this.screenWidth = window.innerWidth;

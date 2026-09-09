@@ -6,6 +6,7 @@ import { CameraController } from './CameraController';
 import { ScoreSystem } from '../systems/ScoreSystem';
 import { DefenseSystem } from '../systems/DefenseSystem';
 import { WeaponSystem } from '../systems/WeaponSystem';
+import { PlayerControlSystem } from '../systems/PlayerControlSystem';
 
 // --- UIOverlay Constants ---
 const ZERO_VALUE = 0;
@@ -58,6 +59,7 @@ export class UIOverlay {
   private static weaponBtn1: HTMLButtonElement | null = null;
   private static weaponBtn2: HTMLButtonElement | null = null;
   private static clusterOverlayEl: HTMLElement | null = null;
+  private static autopilotBtn: HTMLButtonElement | null = null;
   private static popupsContainer: HTMLElement | null = null;
   private static currentDestructionPercent: number = 0;
   private static tempVec = new THREE.Vector3();
@@ -148,6 +150,14 @@ export class UIOverlay {
             <div id="cluster-cooldown-overlay" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(245, 158, 11, 0.4); z-index: 1;"></div>
           </button>
         </div>
+
+        <!-- Row 5: Flight Mode Toggle for Laptop Trackpad Players -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 10px;">
+          <span style="color: #94a3b8; font-weight: 600;">FLIGHT MODE:</span>
+          <button id="autopilot-btn" title="Tip: If playing on laptop trackpad, toggle Autopilot [F] to glide toward mouse without holding keys!" style="padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; border: 1px solid #38bdf8; background: rgba(56, 189, 248, 0.15); color: #38bdf8; cursor: pointer; transition: all 0.2s ease;">
+            🛸 [F] TWIN-STICK
+          </button>
+        </div>
       </div>
     `;
 
@@ -165,6 +175,14 @@ export class UIOverlay {
     this.weaponBtn1 = this.scoreElement.querySelector('#weapon-btn-1');
     this.weaponBtn2 = this.scoreElement.querySelector('#weapon-btn-2');
     this.clusterOverlayEl = this.scoreElement.querySelector('#cluster-cooldown-overlay');
+    this.autopilotBtn = this.scoreElement.querySelector('#autopilot-btn');
+
+    if (this.autopilotBtn) {
+      this.autopilotBtn.onclick = () => {
+        PlayerControlSystem.mouseFollowMode = !PlayerControlSystem.mouseFollowMode;
+        if (this.autopilotBtn) this.autopilotBtn.blur();
+      };
+    }
 
     if (this.weaponBtn1) {
       this.weaponBtn1.onclick = () => {
@@ -545,6 +563,22 @@ export class UIOverlay {
 
     if (this.clusterOverlayEl) {
       this.clusterOverlayEl.style.height = `${WeaponSystem.getClusterCooldownRatio() * 100}%`;
+    }
+
+    if (this.autopilotBtn) {
+      if (PlayerControlSystem.mouseFollowMode) {
+        this.autopilotBtn.innerText = '⚡ [F] AUTOPILOT';
+        this.autopilotBtn.style.background = 'rgba(16, 185, 129, 0.25)';
+        this.autopilotBtn.style.borderColor = '#10b981';
+        this.autopilotBtn.style.color = '#34d399';
+        this.autopilotBtn.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.4)';
+      } else {
+        this.autopilotBtn.innerText = '🛸 [F] TWIN-STICK';
+        this.autopilotBtn.style.background = 'rgba(56, 189, 248, 0.12)';
+        this.autopilotBtn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+        this.autopilotBtn.style.color = '#38bdf8';
+        this.autopilotBtn.style.boxShadow = 'none';
+      }
     }
 
     // 5. Render Floating Score Popups

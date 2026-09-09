@@ -37,21 +37,9 @@ jobs:
       - name: Build Production Web App
         run: npm run build
 
-      # Method 1: Deploy to gh-pages branch (works instantly when Pages source is 'Deploy from a branch')
+      # Deploy to gh-pages branch (serves precompiled production bundle)
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-
-      # Method 2: Native GitHub Pages deployment (works when Pages source is 'GitHub Actions')
-      - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
-        continue-on-error: true
-        with:
-          path: './dist'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        continue-on-error: true
-        uses: actions/deploy-pages@v4

@@ -24,6 +24,11 @@ export class PlayerRenderer {
   private static mothershipGroup: THREE.Group | null = null;
   private static playerEntity: Entity | null = null;
   private static groundShadowRing: THREE.Mesh | null = null;
+  private static aimReticleGroup: THREE.Group | null = null;
+  private static reticleRingMat: THREE.MeshBasicMaterial | null = null;
+  private static reticleDotMat: THREE.MeshBasicMaterial | null = null;
+  private static aimTargetX: number = 0;
+  private static aimTargetZ: number = 0;
 
   private static lastX: number = 0;
   private static lastZ: number = 0;
@@ -41,6 +46,8 @@ export class PlayerRenderer {
           if (pos) {
             this.lastX = pos.worldX;
             this.lastZ = pos.worldY;
+            this.aimTargetX = pos.worldX;
+            this.aimTargetZ = pos.worldY;
           }
           break;
         }
@@ -80,8 +87,7 @@ export class PlayerRenderer {
           this.mothershipGroup.rotation.x = this.currentTiltX;
           this.mothershipGroup.rotation.z = this.currentTiltZ;
 
-          // Dynamic Surface Shadow & Targeting Ring Elevation Tracking:
-          // Checks building heights directly under UFO position (worldX, worldY)
+          // Dynamic Surface Shadow directly under UFO position (worldX, worldY)
           if (this.groundShadowRing) {
             let targetSurfaceY = 0.1;
             const nearbyEntities = SpatialGrid.queryRadius(pos.worldX, pos.worldY, 16);
@@ -106,12 +112,14 @@ export class PlayerRenderer {
             this.groundShadowRing.rotation.z += delta * 0.4; // slow ring spin
             const ringMat = this.groundShadowRing.material as THREE.MeshBasicMaterial;
             if (ringMat) {
-              ringMat.opacity = 0.45 + Math.sin(performance.now() * 0.004) * 0.15; // pulse opacity
+              ringMat.opacity = 0.35 + Math.sin(performance.now() * 0.004) * 0.12; // pulse opacity
             }
           }
 
-          // Camera follows ground target (worldX, worldY)
-          CameraController.setTarget(pos.worldX, pos.worldY);
+          // Director Camera Framing (weighted 80% UFO flight position, 20% mouse aim crosshair)
+          const aimOffsetX = Math.max(-80, Math.min(80, (this.aimTargetX - pos.worldX) * 0.22));
+          const aimOffsetZ = Math.max(-80, Math.min(80, (this.aimTargetZ - pos.worldY) * 0.22));
+          CameraController.setTarget(pos.worldX + aimOffsetX, pos.worldY + aimOffsetZ);
         }
       }
     }
@@ -172,13 +180,13 @@ export class PlayerRenderer {
     // to occlude the mothership via hardware depth testing.
     SceneManager.ufoScene.add(this.mothershipGroup);
 
-    // 4. Projection Shadow / Targeting Ring (Render order 800, depthTest=false so always visible on roofs/ground)
+    // 4. Ground Shadow underneath UFO Saucer
     const shadowGeo = new THREE.RingGeometry(MOTHERSHIP_RADIUS * 0.8, MOTHERSHIP_RADIUS * 1.2, 32);
     const shadowMat = new THREE.MeshBasicMaterial({
       color: 0x00f3ff,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.45,
+      opacity: 0.35,
       depthTest: false,
       depthWrite: false
     });
@@ -186,6 +194,68 @@ export class PlayerRenderer {
     this.groundShadowRing.rotation.x = -Math.PI / 2;
     this.groundShadowRing.renderOrder = 800;
     SceneManager.playerGroup.add(this.groundShadowRing);
+
+    // 5. Independent 3D Mouse Aiming Crosshair / Reticle
+    this.aimReticleGroup = new THREE.Group();
+    this.aimReticleGroup.name = 'AimTargetReticle';
+
+    // Outer spinning reticle ring
+    const reticleRingGeo = new THREE.RingGeometry(4.2, 5.4, 32);
+    this.reticleRingMat = new THREE.MeshBasicMaterial({
+      color: 0x00f3ff,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.85,
+      depthTest: false,
+      depthWrite: false
+    });
+    const reticleRing = new THREE.Mesh(reticleRingGeo, this.reticleRingMat);
+    reticleRing.rotation.x = -Math.PI / 2;
+    reticleRing.renderOrder = 900;
+    this.aimReticleGroup.add(reticleRing);
+
+    // 4 Crosshair Tick Marks
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * Math.PI) / 2;
+      const tickGeo = new THREE.PlaneGeometry(0.8, 2.5);
+      const tickMesh = new THREE.Mesh(tickGeo, this.reticleRingMat);
+      tickMesh.rotation.x = -Math.PI / 2;
+      tickMesh.position.set(Math.cos(angle) * 6.5, 0, Math.sin(angle) * 6.5);
+      tickMesh.rotation.z = -angle;
+      tickMesh.renderOrder = 900;
+      this.aimReticleGroup.add(tickMesh);
+    }
+
+    // Center Aiming Pip / Dot
+    const dotGeo = new THREE.CircleGeometry(0.9, 16);
+    this.reticleDotMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.95,
+      depthTest: false,
+      depthWrite: false
+    });
+    const dotMesh = new THREE.Mesh(dotGeo, this.reticleDotMat);
+    dotMesh.rotation.x = -Math.PI / 2;
+    dotMesh.renderOrder = 901;
+    this.aimReticleGroup.add(dotMesh);
+
+    SceneManager.playerGroup.add(this.aimReticleGroup);
+  }
+
+  public static updateAimTarget(worldX: number, surfaceY: number, worldZ: number, isLocked: boolean) {
+    this.aimTargetX = worldX;
+    this.aimTargetZ = worldZ;
+    if (this.aimReticleGroup) {
+      this.aimReticleGroup.position.set(worldX, surfaceY + 0.15, worldZ);
+      this.aimReticleGroup.rotation.y += 0.04;
+
+      const targetColor = isLocked ? 0xff3366 : 0x00f3ff;
+      if (this.reticleRingMat && this.reticleRingMat.color.getHex() !== targetColor) {
+        this.reticleRingMat.color.setHex(targetColor);
+      }
+    }
   }
 
   public static getPlayerMeshPosition(): THREE.Vector3 | null {

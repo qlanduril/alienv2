@@ -18,8 +18,8 @@ import { TrafficSystem } from './TrafficSystem';
 // --- System Constants ---
 const ZONAL_DAMAGE_AMOUNT = 25; // 25 dmg per hit (little buildings 60-75 HP take 2-3 shots)
 const WEAPON_HEAT_DEFAULT = 0;
-const LERP_FOLLOW_SPEED = 8.0; // Buoyant, smooth asynchronous UFO motion speed
-const WASD_SPEED = 90;
+const LERP_FOLLOW_SPEED = 10.0; // Responsive, smooth asynchronous UFO motion speed
+const WASD_SPEED = 120; // Agile UFO cruising speed
 const MAX_HOVER_SCREEN_RADIUS_NDC = 0.10; // ~65px screen radius on 1080p
 
 export class PlayerControlSystem {
@@ -36,6 +36,8 @@ export class PlayerControlSystem {
   // Asynchronous UFO movement state
   private static targetPos = { x: 0, y: 0 };
   private static initializedTarget = false;
+  public static mouseFollowMode = false;
+  private static fKeyWasDown = false;
 
   // Throttled hover inspection timer
   private static lastHoverCheckTime = 0;
@@ -80,15 +82,34 @@ export class PlayerControlSystem {
           dirX += 1; dirZ -= 1; // Screen RIGHT (Fixed: was dirZ += 1 which moved down)
         }
 
+        // Toggle Mouse-Flight Mode with 'F' key (useful for touchpad players)
+        if (InputManager.isKeyDown('KeyF') || InputManager.isKeyDown('f')) {
+          if (!this.fKeyWasDown) {
+            this.mouseFollowMode = !this.mouseFollowMode;
+            this.fKeyWasDown = true;
+          }
+        } else {
+          this.fKeyWasDown = false;
+        }
+
         const len = Math.sqrt(dirX * dirX + dirZ * dirZ);
         if (len > 0) {
+          const isBoosting = InputManager.isKeyDown('ShiftLeft') || InputManager.isKeyDown('ShiftRight');
+          const currentSpeed = isBoosting ? WASD_SPEED * 1.6 : WASD_SPEED;
           // Keyboard input directly shifts target location
-          this.targetPos.x += (dirX / len) * WASD_SPEED * delta;
-          this.targetPos.y += (dirZ / len) * WASD_SPEED * delta;
+          this.targetPos.x += (dirX / len) * currentSpeed * delta;
+          this.targetPos.y += (dirZ / len) * currentSpeed * delta;
 
           // Clamp within map boundaries (-480 to +480)
           this.targetPos.x = Math.max(-480, Math.min(480, this.targetPos.x));
           this.targetPos.y = Math.max(-480, Math.min(480, this.targetPos.y));
+        } else if (this.mouseFollowMode) {
+          // Autopilot: UFO glides towards cursor when not pressing keyboard keys
+          const gp = this.getMouseGroundPosition();
+          if (gp) {
+            this.targetPos.x = Math.max(-480, Math.min(480, gp.x));
+            this.targetPos.y = Math.max(-480, Math.min(480, gp.z));
+          }
         }
 
         // 2. Asynchronous Smooth Exponential Lerp
@@ -139,24 +160,44 @@ export class PlayerControlSystem {
               maxHp: maxHp,
               frame: frame
             });
-
-            const center = BuildingRenderer.getVisualCenter(this.cachedHoveredEntity) || BuildingRenderer.getSpritePosition(this.cachedHoveredEntity);
-            if (center) {
-              this.tempProj.copy(center).project(SceneManager.camera);
-              if (this.tempProj.z <= 1) {
-                const screenX = (this.tempProj.x * 0.5 + 0.5) * window.innerWidth;
-                const screenY = (-this.tempProj.y * 0.5 + 0.5) * window.innerHeight;
-                UIOverlay.setTargetReticle({ x: screenX, y: screenY });
-              } else {
-                UIOverlay.setTargetReticle(null);
-              }
-            } else {
-              UIOverlay.setTargetReticle(null);
-            }
           } else {
             UIOverlay.updateTargetInspector(null);
-            UIOverlay.setTargetReticle(null);
           }
+        }
+
+        // 3.5. Continuous 3D Aim Crosshair & Screen Reticle Tracking
+        const groundPoint = this.getMouseGroundPosition() || new THREE.Vector3(pos.worldX, 0, pos.worldY);
+        let aimWorldX = groundPoint.x;
+        let aimWorldY = 0.1;
+        let aimWorldZ = groundPoint.z;
+        let isAimLocked = false;
+
+        if (this.cachedHoveredHit) {
+          aimWorldX = this.cachedHoveredHit.point.x;
+          aimWorldY = this.cachedHoveredHit.point.y;
+          aimWorldZ = this.cachedHoveredHit.point.z;
+          isAimLocked = true;
+        } else if (this.cachedHoveredEntity !== null) {
+          const bPoint = this.cachedFallbackPoint || BuildingRenderer.getVisualCenter(this.cachedHoveredEntity) || BuildingRenderer.getSpritePosition(this.cachedHoveredEntity);
+          if (bPoint) {
+            aimWorldX = bPoint.x;
+            aimWorldY = bPoint.y;
+            aimWorldZ = bPoint.z;
+            isAimLocked = true;
+          }
+        }
+
+        // Update independent 3D holographic crosshair under mouse
+        PlayerRenderer.updateAimTarget(aimWorldX, aimWorldY, aimWorldZ, isAimLocked);
+
+        // Update 2D Screen Reticle position
+        this.tempProj.set(aimWorldX, aimWorldY, aimWorldZ).project(SceneManager.camera);
+        if (this.tempProj.z <= 1) {
+          const screenX = (this.tempProj.x * 0.5 + 0.5) * window.innerWidth;
+          const screenY = (-this.tempProj.y * 0.5 + 0.5) * window.innerHeight;
+          UIOverlay.setTargetReticle({ x: screenX, y: screenY });
+        } else {
+          UIOverlay.setTargetReticle(null);
         }
 
         // 4. Weapon Selection & Firing Logic
@@ -167,7 +208,6 @@ export class PlayerControlSystem {
         }
 
         const ufoPos = PlayerRenderer.getPlayerMeshPosition() || new THREE.Vector3(pos.worldX, 75, pos.worldY);
-        const groundPoint = this.getMouseGroundPosition() || new THREE.Vector3(pos.worldX, 0, pos.worldY);
 
         // Secondary fire: Right Click quick-fires Cluster Bomb if ready
         if (InputManager.isSecondaryPointerDown() && WeaponSystem.isClusterReady()) {

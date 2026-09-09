@@ -1,8 +1,11 @@
 import * as THREE from 'three';
 import { ShowcaseManager } from '../systems/ShowcaseManager';
-import { HealthComponent, RenderStateComponent, ZonalHealthComponent } from '../core/Components';
-import { Entity } from '../core/ECS';
+import { HealthComponent, RenderStateComponent, ZonalHealthComponent, WeaponComponent, PlayerTagComponent } from '../core/Components';
+import { Entity, ECS } from '../core/ECS';
 import { CameraController } from './CameraController';
+import { ScoreSystem } from '../systems/ScoreSystem';
+import { DefenseSystem } from '../systems/DefenseSystem';
+import { WeaponSystem } from '../systems/WeaponSystem';
 
 // --- UIOverlay Constants ---
 const ZERO_VALUE = 0;
@@ -42,6 +45,23 @@ export class UIOverlay {
 
   private static labelElements: Map<Entity, HTMLElement> = new Map();
 
+  // Futuristic Command Center HUD Elements
+  private static scoreValEl: HTMLElement | null = null;
+  private static highValEl: HTMLElement | null = null;
+  private static comboBadgeEl: HTMLElement | null = null;
+  private static destructValEl: HTMLElement | null = null;
+  private static destructBarEl: HTMLElement | null = null;
+  private static shieldValEl: HTMLElement | null = null;
+  private static shieldBarEl: HTMLElement | null = null;
+  private static hullValEl: HTMLElement | null = null;
+  private static hullBarEl: HTMLElement | null = null;
+  private static weaponBtn1: HTMLButtonElement | null = null;
+  private static weaponBtn2: HTMLButtonElement | null = null;
+  private static clusterOverlayEl: HTMLElement | null = null;
+  private static popupsContainer: HTMLElement | null = null;
+  private static currentDestructionPercent: number = 0;
+  private static tempVec = new THREE.Vector3();
+
   public static init() {
     // 1. Top HUD Container
     const hudContainer = document.createElement('div');
@@ -59,18 +79,126 @@ export class UIOverlay {
     hudContainer.style.transform = 'scale(1.25)';
     hudContainer.style.transformOrigin = 'top left';
 
-    // Score / Title
+    // Score / Command Center HUD Panel
     this.scoreElement = document.createElement('div');
-    this.scoreElement.style.fontSize = '22px';
-    this.scoreElement.style.fontWeight = '700';
-    this.scoreElement.style.background = 'rgba(15, 23, 42, 0.85)';
-    this.scoreElement.style.backdropFilter = 'blur(8px)';
-    this.scoreElement.style.padding = '12px 24px';
-    this.scoreElement.style.borderRadius = '14px';
-    this.scoreElement.style.border = '1px solid rgba(255, 255, 255, 0.2)';
-    this.scoreElement.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.5)';
-    this.scoreElement.innerText = 'DESTRUCTION: 0%';
+    this.scoreElement.style.background = 'rgba(15, 23, 42, 0.88)';
+    this.scoreElement.style.backdropFilter = 'blur(10px)';
+    this.scoreElement.style.padding = '14px 20px';
+    this.scoreElement.style.borderRadius = '16px';
+    this.scoreElement.style.border = '1px solid rgba(255, 255, 255, 0.18)';
+    this.scoreElement.style.boxShadow = '0 12px 36px rgba(0, 0, 0, 0.6)';
+    this.scoreElement.style.pointerEvents = 'auto';
+    this.scoreElement.style.minWidth = '270px';
+
+    this.scoreElement.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <!-- Row 1: Score & High Score & Combo -->
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
+          <div style="font-size: 20px; font-weight: 800; letter-spacing: 0.5px; color: #38bdf8;">
+            SCORE <span id="hud-score-val" style="color: #ffffff;">0</span>
+          </div>
+          <div style="font-size: 11px; font-weight: 700; color: #94a3b8;">
+            HIGH <span id="hud-high-val" style="color: #cbd5e1;">0</span>
+          </div>
+          <div id="hud-combo-badge" style="display: none; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: #f59e0b; color: #000; box-shadow: 0 0 8px #f59e0b; transition: all 0.2s ease;">
+            x2 COMBO
+          </div>
+        </div>
+
+        <!-- Row 2: Destruction Progress Bar -->
+        <div style="display: flex; flex-direction: column; gap: 3px;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #f87171;">
+            <span>CITY DESTRUCTION</span>
+            <span id="hud-destruct-val">0.0%</span>
+          </div>
+          <div style="width: 100%; height: 7px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden;">
+            <div id="hud-destruct-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #f97316, #ef4444); border-radius: 4px; transition: width 0.2s ease;"></div>
+          </div>
+        </div>
+
+        <!-- Row 3: UFO Shield & Hull -->
+        <div style="display: flex; gap: 12px; font-size: 10px; font-weight: 700; margin-top: 2px;">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; color: #38bdf8;">
+              <span>SHIELD</span>
+              <span id="hud-shield-val">100%</span>
+            </div>
+            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden;">
+              <div id="hud-shield-bar" style="width: 100%; height: 100%; background: #38bdf8; transition: width 0.15s ease;"></div>
+            </div>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
+            <div style="display: flex; justify-content: space-between; color: #4ade80;">
+              <span>HULL</span>
+              <span id="hud-hull-val">100%</span>
+            </div>
+            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden;">
+              <div id="hud-hull-bar" style="width: 100%; height: 100%; background: #4ade80; transition: width 0.15s ease;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 4: Weapons Selection Dock -->
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button id="weapon-btn-1" style="flex: 1; padding: 5px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; border: 1px solid #38bdf8; background: #0284c7; color: white; cursor: pointer; transition: all 0.15s ease;">
+            [1] DEATH RAY
+          </button>
+          <button id="weapon-btn-2" style="position: relative; flex: 1; padding: 5px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); background: #1e293b; color: #94a3b8; cursor: pointer; overflow: hidden; transition: all 0.15s ease;">
+            <span style="position: relative; z-index: 2;">[2] CLUSTER BOMB</span>
+            <div id="cluster-cooldown-overlay" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(245, 158, 11, 0.4); z-index: 1;"></div>
+          </button>
+        </div>
+      </div>
+    `;
+
     hudContainer.appendChild(this.scoreElement);
+
+    this.scoreValEl = this.scoreElement.querySelector('#hud-score-val');
+    this.highValEl = this.scoreElement.querySelector('#hud-high-val');
+    this.comboBadgeEl = this.scoreElement.querySelector('#hud-combo-badge');
+    this.destructValEl = this.scoreElement.querySelector('#hud-destruct-val');
+    this.destructBarEl = this.scoreElement.querySelector('#hud-destruct-bar');
+    this.shieldValEl = this.scoreElement.querySelector('#hud-shield-val');
+    this.shieldBarEl = this.scoreElement.querySelector('#hud-shield-bar');
+    this.hullValEl = this.scoreElement.querySelector('#hud-hull-val');
+    this.hullBarEl = this.scoreElement.querySelector('#hud-hull-bar');
+    this.weaponBtn1 = this.scoreElement.querySelector('#weapon-btn-1');
+    this.weaponBtn2 = this.scoreElement.querySelector('#weapon-btn-2');
+    this.clusterOverlayEl = this.scoreElement.querySelector('#cluster-cooldown-overlay');
+
+    if (this.weaponBtn1) {
+      this.weaponBtn1.onclick = () => {
+        for (const entity of ECS.entities) {
+          if (PlayerTagComponent.has(entity)) {
+            const w = WeaponComponent.get(entity);
+            if (w) w.currentSelected = 'laser';
+            break;
+          }
+        }
+      };
+    }
+
+    if (this.weaponBtn2) {
+      this.weaponBtn2.onclick = () => {
+        for (const entity of ECS.entities) {
+          if (PlayerTagComponent.has(entity)) {
+            const w = WeaponComponent.get(entity);
+            if (w) w.currentSelected = 'cluster';
+            break;
+          }
+        }
+      };
+    }
+
+    this.popupsContainer = document.createElement('div');
+    this.popupsContainer.style.position = 'fixed';
+    this.popupsContainer.style.top = '0';
+    this.popupsContainer.style.left = '0';
+    this.popupsContainer.style.width = '100%';
+    this.popupsContainer.style.height = '100%';
+    this.popupsContainer.style.pointerEvents = 'none';
+    this.popupsContainer.style.zIndex = '999';
+    document.body.appendChild(this.popupsContainer);
 
     // Controls Panel (Right side)
     this.controlPanel = document.createElement('div');
@@ -285,76 +413,154 @@ export class UIOverlay {
   public static tick(camera: THREE.Camera): void {
     if (!ShowcaseManager.isShowcaseMode) {
       this.clearLabels();
-      return;
+    } else {
+      const buildings = ShowcaseManager.getShowcaseBuildings();
+      const activeEntities = new Set<Entity>();
+
+      for (const b of buildings) {
+        activeEntities.add(b.entity);
+
+        let el = this.labelElements.get(b.entity);
+        if (!el) {
+          el = document.createElement('div');
+          el.style.position = 'absolute';
+          el.style.transform = 'translate(-50%, -100%)';
+          el.style.background = 'rgba(15, 23, 42, 0.85)';
+          el.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+          el.style.borderRadius = '8px';
+          el.style.padding = '4px 8px';
+          el.style.color = '#e2e8f0';
+          el.style.fontFamily = 'monospace';
+          el.style.fontSize = '11px';
+          el.style.whiteSpace = 'nowrap';
+          el.style.pointerEvents = 'none';
+          el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+          this.labelsContainer.appendChild(el);
+          this.labelElements.set(b.entity, el);
+        }
+
+        // Project world coordinate to screen NDC
+        const heightOffset = b.def.height * LABEL_HEIGHT_FACTOR;
+        this.tempVec.set(b.worldX, heightOffset, b.worldY);
+        this.tempVec.project(camera);
+
+        // Check if behind camera
+        if (this.tempVec.z > 1) {
+          el.style.display = 'none';
+          continue;
+        }
+
+        const screenX = (this.tempVec.x * HALF_NDC_FACTOR + HALF_NDC_FACTOR) * window.innerWidth;
+        const screenY = (-this.tempVec.y * HALF_NDC_FACTOR + HALF_NDC_FACTOR) * window.innerHeight;
+
+        el.style.left = `${screenX}px`;
+        el.style.top = `${screenY - LABEL_Y_SCREEN_OFFSET_PX}px`;
+        el.style.display = 'block';
+
+        const health = HealthComponent.get(b.entity);
+        const renderState = RenderStateComponent.get(b.entity);
+        const zonal = ZonalHealthComponent.get(b.entity);
+
+        const curHp = zonal ? zonal.totalHp : (health ? health.currentHP : DEFAULT_FALLBACK_HP);
+        const maxHp = zonal ? zonal.maxTotalHp : (health ? health.maxHP : DEFAULT_FALLBACK_HP);
+        const percent = Math.max(ZERO_VALUE, Math.round((curHp / maxHp) * FULL_PERCENT));
+        const frame = renderState ? renderState.currentFrame : ZERO_VALUE;
+
+        const hpColor = percent > HEALTH_HIGH_THRESHOLD ? '#34d399' : (percent > HEALTH_MEDIUM_THRESHOLD ? '#fbbf24' : '#f87171');
+        const safeName = escapeHtml(b.def.name);
+        const safeTypeKey = escapeHtml(b.typeKey);
+
+        el.innerHTML = `<b>${safeName}</b> <span style="color:#94a3b8;">[${safeTypeKey}]</span><br/><span style="color:${hpColor};">HP ${percent}%</span> · Fr #${frame}`;
+      }
+
+      // Clean stale labels
+      for (const [entity, el] of this.labelElements.entries()) {
+        if (!activeEntities.has(entity)) {
+          this.labelsContainer.removeChild(el);
+          this.labelElements.delete(entity);
+        }
+      }
     }
 
-    const buildings = ShowcaseManager.getShowcaseBuildings();
-    const activeEntities = new Set<Entity>();
-
-    const tempVec = new THREE.Vector3();
-
-    for (const b of buildings) {
-      activeEntities.add(b.entity);
-
-      let el = this.labelElements.get(b.entity);
-      if (!el) {
-        el = document.createElement('div');
-        el.style.position = 'absolute';
-        el.style.transform = 'translate(-50%, -100%)';
-        el.style.background = 'rgba(15, 23, 42, 0.85)';
-        el.style.border = '1px solid rgba(255, 255, 255, 0.2)';
-        el.style.borderRadius = '8px';
-        el.style.padding = '4px 8px';
-        el.style.color = '#e2e8f0';
-        el.style.fontFamily = 'monospace';
-        el.style.fontSize = '11px';
-        el.style.whiteSpace = 'nowrap';
-        el.style.pointerEvents = 'none';
-        el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
-        this.labelsContainer.appendChild(el);
-        this.labelElements.set(b.entity, el);
-      }
-
-      // Project world coordinate to screen NDC
-      const heightOffset = b.def.height * LABEL_HEIGHT_FACTOR;
-      tempVec.set(b.worldX, heightOffset, b.worldY);
-      tempVec.project(camera);
-
-      // Check if behind camera
-      if (tempVec.z > 1) {
-        el.style.display = 'none';
-        continue;
-      }
-
-      const screenX = (tempVec.x * HALF_NDC_FACTOR + HALF_NDC_FACTOR) * window.innerWidth;
-      const screenY = (-tempVec.y * HALF_NDC_FACTOR + HALF_NDC_FACTOR) * window.innerHeight;
-
-      el.style.left = `${screenX}px`;
-      el.style.top = `${screenY - LABEL_Y_SCREEN_OFFSET_PX}px`;
-      el.style.display = 'block';
-
-      const health = HealthComponent.get(b.entity);
-      const renderState = RenderStateComponent.get(b.entity);
-      const zonal = ZonalHealthComponent.get(b.entity);
-
-      const curHp = zonal ? zonal.totalHp : (health ? health.currentHP : DEFAULT_FALLBACK_HP);
-      const maxHp = zonal ? zonal.maxTotalHp : (health ? health.maxHP : DEFAULT_FALLBACK_HP);
-      const percent = Math.max(ZERO_VALUE, Math.round((curHp / maxHp) * FULL_PERCENT));
-      const frame = renderState ? renderState.currentFrame : ZERO_VALUE;
-
-      const hpColor = percent > HEALTH_HIGH_THRESHOLD ? '#34d399' : (percent > HEALTH_MEDIUM_THRESHOLD ? '#fbbf24' : '#f87171');
-      const safeName = escapeHtml(b.def.name);
-      const safeTypeKey = escapeHtml(b.typeKey);
-
-      el.innerHTML = `<b>${safeName}</b> <span style="color:#94a3b8;">[${safeTypeKey}]</span><br/><span style="color:${hpColor};">HP ${percent}%</span> · Fr #${frame}`;
+    // 4. Update Command Center HUD
+    if (this.scoreValEl) {
+      this.scoreValEl.innerText = ScoreSystem.getScore().toLocaleString();
+    }
+    if (this.highValEl) {
+      this.highValEl.innerText = ScoreSystem.getHighScore().toLocaleString();
     }
 
-    // Clean stale labels
-    for (const [entity, el] of this.labelElements.entries()) {
-      if (!activeEntities.has(entity)) {
-        this.labelsContainer.removeChild(el);
-        this.labelElements.delete(entity);
+    if (this.comboBadgeEl) {
+      const combo = ScoreSystem.getCombo();
+      if (combo > 1) {
+        this.comboBadgeEl.style.display = 'block';
+        this.comboBadgeEl.innerText = `x${combo} COMBO!`;
+        this.comboBadgeEl.style.background = combo >= 4 ? '#ef4444' : (combo >= 3 ? '#f59e0b' : '#3b82f6');
+        this.comboBadgeEl.style.boxShadow = `0 0 10px ${combo >= 4 ? '#ef4444' : '#f59e0b'}`;
+      } else {
+        this.comboBadgeEl.style.display = 'none';
       }
+    }
+
+    if (this.destructValEl && this.destructBarEl) {
+      this.destructValEl.innerText = `${this.currentDestructionPercent.toFixed(1)}%`;
+      this.destructBarEl.style.width = `${Math.min(100, this.currentDestructionPercent)}%`;
+    }
+
+    if (this.shieldValEl && this.shieldBarEl) {
+      const shield = Math.max(0, Math.round(DefenseSystem.playerShield));
+      this.shieldValEl.innerText = `${shield}%`;
+      this.shieldBarEl.style.width = `${shield}%`;
+    }
+
+    if (this.hullValEl && this.hullBarEl) {
+      const hull = Math.max(0, Math.round(DefenseSystem.playerHull));
+      this.hullValEl.innerText = `${hull}%`;
+      this.hullBarEl.style.width = `${hull}%`;
+      this.hullBarEl.style.background = hull > 50 ? '#4ade80' : (hull > 25 ? '#facc15' : '#ef4444');
+    }
+
+    // Sync Active Weapon Highlights
+    let currentWeapon = 'laser';
+    for (const entity of ECS.entities) {
+      if (PlayerTagComponent.has(entity)) {
+        const w = WeaponComponent.get(entity);
+        if (w) currentWeapon = w.currentSelected;
+        break;
+      }
+    }
+
+    const isLaser = currentWeapon === 'laser';
+    if (this.weaponBtn1) {
+      this.weaponBtn1.style.background = isLaser ? '#0284c7' : '#1e293b';
+      this.weaponBtn1.style.borderColor = isLaser ? '#38bdf8' : 'rgba(255,255,255,0.2)';
+      this.weaponBtn1.style.color = isLaser ? '#ffffff' : '#94a3b8';
+    }
+
+    if (this.weaponBtn2) {
+      this.weaponBtn2.style.background = !isLaser ? '#d97706' : '#1e293b';
+      this.weaponBtn2.style.borderColor = !isLaser ? '#f59e0b' : 'rgba(255,255,255,0.2)';
+      this.weaponBtn2.style.color = !isLaser ? '#ffffff' : '#94a3b8';
+    }
+
+    if (this.clusterOverlayEl) {
+      this.clusterOverlayEl.style.height = `${WeaponSystem.getClusterCooldownRatio() * 100}%`;
+    }
+
+    // 5. Render Floating Score Popups
+    if (this.popupsContainer) {
+      let popupHtml = '';
+      for (const p of ScoreSystem.popups) {
+        this.tempVec.set(p.worldX, p.worldZ, p.worldY);
+        this.tempVec.project(camera);
+        if (this.tempVec.z <= 1) {
+          const sx = (this.tempVec.x * HALF_NDC_FACTOR + HALF_NDC_FACTOR) * window.innerWidth;
+          const sy = (-this.tempVec.y * HALF_NDC_FACTOR + HALF_NDC_FACTOR) * window.innerHeight;
+          const opacity = Math.max(0, 1 - p.elapsed / p.duration);
+          popupHtml += `<div style="position: absolute; left: ${sx}px; top: ${sy}px; transform: translate(-50%, -50%); font-size: 16px; font-weight: 800; color: ${p.color}; text-shadow: 0 2px 8px rgba(0,0,0,0.9); opacity: ${opacity}; pointer-events: none; white-space: nowrap;">${p.text}</div>`;
+        }
+      }
+      this.popupsContainer.innerHTML = popupHtml;
     }
   }
 
@@ -375,8 +581,10 @@ export class UIOverlay {
   }
 
   public static updateScore(percent: number) {
-    if (this.scoreElement) {
-      this.scoreElement.innerText = `DESTRUCTION: ${Math.floor(percent)}%`;
+    this.currentDestructionPercent = percent;
+    if (this.destructValEl && this.destructBarEl) {
+      this.destructValEl.innerText = `${percent.toFixed(1)}%`;
+      this.destructBarEl.style.width = `${Math.min(100, percent)}%`;
     }
   }
 }

@@ -215,4 +215,149 @@ export class AudioSystem {
       gain.disconnect();
     };
   }
+
+  // ─── Cluster Launch Synthesizer ──────────────────────────────────────────
+  public static playClusterLaunchSFX() {
+    this.ensureAudioContext();
+    if (!this.ctx || !this.masterGain) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + 0.25);
+
+    gain.gain.setValueAtTime(0.5, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(now);
+    osc.stop(now + 0.25);
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
+  }
+
+  // ─── Cluster Mid-Air Dispersal Pop ───────────────────────────────────────
+  public static playClusterSplitSFX() {
+    this.ensureAudioContext();
+    if (!this.ctx || !this.masterGain || !this.noiseBuffer) return;
+
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    const filter = this.ctx.createBiquadFilter();
+    const gain = this.ctx.createGain();
+
+    source.buffer = this.noiseBuffer;
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1200, now);
+    filter.Q.setValueAtTime(4.0, now);
+
+    gain.gain.setValueAtTime(0.6, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+
+    source.start(now);
+    source.stop(now + 0.12);
+    source.onended = () => {
+      source.disconnect();
+      filter.disconnect();
+      gain.disconnect();
+    };
+  }
+
+  // ─── Jet Supersonic Flyby Whoosh ────────────────────────────────────────
+  public static playJetFlybySFX() {
+    this.ensureAudioContext();
+    if (!this.ctx || !this.masterGain || !this.noiseBuffer) return;
+
+    const now = this.ctx.currentTime;
+    const source = this.ctx.createBufferSource();
+    const filter = this.ctx.createBiquadFilter();
+    const gain = this.ctx.createGain();
+
+    source.buffer = this.noiseBuffer;
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(250, now);
+    filter.frequency.linearRampToValueAtTime(1800, now + 0.4);
+    filter.frequency.exponentialRampToValueAtTime(200, now + 1.2);
+
+    gain.gain.setValueAtTime(0.05, now);
+    gain.gain.linearRampToValueAtTime(0.45, now + 0.4);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+
+    source.start(now);
+    source.stop(now + 1.2);
+    source.onended = () => {
+      source.disconnect();
+      filter.disconnect();
+      gain.disconnect();
+    };
+  }
+
+  // ─── SAM Missile Launch Rocket Whoosh ────────────────────────────────────
+  public static playMissileLaunchSFX() {
+    this.ensureAudioContext();
+    if (!this.ctx || !this.masterGain) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(650, now + 0.35);
+
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(now);
+    osc.stop(now + 0.35);
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
+  }
+
+  // ─── Player Shield Deflection Zap ────────────────────────────────────────
+  public static playShieldHitSFX() {
+    this.ensureAudioContext();
+    if (!this.ctx || !this.masterGain) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(550, now);
+    osc.frequency.exponentialRampToValueAtTime(120, now + 0.15);
+
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(now);
+    osc.stop(now + 0.15);
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
+  }
 }

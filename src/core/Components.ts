@@ -41,9 +41,11 @@ export interface Target {
 }
 
 export interface Weapon {
-  currentSelected: string;
+  currentSelected: 'laser' | 'cluster';
   heatLevel: number;
   fireRate: number;
+  clusterCooldown: number;
+  clusterMaxCooldown: number;
 }
 
 export interface PlayerTag {}

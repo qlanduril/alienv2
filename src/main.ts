@@ -6,6 +6,9 @@ import { BuildingRenderer } from './rendering/BuildingRenderer';
 import { PlayerRenderer } from './rendering/PlayerRenderer';
 import { FXRenderer } from './rendering/FXRenderer';
 import { CameraController } from './rendering/CameraController';
+import { WeaponRenderer } from './rendering/WeaponRenderer';
+import { TrafficRenderer } from './rendering/TrafficRenderer';
+import { DefenseRenderer } from './rendering/DefenseRenderer';
 
 import { ECS } from './core/ECS';
 import { PositionComponent, PlayerTagComponent, WeaponComponent } from './core/Components';
@@ -17,6 +20,10 @@ import { PlayerControlSystem } from './systems/PlayerControlSystem';
 import { DestructionSystem } from './systems/DestructionSystem';
 import { ParticleSimSystem } from './systems/ParticleSimSystem';
 import { AudioSystem } from './systems/AudioSystem';
+import { ScoreSystem } from './systems/ScoreSystem';
+import { WeaponSystem } from './systems/WeaponSystem';
+import { TrafficSystem } from './systems/TrafficSystem';
+import { DefenseSystem } from './systems/DefenseSystem';
 
 import { AssetLoader } from './assets/AssetLoader';
 
@@ -34,6 +41,9 @@ async function bootstrap() {
   // 2. Setup Rendering Layer (Three.js)
   SceneManager.init(container);
   ParticleRenderer.init();
+  WeaponRenderer.init();
+  TrafficRenderer.init();
+  DefenseRenderer.init();
   UIOverlay.init();
 
   CameraController.init(SceneManager.camera);
@@ -50,10 +60,14 @@ async function bootstrap() {
   GroundRenderer.init();
 
   // 4. Initialize Core Systems
+  ScoreSystem.init();
   PlayerControlSystem.init();
   DestructionSystem.init();
   ParticleSimSystem.init();
   AudioSystem.init();
+  WeaponSystem.init();
+  TrafficSystem.init();
+  DefenseSystem.init();
   if (progressBar) progressBar.style.width = '85%';
 
   // 5. Generate World (Pre-baked map loader with live generator fallback)
@@ -73,7 +87,13 @@ async function bootstrap() {
   const playerEntity = ECS.createEntity();
   PlayerTagComponent.add(playerEntity);
   PositionComponent.set(playerEntity, { worldX: 0, worldY: 0, worldZ: 75 }); // High mothership altitude hovering over buildings
-  WeaponComponent.set(playerEntity, { currentSelected: 'laser', heatLevel: 0, fireRate: 0.2 });
+  WeaponComponent.set(playerEntity, {
+    currentSelected: 'laser',
+    heatLevel: 0,
+    fireRate: 0.2,
+    clusterCooldown: 0,
+    clusterMaxCooldown: 2.5
+  });
 
   // 6. Start Game Loop
   let lastTime = performance.now();
@@ -87,12 +107,18 @@ async function bootstrap() {
 
     // --- CORE LOGIC TICK ---
     // Pure engine-free state updates
+    ScoreSystem.tick(delta);
+    TrafficSystem.tick(delta);
+    DefenseSystem.tick(delta);
     ECS.tick(delta);
 
     // --- RENDERING TICK ---
     // Reads from ECS state, does not modify it
     CameraController.tick(delta);
     BuildingRenderer.tick(delta);
+    TrafficRenderer.tick(delta);
+    DefenseRenderer.tick(delta);
+    WeaponRenderer.tick(delta);
     PlayerRenderer.tick(delta);
     ParticleRenderer.tick(delta);
     FXRenderer.tick(delta);

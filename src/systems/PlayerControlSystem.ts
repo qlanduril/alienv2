@@ -11,6 +11,9 @@ import { BUILDING_DEFS } from '../core/BuildingDefs';
 import { SpatialGrid } from '../core/SpatialGrid';
 import { PlayerRenderer } from '../rendering/PlayerRenderer';
 import { BuildingRenderer } from '../rendering/BuildingRenderer';
+import { WeaponSystem } from './WeaponSystem';
+import { DefenseSystem } from './DefenseSystem';
+import { TrafficSystem } from './TrafficSystem';
 
 // --- System Constants ---
 const ZONAL_DAMAGE_AMOUNT = 25; // 25 dmg per hit (little buildings 60-75 HP take 2-3 shots)
@@ -156,80 +159,100 @@ export class PlayerControlSystem {
           }
         }
 
-        // 4. Firing Logic
-        const canFire = (InputManager.isPointerDown() || InputManager.isKeyDown('Space')) && weapon.heatLevel <= WEAPON_HEAT_DEFAULT;
-        if (canFire) {
-          let targetEntity: Entity | null = null;
-          let targetZone: DamageZone = DamageZone.CENTER;
-          let targetUV = { x: 0.5, y: 0.5 };
-          let impactPoint: THREE.Vector3 | null = null;
+        // 4. Weapon Selection & Firing Logic
+        if (InputManager.isKeyDown('Digit1') || InputManager.isKeyDown('1')) {
+          weapon.currentSelected = 'laser';
+        } else if (InputManager.isKeyDown('Digit2') || InputManager.isKeyDown('2')) {
+          weapon.currentSelected = 'cluster';
+        }
 
-          if (InputManager.isKeyDown('Space')) {
-            targetEntity = this.findClosestBuildingNear(pos.worldX, pos.worldY, Infinity);
-            if (targetEntity) {
-              impactPoint = BuildingRenderer.getVisualCenter(targetEntity) || BuildingRenderer.getSpritePosition(targetEntity);
+        const ufoPos = PlayerRenderer.getPlayerMeshPosition() || new THREE.Vector3(pos.worldX, 75, pos.worldY);
+        const groundPoint = this.getMouseGroundPosition() || new THREE.Vector3(pos.worldX, 0, pos.worldY);
+
+        // Secondary fire: Right Click quick-fires Cluster Bomb if ready
+        if (InputManager.isSecondaryPointerDown() && WeaponSystem.isClusterReady()) {
+          WeaponSystem.fireClusterBomb(ufoPos, { x: groundPoint.x, y: groundPoint.z });
+        }
+
+        // Primary fire
+        const isFiringPrimary = (InputManager.isPointerDown() || InputManager.isKeyDown('Space'));
+
+        if (isFiringPrimary) {
+          if (weapon.currentSelected === 'cluster') {
+            if (WeaponSystem.isClusterReady()) {
+              WeaponSystem.fireClusterBomb(ufoPos, { x: groundPoint.x, y: groundPoint.z });
             }
-          } else {
-            if (this.cachedHoveredHit) {
-              targetEntity = this.cachedHoveredHit.entity;
-              targetZone = this.cachedHoveredHit.zone;
-              targetUV = this.cachedHoveredHit.uvCenter;
-              impactPoint = this.cachedHoveredHit.point;
-            } else if (this.cachedHoveredEntity !== null) {
-              targetEntity = this.cachedHoveredEntity;
-              targetZone = DamageZone.CENTER;
-              targetUV = { x: 0.5, y: 0.5 };
-              impactPoint = this.cachedFallbackPoint || BuildingRenderer.getVisualCenter(targetEntity) || BuildingRenderer.getSpritePosition(targetEntity);
+          } else if (weapon.heatLevel <= WEAPON_HEAT_DEFAULT) {
+            // Death Ray Laser
+            let targetEntity: Entity | null = null;
+            let targetZone: DamageZone = DamageZone.CENTER;
+            let targetUV = { x: 0.5, y: 0.5 };
+            let impactPoint: THREE.Vector3 | null = null;
+
+            if (InputManager.isKeyDown('Space')) {
+              targetEntity = this.findClosestBuildingNear(pos.worldX, pos.worldY, Infinity);
+              if (targetEntity) {
+                impactPoint = BuildingRenderer.getVisualCenter(targetEntity) || BuildingRenderer.getSpritePosition(targetEntity);
+              }
             } else {
-              const ndc = InputManager.getMouseNDC();
-              this.pointerVector.set(ndc.x, ndc.y);
-              const fallback = this.findBestBuildingNearCursor(this.pointerVector, SceneManager.camera);
-              if (fallback) {
-                targetEntity = fallback.entity;
+              if (this.cachedHoveredHit) {
+                targetEntity = this.cachedHoveredHit.entity;
+                targetZone = this.cachedHoveredHit.zone;
+                targetUV = this.cachedHoveredHit.uvCenter;
+                impactPoint = this.cachedHoveredHit.point;
+              } else if (this.cachedHoveredEntity !== null) {
+                targetEntity = this.cachedHoveredEntity;
                 targetZone = DamageZone.CENTER;
                 targetUV = { x: 0.5, y: 0.5 };
-                impactPoint = fallback.point;
+                impactPoint = this.cachedFallbackPoint || BuildingRenderer.getVisualCenter(targetEntity) || BuildingRenderer.getSpritePosition(targetEntity);
               } else {
-                const groundPoint = this.getMouseGroundPosition();
-                if (groundPoint) {
+                const ndc = InputManager.getMouseNDC();
+                this.pointerVector.set(ndc.x, ndc.y);
+                const fallback = this.findBestBuildingNearCursor(this.pointerVector, SceneManager.camera);
+                if (fallback) {
+                  targetEntity = fallback.entity;
+                  targetZone = DamageZone.CENTER;
+                  targetUV = { x: 0.5, y: 0.5 };
+                  impactPoint = fallback.point;
+                } else if (groundPoint) {
                   impactPoint = groundPoint;
                 }
               }
             }
-          }
 
-          if (targetEntity !== null && impactPoint !== null) {
-            DestructionSystem.applyZonalDamage(targetEntity, targetZone, ZONAL_DAMAGE_AMOUNT, targetUV);
-            weapon.heatLevel = weapon.fireRate;
+            if (targetEntity !== null && impactPoint !== null) {
+              DestructionSystem.applyZonalDamage(targetEntity, targetZone, ZONAL_DAMAGE_AMOUNT, targetUV);
+              weapon.heatLevel = weapon.fireRate;
 
-            const ufoPos = PlayerRenderer.getPlayerMeshPosition() || new THREE.Vector3(pos.worldX, 75, pos.worldY);
+              DestructionSystem.fxQueue.push({
+                type: 'laser' as any,
+                x: ufoPos.x,
+                y: ufoPos.y - 3, // slightly below mothership body at beam port
+                z: ufoPos.z,
+                data: {
+                  tx: impactPoint.x,
+                  ty: impactPoint.y,
+                  tz: impactPoint.z
+                }
+              });
+            } else if (impactPoint !== null) {
+              // Weapon fired into open terrain/air — check defense units & traffic
+              weapon.heatLevel = weapon.fireRate;
+              DefenseSystem.checkTargetHit(impactPoint.x, impactPoint.z, 14, ZONAL_DAMAGE_AMOUNT);
+              TrafficSystem.applyDamageInRadius(impactPoint.x, impactPoint.z, 8);
 
-            DestructionSystem.fxQueue.push({
-              type: 'laser' as any,
-              x: ufoPos.x,
-              y: ufoPos.y - 3, // slightly below mothership body at beam port
-              z: ufoPos.z,
-              data: {
-                tx: impactPoint.x,
-                ty: impactPoint.y,
-                tz: impactPoint.z
-              }
-            });
-          } else if (impactPoint !== null) {
-            // Weapon fired into ground (miss)
-            weapon.heatLevel = weapon.fireRate;
-            const ufoPos = PlayerRenderer.getPlayerMeshPosition() || new THREE.Vector3(pos.worldX, 75, pos.worldY);
-            DestructionSystem.fxQueue.push({
-              type: 'laser' as any,
-              x: ufoPos.x,
-              y: ufoPos.y - 3,
-              z: ufoPos.z,
-              data: {
-                tx: impactPoint.x,
-                ty: impactPoint.y,
-                tz: impactPoint.z
-              }
-            });
+              DestructionSystem.fxQueue.push({
+                type: 'laser' as any,
+                x: ufoPos.x,
+                y: ufoPos.y - 3,
+                z: ufoPos.z,
+                data: {
+                  tx: impactPoint.x,
+                  ty: impactPoint.y,
+                  tz: impactPoint.z
+                }
+              });
+            }
           }
         }
 

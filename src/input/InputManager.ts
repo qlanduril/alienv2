@@ -1,6 +1,7 @@
 export class InputManager {
   private static keys: Record<string, boolean> = {};
   private static pointerDown: boolean = false;
+  private static pointerSecondaryDown: boolean = false;
   private static mouseX: number = 0;
   private static mouseY: number = 0;
   private static screenWidth: number = window.innerWidth;
@@ -25,8 +26,25 @@ export class InputManager {
       }
     });
     
-    window.addEventListener('pointerdown', () => this.pointerDown = true);
-    window.addEventListener('pointerup', () => this.pointerDown = false);
+    window.addEventListener('pointerdown', (e) => {
+      if (e.button === 2) {
+        this.pointerSecondaryDown = true;
+      } else {
+        this.pointerDown = true;
+      }
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (e.button === 2) {
+        this.pointerSecondaryDown = false;
+      } else {
+        this.pointerDown = false;
+      }
+    });
+
+    window.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
     
     window.addEventListener('pointermove', (e) => {
       this.mouseX = e.clientX;
@@ -45,6 +63,10 @@ export class InputManager {
 
   public static isPointerDown(): boolean {
     return this.pointerDown;
+  }
+
+  public static isSecondaryPointerDown(): boolean {
+    return this.pointerSecondaryDown;
   }
 
   // Returns Normalized Device Coordinates (NDC) for Raycasting

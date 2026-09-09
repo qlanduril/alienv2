@@ -28,17 +28,29 @@ const AMBIENT_FIRE_THRESHOLD = 0.3;
 const AMBIENT_SMOKE_THRESHOLD = 0.6;
 
 import { SpatialGrid } from '../core/SpatialGrid';
+import { ScoreSystem } from './ScoreSystem';
+import { UIOverlay } from '../rendering/UIOverlay';
+import { TrafficSystem } from './TrafficSystem';
+import { DefenseSystem } from './DefenseSystem';
 
 export class DestructionSystem {
   public static fxQueue: FXEvent[] = [];
 
   private static ambientTimer: number = 0;
   private static clusterTimer: number = 0;
+  private static statTimer: number = 0;
 
   /** Set of entities that have already triggered a cluster blast (reset after 10s) */
   private static clusterCooldown: Map<Entity, number> = new Map();
 
+  /** Set of entities whose destruction has already been credited to the score and stats */
+  public static destroyedBuildings: Set<Entity> = new Set();
+  public static totalBuildingCount: number = 0;
+  private static destructionPercentage: number = 0;
+
   public static init() {
+    this.destroyedBuildings.clear();
+    this.destructionPercentage = 0;
     ECS.addSystem(this.tick.bind(this));
   }
 
@@ -73,6 +85,37 @@ export class DestructionSystem {
     for (const [entity, expiry] of this.clusterCooldown) {
       if (now > expiry) this.clusterCooldown.delete(entity);
     }
+
+    // Periodic destruction stats recalculation
+    this.statTimer += delta;
+    if (this.statTimer >= 0.5) {
+      this.statTimer = 0;
+      this.updateDestructionStats();
+    }
+  }
+
+  public static updateDestructionStats() {
+    let total = 0;
+    let destroyed = 0;
+    for (const entity of ECS.entities) {
+      const zh = ZonalHealthComponent.get(entity);
+      if (zh) {
+        total++;
+        if (zh.totalHp <= 0) {
+          destroyed++;
+          this.destroyedBuildings.add(entity);
+        }
+      }
+    }
+    if (total > 0) {
+      this.totalBuildingCount = total;
+      this.destructionPercentage = Math.min(100, Math.round((destroyed / total) * 1000) / 10);
+      UIOverlay.updateScore(this.destructionPercentage);
+    }
+  }
+
+  public static getDestructionPercentage(): number {
+    return this.destructionPercentage;
   }
 
   /**
@@ -85,6 +128,10 @@ export class DestructionSystem {
     radius: number = 64,
     maxDamage: number = 25
   ) {
+    // 1. Damage traffic vehicles and defense units in blast radius
+    TrafficSystem.applyDamageInRadius(originX, originZ, radius);
+    DefenseSystem.checkTargetHit(originX, originZ, radius, maxDamage);
+
     const candidates = SpatialGrid.queryRadius(originX, originZ, radius);
 
     for (const entity of candidates) {
@@ -286,8 +333,24 @@ export class DestructionSystem {
     this.fxQueue.push({ type: 'fire',   x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
     this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: (levelChanged || newLevel >= 2) ? 'heavy' : 'light' } });
 
+    // Award hit score
+    ScoreSystem.addScore(10, undefined, { x: pos.worldX, y: pos.worldY, z: 20 });
+
     // ── 6. Building demolition & collapse when totally destroyed ─────────
     if (zonalHealth.totalHp <= 0) {
+      if (!this.destroyedBuildings.has(entity)) {
+        this.destroyedBuildings.add(entity);
+        let pts = 100;
+        if (def) {
+          if (def.is3D) pts = 2500;
+          else if (def.tier === 'background') pts = 500;
+          else if (def.tier === 'midground') pts = 250;
+          else if (def.footprintTiles && def.footprintTiles >= 3) pts = 1000;
+        }
+        ScoreSystem.addScore(pts, def?.name || 'Demolished', { x: pos.worldX, y: pos.worldY, z: 30 });
+        this.updateDestructionStats();
+      }
+
       if (def && def.is3D) {
         // 3D building handled by update3DBuilding timeline
       } else {
@@ -326,6 +389,8 @@ export class DestructionSystem {
     if (typeKey === '1') palette = [0xffffff, 0xdddddd, 0xaaaaaa, 0xff4444];
     else if (typeKey === '3') palette = [0xd2b48c, 0xaaaaaa, 0x888888, 0x5c4033];
 
+    ScoreSystem.addScore(10, undefined, { x: pos.worldX, y: pos.worldY, z: 20 });
+
     if (newFrameIndex !== health.state) {
       health.state = newFrameIndex;
 
@@ -334,10 +399,25 @@ export class DestructionSystem {
       const footprintWidth = def ? (def.width || 16) : 16;
       const craterSize = Math.max(18, Math.round(footprintWidth * Math.SQRT2 * vScale * 1.15));
 
-      if (health.currentHP <= 0 && (!def || !def.is3D)) {
-        BuildingRenderer.trigger2DDemolition(entity, craterSize, palette);
-        ParticleSimSystem.spawnDemolitionVolcano(pos.worldX, 1, pos.worldY, craterSize, palette);
-        this.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: 12 } });
+      if (health.currentHP <= 0) {
+        if (!this.destroyedBuildings.has(entity)) {
+          this.destroyedBuildings.add(entity);
+          let pts = 100;
+          if (def) {
+            if (def.is3D) pts = 2500;
+            else if (def.tier === 'background') pts = 500;
+            else if (def.tier === 'midground') pts = 250;
+            else if (def.footprintTiles && def.footprintTiles >= 3) pts = 1000;
+          }
+          ScoreSystem.addScore(pts, def?.name || 'Demolished', { x: pos.worldX, y: pos.worldY, z: 30 });
+          this.updateDestructionStats();
+        }
+
+        if (!def || !def.is3D) {
+          BuildingRenderer.trigger2DDemolition(entity, craterSize, palette);
+          ParticleSimSystem.spawnDemolitionVolcano(pos.worldX, 1, pos.worldY, craterSize, palette);
+          this.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: 12 } });
+        }
       } else {
         DecalManager.spawnDecal(pos.worldX, pos.worldY, 'scorch', 15);
       }

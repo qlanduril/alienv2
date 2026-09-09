@@ -342,8 +342,24 @@ export class BuildingRenderer {
       const { typeKey, def } = this.getTypeInfo(entity, renderState.texturePrefix);
 
       if (def && def.is3D) {
-        const rendered3D = this.update3DBuilding(entity, renderState, pos, typeKey, def, delta);
-        if (rendered3D) continue;
+        // 3D buildings are rendered strictly as 3D GLTF models — never create or render a 2D billboard sprite
+        const existingSprite = this.sprites.get(entity);
+        if (existingSprite) {
+          existingSprite.visible = false;
+          SceneManager.cityGroup.remove(existingSprite);
+          if (existingSprite.geometry) existingSprite.geometry.dispose();
+          if (existingSprite.material) {
+            if (Array.isArray(existingSprite.material)) {
+              existingSprite.material.forEach(m => m.dispose());
+            } else {
+              existingSprite.material.dispose();
+            }
+          }
+          this.sprites.delete(entity);
+        }
+
+        this.update3DBuilding(entity, renderState, pos, typeKey, def, delta);
+        continue;
       }
 
       this.updateZonalFrame(entity, renderState, delta);

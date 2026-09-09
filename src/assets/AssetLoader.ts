@@ -18,23 +18,23 @@ export class AssetLoader {
 
     const promises: Promise<any>[] = [];
 
-    // 0. Background load 3D GLB Models (non-blocking)
-    this.loadGLTF('skyscraper_demolition', '/3d/skyscrapper1/skyscraper_demolition.glb').catch(err => {
-      console.warn('[AssetLoader] GLTF background load notice:', err);
-    });
-    this.loadGLTF('spaceship_hq', '/3d/spaceship_hq/spaceship_hq.glb').catch(err => {
+    // 0. Preload 3D GLB Models (awaited so they are immediately available on frame 0)
+    promises.push(this.loadGLTF('skyscraper_demolition', '/3d/skyscrapper1/skyscraper_demolition.glb').catch(err => {
+      console.warn('[AssetLoader] GLTF load notice:', err);
+    }));
+    promises.push(this.loadGLTF('spaceship_hq', '/3d/spaceship_hq/spaceship_hq.glb').catch(err => {
       console.warn('[AssetLoader] spaceship_hq 3D load notice:', err);
-    });
-    this.loadGLTF('cyber_reactor', '/3d/cyber_reactor/cyber_reactor.glb').catch(err => {
+    }));
+    promises.push(this.loadGLTF('cyber_reactor', '/3d/cyber_reactor/cyber_reactor.glb').catch(err => {
       console.warn('[AssetLoader] cyber_reactor 3D load notice:', err);
-    });
-    this.loadGLTF('financial_tower', '/3d/financial_tower/financial_tower.glb').catch(err => {
+    }));
+    promises.push(this.loadGLTF('financial_tower', '/3d/financial_tower/financial_tower.glb').catch(err => {
       console.warn('[AssetLoader] financial_tower 3D load notice:', err);
-    });
+    }));
 
     // 1. Load Map Data
     promises.push(
-      fetch('/map_data.json')
+      fetch(`/map_data.json?t=${Date.now()}`, { cache: 'no-store' })
         .then(res => res.json())
         .then(data => { this.mapData = data; })
         .catch(err => console.error("Failed to load map data:", err))
@@ -42,7 +42,7 @@ export class AssetLoader {
 
     // 1.5 Load Sprite Offsets
     promises.push(
-      fetch('/sprite_offsets.json')
+      fetch(`/sprite_offsets.json?t=${Date.now()}`, { cache: 'no-store' })
         .then(res => res.json())
         .then(data => { this.spriteOffsets = data; })
         .catch(err => console.error("Failed to load sprite offsets:", err))
@@ -79,7 +79,6 @@ export class AssetLoader {
     promises.push(this.loadTexture('building_mall_shopping_stage_0', '/buildingv2/mall_shopping/png/state_000_pristine.png'));
     promises.push(this.loadTexture('building_school_civic_stage_0', '/buildingv2/school_civic/png/state_000_pristine.png'));
 
-    promises.push(this.loadTexture('building_mega_titan_stage_0', '/buildingv2/mega_titan/png/state_000_pristine.png'));
     promises.push(this.loadTexture('building_spaceship_hq_stage_0', '/buildingv2/spaceship_hq/png/state_000_pristine.png'));
     promises.push(this.loadTexture('building_statue_liberty_stage_0', '/buildingv2/statue_liberty/png/state_000_pristine.png'));
     promises.push(this.loadTexture('building_pentagon_defense_stage_0', '/buildingv2/pentagon_defense/png/state_000_pristine.png'));

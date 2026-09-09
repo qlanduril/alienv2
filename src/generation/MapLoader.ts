@@ -12,56 +12,21 @@ import {
   RenderStateComponent
 } from '../core/Components';
 import { CityGenerator } from '../systems/CityGenerator';
-import { MapBaker } from './MapBaker';
 import { GeneratedMapData, SerializedTile } from './GeneratedMapSchema';
-import { CityPresetName } from './CityConfig';
 
 const HP_PER_ZONE = 60;
-const CURRENT_SCHEMA_VERSION = '1.3.0';
 
 export class MapLoader {
   /**
-   * Helper to determine target preset from URL query parameter (e.g. ?preset=ny or ?preset=arcade)
+   * Loads the authoritative city map JSON (/map_data.json), paints TileMap, and spawns ECS building entities.
    */
-  public static getPresetFromUrl(): CityPresetName {
-    if (typeof window === 'undefined') return 'isometric_v1';
-    const params = new URLSearchParams(window.location.search);
-    const p = params.get('preset')?.toLowerCase();
-    if (p === 'osmnx' || p === 'realworld') {
-      return 'osmnx';
-    }
-    if (p === 'ny' || p === 'metropolitan_ny' || p === 'gotham') {
-      return 'metropolitan_ny';
-    }
-    if (p === 'kenney' || p === 'kenney_isometric') {
-      return 'kenney_isometric';
-    }
-    if (p === 'v1' || p === 'isometric_v1') {
-      return 'isometric_v1';
-    }
-    return 'retro_arcade';
-  }
-
-  /**
-   * Loads pre-baked city map JSON, paints TileMap, and spawns ECS building entities.
-   * Checks URL parameter ?preset=v1 vs ?preset=kenney vs ?preset=ny vs ?preset=osmnx vs ?preset=arcade, or uses explicit jsonPath.
-   */
-  public static async loadAndInstantiate(jsonPath?: string): Promise<boolean> {
+  public static async loadAndInstantiate(jsonPath: string = '/map_data.json'): Promise<boolean> {
     try {
-      const activePreset = this.getPresetFromUrl();
-      const targetPath = jsonPath || (
-        activePreset === 'osmnx' ? '/generated_map_osmnx.json' :
-        activePreset === 'kenney_isometric' ? '/generated_map_kenney.json' :
-        activePreset === 'isometric_v1' ? '/generated_map_v1.json' :
-        activePreset === 'metropolitan_ny' ? '/generated_map_ny.json' :
-        '/generated_map.json'
-      );
+      console.log(`[MapLoader] Fetching authoritative city map from ${jsonPath}...`);
+      let response = await fetch(`${jsonPath}?t=${Date.now()}`, { cache: 'no-store' });
 
-      console.log(`[MapLoader] Fetching pre-baked map for preset '${activePreset}' from ${targetPath}...`);
-      let response = await fetch(targetPath);
-
-      if (!response.ok && targetPath !== '/generated_map.json') {
-        response = await fetch('/generated_map.json');
+      if (!response.ok && jsonPath !== '/generated_map.json') {
+        response = await fetch(`/generated_map.json?t=${Date.now()}`, { cache: 'no-store' });
       }
 
       let data: GeneratedMapData | null = null;
@@ -69,11 +34,10 @@ export class MapLoader {
         data = await response.json();
       }
 
-      // If pre-baked file missing, wrong version, or has empty tiles -> trigger rich MapBaker
-      if (!data || data.version !== CURRENT_SCHEMA_VERSION || !data.tiles || data.tiles.length === 0) {
-        console.warn(`[MapLoader] Pre-baked map invalid or missing tiles. Running dynamic MapBaker for '${activePreset}'...`);
-        const bakeResult = await MapBaker.bake(data?.seed || 42, activePreset);
-        data = bakeResult.data;
+      if (!data || !data.tiles || data.tiles.length === 0) {
+        console.warn(`[MapLoader] Pre-baked map invalid or missing tiles. Falling back to live CityGenerator...`);
+        CityGenerator.generateCity();
+        return true;
       }
 
       // ── Step 1: Initialize blank TileMap ──────────────────────────────
@@ -250,8 +214,7 @@ export class MapLoader {
         : 'unknown date';
 
       console.log(
-        `[MapLoader] Successfully loaded pre-baked map for '${activePreset}'! ` +
-        `(${spawnedCount} buildings, seed: ${data.seed}, baked at: ${bakedTime})`
+        `[MapLoader] Successfully loaded city map (${spawnedCount} buildings, seed: ${data.seed}, baked at: ${bakedTime})`
       );
       return true;
     } catch (err) {

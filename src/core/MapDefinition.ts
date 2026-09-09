@@ -76,52 +76,47 @@ export const MAP_DEFINITION: MapDefinition = {
     { id: 'residential', terrain: TerrainType.GRASS,       gx: 16, gz: 37, w: 21, h: 27 },
 
     // ── 5. South-East Water Harbor & Docks ────────────────────────────────────
-    { id: 'docks', terrain: TerrainType.SIDEWALK, gx: 37, gz: 37, w: 17, h: 27 },
-    { id: 'water', terrain: TerrainType.WATER,    gx: 54, gz: 37, w: 10, h: 27 },
+    { id: 'docks', terrain: TerrainType.SIDEWALK, gx: 48, gz: 33, w: 2,  h: 31 },
+    { id: 'water', terrain: TerrainType.WATER,    gx: 50, gz: 33, w: 14, h: 31 },
   ],
 
   roads: [
-    // ── 16-District Perimeter Road Grid (Intersections every 16 cells) ──────────────
+    // ── 16-District Connected Road Grid ──────────────────────────────────────
     { id: 'ave_0',  axis: 'NS', gx: 0,  gz: 0, length: 64 },
     { id: 'ave_16', axis: 'NS', gx: 16, gz: 0, length: 64 },
     { id: 'ave_32', axis: 'NS', gx: 32, gz: 0, length: 64 },
-    { id: 'ave_48', axis: 'NS', gx: 48, gz: 0, length: 54 },
+    { id: 'ave_48', axis: 'NS', gx: 48, gz: 0, length: 64 }, // Waterfront Avenue
 
     { id: 'st_0',  axis: 'EW', gx: 0, gz: 0,  length: 64 },
     { id: 'st_16', axis: 'EW', gx: 0, gz: 16, length: 64 },
-    { id: 'st_32', axis: 'EW', gx: 0, gz: 32, length: 64 },
-    { id: 'st_48', axis: 'EW', gx: 0, gz: 48, length: 54 },
+    { id: 'st_32', axis: 'EW', gx: 0, gz: 32, length: 49 }, // Meets ave_48 at (48, 32)
+    { id: 'st_48', axis: 'EW', gx: 0, gz: 48, length: 49 }, // Meets ave_48 at (48, 48)
   ],
 
   landmarks: [
-    // ── 16-DISTRICT CENTER GRID SYSTEM (Tall spires North/Background, Low buildings South/Foreground) ──
-    // District (0,0) [gx 0..15, gz 0..15] North-West: Alien Spaceship HQ 3D Spire
-    { key: 'spaceship_hq',     gx: 6,  gz: 6,  terrain: TerrainType.SIDEWALK,    bufferTiles: 2 },
+    // ── 4 Downtown 3D Mega-Landmarks Balanced Around (32, 32) ───────────────────
+    { key: 'mega_titan',       gx: 22, gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
+    { key: 'spaceship_hq',     gx: 38, gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
+    { key: 'financial_tower',  gx: 22, gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
+    { key: 'cyber_reactor',    gx: 38, gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
 
-    // District (1,0) [gx 16..31, gz 0..15] North-Center: Apex Mega-Tower (Tallest background landmark)
-    { key: 'mega_titan',       gx: 22, gz: 6,  terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
-
-    // District (2,0) [gx 32..47, gz 0..15] North-East: Metro Financial Tower 3D Spire
-    { key: 'financial_tower',  gx: 38, gz: 6,  terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
-
-    // District (0,1) [gx 0..15, gz 16..31] Mid-North Tech: Cyber Quantum Reactor
-    { key: 'cyber_reactor',    gx: 8,  gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
-
-    // ── MID & SOUTH CIVIC / LOW-PROFILE LANDMARKS (Zero vertical occlusion of northern towers) ──
-    { key: '3',                gx: 22, gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (1,1) Center: School
-    { key: '1',                gx: 38, gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (2,1) Center: Hospital
-    { key: '2',                gx: 6,  gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (0,2) Center: Mall
-    { key: 'pentagon_defense', gx: 22, gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 }, // District (1,2) Center: Defense Bunker
-    { key: 'mega_stadium',     gx: 38, gz: 38, terrain: TerrainType.GRASS,       bufferTiles: 2 }, // District (2,2) Center: Stadium Arena (Low-rise)
-    { key: '4',                gx: 22, gz: 52, terrain: TerrainType.SIDEWALK,    bufferTiles: 1 }, // District (1,3) Center: Warehouse
+    // ── Outer District Civic & Commercial Anchors ──────────────────────────────
+    { key: 'hospital_civic',   gx: 6,  gz: 22, terrain: TerrainType.SIDEWALK,    bufferTiles: 1 },
+    { key: 'pentagon_defense', gx: 6,  gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 },
+    { key: 'mega_stadium',     gx: 38, gz: 6,  terrain: TerrainType.GRASS,       bufferTiles: 2 },
+    { key: 'mall_shopping',    gx: 22, gz: 6,  terrain: TerrainType.SIDEWALK,    bufferTiles: 1 },
+    { key: 'school_civic',     gx: 6,  gz: 54, terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 },
+    { key: '1',                gx: 54, gz: 6,  terrain: TerrainType.PLAZA_STONE, bufferTiles: 1 },
+    { key: '2',                gx: 54, gz: 22, terrain: TerrainType.SIDEWALK,    bufferTiles: 1 },
+    { key: '3',                gx: 22, gz: 54, terrain: TerrainType.SIDEWALK,    bufferTiles: 1 },
   ],
 
   islands: [
     {
-      // ── Statue of Liberty Island in South-East Water ────────────────────────
-      gx: 54, gz: 48, w: 8, h: 8,
-      platformGx: 56, platformGz: 50,
-      platformW: 3, platformH: 3,
+      // ── Statue of Liberty Island in South-East Harbor Water Bay ────────────
+      gx: 50, gz: 33, w: 14, h: 31,
+      platformGx: 54, platformGz: 42,
+      platformW: 5, platformH: 5,
       landmark: 'statue_liberty',
     }
   ],

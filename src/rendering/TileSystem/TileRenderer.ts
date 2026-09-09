@@ -151,6 +151,22 @@ export class TileRenderer {
     singleGroundMesh.rotation.x = GROUND_ROTATION_X;
     singleGroundMesh.position.set(0, GROUND_ALTITUDE, 0);
     singleGroundMesh.receiveShadow = true;
+    singleGroundMesh.renderOrder = 0;
+
+    // Extended base green landscape layer below the tiles
+    const BASE_GROUND_SIZE = 3500; // Scaled much wider than the 1024-unit tile grid
+    const baseGreenGeo = new THREE.PlaneGeometry(BASE_GROUND_SIZE, BASE_GROUND_SIZE);
+    const baseGreenMat = new THREE.MeshStandardMaterial({
+      color: 0x2d6a2d, // Seamlessly matches city park green grass (#2d6a2d)
+      roughness: DEFAULT_ROUGHNESS,
+      metalness: DEFAULT_METALNESS,
+      depthWrite: false
+    });
+    const baseGreenMesh = new THREE.Mesh(baseGreenGeo, baseGreenMat);
+    baseGreenMesh.rotation.x = GROUND_ROTATION_X;
+    baseGreenMesh.position.set(0, -0.2, 0); // Positioned below the tile level (y=0)
+    baseGreenMesh.receiveShadow = true;
+    baseGreenMesh.renderOrder = -10;
 
     // Dispose previous ground mesh, geometry and textures to eliminate VRAM leaks
     while (this.layer0Group.children.length > 0) {
@@ -170,6 +186,7 @@ export class TileRenderer {
       }
     }
 
+    this.layer0Group.add(baseGreenMesh);
     this.layer0Group.add(singleGroundMesh);
   }
 }

@@ -214,9 +214,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const overlayName = OverlayTileType[info.overlayType] || 'NONE';
     const terrainName = TerrainType[info.terrainType] || 'GRASS';
 
+    let displayTerrain = overlayName !== 'NONE' ? overlayName : terrainName;
+    let displayTitle = overlayName !== 'NONE' ? `Road (${overlayName})` : terrainName;
+
+    if (info.terrainType === TerrainType.ROAD_ROUNDABOUT) {
+      displayTerrain = 'ROUNDABOUT';
+      displayTitle = 'Traffic Circle Rotary';
+    } else if (info.terrainType >= TerrainType.ROAD_CURVE_NE && info.terrainType <= TerrainType.ROAD_CURVE_SW) {
+      const curveSuffix = TerrainType[info.terrainType].replace('ROAD_CURVE_', '');
+      displayTerrain = `CURVE (${curveSuffix})`;
+      displayTitle = `Curved Avenue (${curveSuffix})`;
+    }
+
     hudCoordGrid.innerText = `[${info.gx}, ${info.gz}]`;
     hudCoordWorld.innerText = `(${info.worldX.toFixed(0)}, ${info.worldZ.toFixed(0)})`;
-    hudTerrainType.innerText = overlayName !== 'NONE' ? overlayName : terrainName;
+    hudTerrainType.innerText = displayTerrain;
 
     inspectCell.innerText = `[${info.gx}, ${info.gz}]`;
     inspectWorld.innerText = `(${info.worldX.toFixed(0)}, ${info.worldZ.toFixed(0)})`;
@@ -231,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
       inspectTierBadge.innerText = info.buildingDef.tier || 'building';
       inspectTierBadge.className = `tier-badge tier-${info.buildingDef.tier || 'foreground'}`;
     } else {
-      inspectTitleName.innerText = overlayName !== 'NONE' ? `Road (${overlayName})` : terrainName;
+      inspectTitleName.innerText = displayTitle;
       inspectSubtitle.innerText = info.isOccupied ? 'Reserved / Occupied' : 'Open Ground';
       inspectHp.innerText = '--';
       inspectTierBadge.style.display = 'none';

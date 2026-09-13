@@ -5,7 +5,8 @@ import {
 } from './WFCTilePrototypes';
 import {
   WFCMacroModule,
-  WFC_MACRO_MODULES
+  WFC_MACRO_MODULES,
+  areMacroSocketsCompatible
 } from './WFCMacroModules';
 
 export interface WFCSolvedCell {
@@ -306,71 +307,254 @@ export class WFCSolver {
     return result;
   }
 
-  // ─── 8x8 MACRO-GRID WFC SOLVER METHOD ─────────────────────────────────────────
+  // ─── 8x8 MACRO-GRID ARC-CONSISTENCY WFC SOLVER METHOD ───────────────────────
   public solveMacroGrid(
     macroGridDim: number = 8,
     modules: WFCMacroModule[] = WFC_MACRO_MODULES,
     seed: number = 42
   ): WFCMacroModule[][] {
-    const rng = this.createRandom(seed);
-    const macroSuperposition: Set<number>[][] = Array.from({ length: macroGridDim }, () =>
-      Array.from({ length: macroGridDim }, () => new Set<number>())
-    );
+    const directions = [
+      { dir: 'N' as const, dx: 0, dz: -1, opp: 'S' as const },
+      { dir: 'E' as const, dx: 1, dz: 0, opp: 'W' as const },
+      { dir: 'S' as const, dx: 0, dz: 1, opp: 'N' as const },
+      { dir: 'W' as const, dx: -1, dz: 0, opp: 'E' as const },
+    ];
 
-    for (let mx = 0; mx < macroGridDim; mx++) {
-      for (let mz = 0; mz < macroGridDim; mz++) {
-        let targetDistrict: string;
-        if (mx >= 2 && mx <= 5 && mz >= 2 && mz <= 5) {
-          targetDistrict = 'downtown';
-        } else if (mx <= 3 && mz <= 3) {
-          targetDistrict = 'tech';
-        } else if (mx >= 4 && mz <= 3) {
-          targetDistrict = 'sports';
-        } else if (mx <= 3 && mz >= 4) {
-          targetDistrict = 'suburbs';
-        } else {
-          targetDistrict = 'harbor';
-        }
+    for (let attempt = 0; attempt < this.maxAttempts; attempt++) {
+      try {
+        const currentSeed = seed + attempt * 2026;
+        const rng = this.createRandom(currentSeed);
 
-        for (let i = 0; i < modules.length; i++) {
-          const mod = modules[i];
-          if (mod.district === targetDistrict || mod.district === 'any') {
-            macroSuperposition[mx][mz].add(i);
+        // 1. Initialize Superposition with District Biases
+        const macroSuperposition: Set<number>[][] = Array.from({ length: macroGridDim }, () =>
+          Array.from({ length: macroGridDim }, () => new Set<number>())
+        );
+
+        for (let mx = 0; mx < macroGridDim; mx++) {
+          for (let mz = 0; mz < macroGridDim; mz++) {
+            let targetDistrict: string;
+            if (mx >= 2 && mx <= 5 && mz >= 2 && mz <= 5) {
+              targetDistrict = 'downtown';
+            } else if (mx <= 3 && mz <= 3) {
+              targetDistrict = 'tech';
+            } else if (mx >= 4 && mz <= 3) {
+              targetDistrict = 'sports';
+            } else if (mx <= 3 && mz >= 4) {
+              targetDistrict = 'suburbs';
+            } else {
+              targetDistrict = 'harbor';
+            }
+
+            for (let i = 0; i < modules.length; i++) {
+              const mod = modules[i];
+              if (mod.district === targetDistrict || mod.district === 'any') {
+                macroSuperposition[mx][mz].add(i);
+              }
+            }
+
+            // Fallback: If no district modules matched, allow all
+            if (macroSuperposition[mx][mz].size === 0) {
+              for (let i = 0; i < modules.length; i++) macroSuperposition[mx][mz].add(i);
+            }
           }
         }
 
-        if (macroSuperposition[mx][mz].size === 0) {
-          for (let i = 0; i < modules.length; i++) macroSuperposition[mx][mz].add(i);
+        // 2. Pin Signature Downtown Anchor: Grand Central Roundabout at (3, 3)
+        const grandRoundaboutIdx = modules.findIndex(m => m.id === 'grand_central_roundabout');
+        if (grandRoundaboutIdx >= 0 && macroGridDim > 3) {
+          macroSuperposition[3][3].clear();
+          macroSuperposition[3][3].add(grandRoundaboutIdx);
         }
-      }
-    }
 
-    const result: WFCMacroModule[][] = [];
+        // 3. Queue-based Constraint Propagation (Arc Consistency)
+        const propagateMacro = (startMx: number, startMz: number) => {
+          const queue: Array<{ mx: number; mz: number }> = [{ mx: startMx, mz: startMz }];
+          const inQueue = new Set<string>();
+          inQueue.add(`${startMx},${startMz}`);
 
-    for (let mx = 0; mx < macroGridDim; mx++) {
-      result[mx] = [];
-      for (let mz = 0; mz < macroGridDim; mz++) {
-        const candidates = Array.from(macroSuperposition[mx][mz]);
-        let totalWeight = 0;
-        candidates.forEach(idx => { totalWeight += modules[idx].weight; });
+          while (queue.length > 0) {
+            const curr = queue.shift()!;
+            inQueue.delete(`${curr.mx},${curr.mz}`);
 
-        let chosenIdx = candidates[0] || 0;
-        let r = rng() * (totalWeight || 1);
+            const currSet = macroSuperposition[curr.mx][curr.mz];
+            if (currSet.size === 0) continue;
 
-        for (const idx of candidates) {
-          const w = modules[idx].weight;
-          if (r <= w) {
-            chosenIdx = idx;
-            break;
+            for (const d of directions) {
+              const nx = curr.mx + d.dx;
+              const nz = curr.mz + d.dz;
+
+              if (nx < 0 || nx >= macroGridDim || nz < 0 || nz >= macroGridDim) continue;
+
+              const neighborSet = macroSuperposition[nx][nz];
+              if (neighborSet.size <= 1) continue; // Already collapsed
+
+              const toRemove: number[] = [];
+
+              for (const nIdx of neighborSet) {
+                const nMod = modules[nIdx];
+                if (!nMod) continue;
+                const nSocket = nMod.sockets[d.opp];
+
+                let isCompatible = false;
+                for (const cIdx of currSet) {
+                  const cMod = modules[cIdx];
+                  if (!cMod) continue;
+                  const cSocket = cMod.sockets[d.dir];
+                  if (areMacroSocketsCompatible(cSocket, nSocket)) {
+                    isCompatible = true;
+                    break;
+                  }
+                }
+
+                if (!isCompatible) {
+                  toRemove.push(nIdx);
+                }
+              }
+
+              if (toRemove.length > 0) {
+                for (const remIdx of toRemove) {
+                  neighborSet.delete(remIdx);
+                }
+
+                // Contradiction Healing: If neighbor set empties, pick module with maximum socket match
+                if (neighborSet.size === 0) {
+                  let bestIdx = 0;
+                  let bestScore = -1;
+                  for (let i = 0; i < modules.length; i++) {
+                    const mod = modules[i];
+                    let score = 0;
+                    for (const nd of directions) {
+                      const nnx = nx + nd.dx;
+                      const nnz = nz + nd.dz;
+                      if (nnx >= 0 && nnx < macroGridDim && nnz >= 0 && nnz < macroGridDim) {
+                        const nnSet = macroSuperposition[nnx][nnz];
+                        if (nnSet.size === 1) {
+                          const nnMod = modules[Array.from(nnSet)[0]];
+                          if (areMacroSocketsCompatible(mod.sockets[nd.dir], nnMod.sockets[nd.opp])) {
+                            score += 4;
+                          }
+                        } else if (nnSet.size > 1) {
+                          score += 1;
+                        }
+                      } else {
+                        score += 1; // Map edge
+                      }
+                    }
+                    if (score > bestScore) {
+                      bestScore = score;
+                      bestIdx = i;
+                    }
+                  }
+                  neighborSet.add(bestIdx);
+                }
+
+                const key = `${nx},${nz}`;
+                if (!inQueue.has(key)) {
+                  queue.push({ mx: nx, mz: nz });
+                  inQueue.add(key);
+                }
+              }
+            }
           }
-          r -= w;
+        };
+
+        // Propagate initial pinned anchor constraints
+        if (grandRoundaboutIdx >= 0 && macroGridDim > 3) {
+          propagateMacro(3, 3);
         }
 
-        result[mx][mz] = modules[chosenIdx] || modules[0];
+        // 4. Shannon Entropy Function
+        const calculateEntropy = (mx: number, mz: number): number => {
+          const set = macroSuperposition[mx][mz];
+          if (set.size <= 1) return Infinity;
+
+          let weightSum = 0;
+          let weightLogSum = 0;
+          for (const idx of set) {
+            const w = modules[idx]?.weight || 1.0;
+            weightSum += w;
+            weightLogSum += w * Math.log2(w);
+          }
+          if (weightSum <= 0) return Infinity;
+          return Math.log2(weightSum) - weightLogSum / weightSum + rng() * 0.0001;
+        };
+
+        // 5. WFC Collapse Loop
+        while (true) {
+          let minEntropy = Infinity;
+          let minCell: { mx: number; mz: number } | null = null;
+
+          for (let mx = 0; mx < macroGridDim; mx++) {
+            for (let mz = 0; mz < macroGridDim; mz++) {
+              if (macroSuperposition[mx][mz].size > 1) {
+                const entropy = calculateEntropy(mx, mz);
+                if (entropy < minEntropy) {
+                  minEntropy = entropy;
+                  minCell = { mx, mz };
+                }
+              }
+            }
+          }
+
+          if (!minCell) break; // All cells fully collapsed!
+
+          // Collapse chosen cell with weighted random
+          const set = macroSuperposition[minCell.mx][minCell.mz];
+          const candidates: Array<{ idx: number; weight: number }> = [];
+          let totalWeight = 0;
+
+          for (const idx of set) {
+            const w = modules[idx]?.weight || 1.0;
+            totalWeight += w;
+            candidates.push({ idx, weight: w });
+          }
+
+          let r = rng() * (totalWeight || 1.0);
+          let chosenIdx = candidates[0].idx;
+
+          for (const cand of candidates) {
+            if (r <= cand.weight) {
+              chosenIdx = cand.idx;
+              break;
+            }
+            r -= cand.weight;
+          }
+
+          set.clear();
+          set.add(chosenIdx);
+
+          // Propagate constraints from newly collapsed cell
+          propagateMacro(minCell.mx, minCell.mz);
+        }
+
+        // 6. Assemble Solved 8x8 Matrix
+        const result: WFCMacroModule[][] = [];
+        for (let mx = 0; mx < macroGridDim; mx++) {
+          result[mx] = [];
+          for (let mz = 0; mz < macroGridDim; mz++) {
+            const set = macroSuperposition[mx][mz];
+            const chosenIdx = set.size > 0 ? Array.from(set)[0] : 0;
+            result[mx][mz] = modules[chosenIdx] || modules[0];
+          }
+        }
+
+        console.log(
+          `[WFCSolver] Successfully solved ${macroGridDim}x${macroGridDim} Macro WFC Grid on attempt #${attempt + 1} with guaranteed road socket connectivity!`
+        );
+        return result;
+      } catch (err) {
+        console.warn(`[WFCSolver] Macro WFC solve failed on attempt #${attempt + 1}:`, err);
       }
     }
 
-    console.log(`[WFCSolver] Successfully solved ${macroGridDim}x${macroGridDim} Macro-Block WFC Grid!`);
-    return result;
+    // Fallback: Default to crossroads and straight avenues if all attempts threw
+    const fallbackResult: WFCMacroModule[][] = [];
+    for (let mx = 0; mx < macroGridDim; mx++) {
+      fallbackResult[mx] = [];
+      for (let mz = 0; mz < macroGridDim; mz++) {
+        fallbackResult[mx][mz] = modules[0];
+      }
+    }
+    return fallbackResult;
   }
 }

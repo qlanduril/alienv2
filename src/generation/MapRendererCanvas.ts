@@ -1,7 +1,7 @@
 import { LayerSnapshot } from './MapBaker';
 import { TerrainType, OverlayTileType } from '../rendering/TileSystem/TileMap';
 import { BUILDING_DEFS, BuildingDef } from '../core/BuildingDefs';
-import { SerializedBuilding } from './GeneratedMapSchema';
+import { SerializedBuilding, RoadAxisType } from './GeneratedMapSchema';
 
 export interface LayerVisibility {
   water: boolean;
@@ -254,9 +254,14 @@ export class MapRendererCanvas {
     this.ctx.restore();
   }
 
-  private getGameTileKey(tile: { terrainType: TerrainType; overlayType: OverlayTileType; roadAxis?: 'NS' | 'EW' }): string {
-    if (tile.overlayType === OverlayTileType.ROAD || tile.terrainType === TerrainType.ROAD_INTERSECTION) {
-      if (tile.terrainType === TerrainType.ROAD_INTERSECTION) return 'road_intersection';
+  private getGameTileKey(tile: { terrainType: TerrainType; overlayType: OverlayTileType; roadAxis?: RoadAxisType }): string {
+    if (
+      tile.overlayType === OverlayTileType.ROAD ||
+      tile.terrainType === TerrainType.ROAD_INTERSECTION ||
+      tile.terrainType === TerrainType.ROAD_ROUNDABOUT ||
+      (tile.terrainType >= TerrainType.ROAD_CURVE_NE && tile.terrainType <= TerrainType.ROAD_CURVE_SW)
+    ) {
+      if (tile.terrainType === TerrainType.ROAD_INTERSECTION || tile.terrainType === TerrainType.ROAD_ROUNDABOUT) return 'road_intersection';
       if (tile.roadAxis === 'NS' || tile.terrainType === TerrainType.ROAD_STRAIGHT_NS) return 'road_ns';
       return 'road_ew';
     }
@@ -289,7 +294,10 @@ export class MapRendererCanvas {
 
           // If layer is disabled, draw generic base
           const isWater = tile.terrainType === TerrainType.WATER;
-          const isRoad = tile.overlayType === OverlayTileType.ROAD || tile.terrainType === TerrainType.ROAD_INTERSECTION;
+          const isRoad = tile.overlayType === OverlayTileType.ROAD ||
+                         tile.terrainType === TerrainType.ROAD_INTERSECTION ||
+                         tile.terrainType === TerrainType.ROAD_ROUNDABOUT ||
+                         (tile.terrainType >= TerrainType.ROAD_CURVE_NE && tile.terrainType <= TerrainType.ROAD_CURVE_SW);
           const showThisTile = (!isWater || this.layers.water) && (!isRoad || this.layers.roads) && (isWater || isRoad || this.layers.terrain);
 
           if (showThisTile && img && img.complete && img.naturalWidth > 0) {
@@ -329,49 +337,126 @@ export class MapRendererCanvas {
       }
     }
 
-    // 2. Roads Procedural Markings (in Blueprint mode or if image not loaded)
-    if (this.layers.roads && !isGameStyle) {
+    // 2. Roads Procedural Markings, Curves & Roundabouts
+    if (this.layers.roads) {
       for (let gx = 0; gx < gridDim; gx++) {
         for (let gz = 0; gz < gridDim; gz++) {
           const tile = this.snapshot!.tiles[gx]?.[gz];
           if (!tile) continue;
 
-          if (tile.overlayType === OverlayTileType.ROAD || tile.terrainType === TerrainType.ROAD_INTERSECTION) {
-            const x = gx * baseTileSize;
-            const y = gz * baseTileSize;
+          const isRoad = tile.overlayType === OverlayTileType.ROAD ||
+                         tile.terrainType === TerrainType.ROAD_INTERSECTION ||
+                         tile.terrainType === TerrainType.ROAD_ROUNDABOUT ||
+                         (tile.terrainType >= TerrainType.ROAD_CURVE_NE && tile.terrainType <= TerrainType.ROAD_CURVE_SW);
 
-            this.ctx.fillStyle = '#0f172a'; // Asphalt
+          if (!isRoad) continue;
+
+          const x = gx * baseTileSize;
+          const y = gz * baseTileSize;
+
+          if (!isGameStyle) {
+            this.ctx.fillStyle = '#0f172a'; // Dark asphalt
             this.ctx.fillRect(x, y, baseTileSize, baseTileSize);
 
             // Road curb borders
             this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
             this.ctx.lineWidth = 1;
             this.ctx.strokeRect(x, y, baseTileSize, baseTileSize);
-
-            // Lane markings
-            if (baseTileSize >= 12) {
-              this.ctx.strokeStyle = 'rgba(245, 158, 11, 0.65)';
-              this.ctx.lineWidth = 1.5;
-              this.ctx.setLineDash([3, 3]);
-
-              this.ctx.beginPath();
-              if (tile.roadAxis === 'NS' || tile.terrainType === TerrainType.ROAD_STRAIGHT_NS) {
-                this.ctx.moveTo(x + baseTileSize / 2, y);
-                this.ctx.lineTo(x + baseTileSize / 2, y + baseTileSize);
-              } else if (tile.roadAxis === 'EW' || tile.terrainType === TerrainType.ROAD_STRAIGHT_EW) {
-                this.ctx.moveTo(x, y + baseTileSize / 2);
-                this.ctx.lineTo(x + baseTileSize, y + baseTileSize / 2);
-              } else {
-                // Intersection cross
-                this.ctx.moveTo(x + baseTileSize / 2, y);
-                this.ctx.lineTo(x + baseTileSize / 2, y + baseTileSize);
-                this.ctx.moveTo(x, y + baseTileSize / 2);
-                this.ctx.lineTo(x + baseTileSize, y + baseTileSize / 2);
-              }
-              this.ctx.stroke();
-              this.ctx.setLineDash([]);
-            }
           }
+
+          // Lane markings
+          if (baseTileSize >= 8) {
+            this.ctx.strokeStyle = 'rgba(245, 158, 11, 0.8)';
+            this.ctx.lineWidth = Math.max(1, 1.5 * this.zoom);
+            this.ctx.setLineDash([3, 3]);
+
+            const t = tile.terrainType;
+            const axis = tile.roadAxis;
+
+            if (axis === 'NS' || t === TerrainType.ROAD_STRAIGHT_NS) {
+              this.ctx.beginPath();
+              this.ctx.moveTo(x + baseTileSize / 2, y);
+              this.ctx.lineTo(x + baseTileSize / 2, y + baseTileSize);
+              this.ctx.stroke();
+            } else if (axis === 'EW' || t === TerrainType.ROAD_STRAIGHT_EW) {
+              this.ctx.beginPath();
+              this.ctx.moveTo(x, y + baseTileSize / 2);
+              this.ctx.lineTo(x + baseTileSize, y + baseTileSize / 2);
+              this.ctx.stroke();
+            } else if (axis === 'CURVE_NE' || t === TerrainType.ROAD_CURVE_NE) {
+              // Connects North to East
+              this.ctx.beginPath();
+              this.ctx.arc(x + baseTileSize, y, baseTileSize / 2, Math.PI, Math.PI / 2, true);
+              this.ctx.stroke();
+            } else if (axis === 'CURVE_NW' || t === TerrainType.ROAD_CURVE_NW) {
+              // Connects North to West
+              this.ctx.beginPath();
+              this.ctx.arc(x, y, baseTileSize / 2, 0, Math.PI / 2, false);
+              this.ctx.stroke();
+            } else if (axis === 'CURVE_SE' || t === TerrainType.ROAD_CURVE_SE) {
+              // Connects South to East
+              this.ctx.beginPath();
+              this.ctx.arc(x + baseTileSize, y + baseTileSize, baseTileSize / 2, Math.PI, 3 * Math.PI / 2, false);
+              this.ctx.stroke();
+            } else if (axis === 'CURVE_SW' || t === TerrainType.ROAD_CURVE_SW) {
+              // Connects South to West
+              this.ctx.beginPath();
+              this.ctx.arc(x, y + baseTileSize, baseTileSize / 2, 0, 3 * Math.PI / 2, true);
+              this.ctx.stroke();
+            } else if (t === TerrainType.ROAD_ROUNDABOUT) {
+              // Roundabout cell: circular arc flow
+              this.ctx.beginPath();
+              this.ctx.arc(x + baseTileSize / 2, y + baseTileSize / 2, baseTileSize * 0.35, 0, Math.PI * 2);
+              this.ctx.stroke();
+            } else {
+              // 4-Way Intersection cross
+              this.ctx.beginPath();
+              this.ctx.moveTo(x + baseTileSize / 2, y);
+              this.ctx.lineTo(x + baseTileSize / 2, y + baseTileSize);
+              this.ctx.moveTo(x, y + baseTileSize / 2);
+              this.ctx.lineTo(x + baseTileSize, y + baseTileSize / 2);
+              this.ctx.stroke();
+            }
+            this.ctx.setLineDash([]);
+          }
+        }
+      }
+
+      // Unified circular roundabouts overlays
+      if (this.snapshot!.roundabouts && this.snapshot!.roundabouts.length > 0) {
+        for (const rb of this.snapshot!.roundabouts) {
+          const cx = rb.cx * baseTileSize;
+          const cy = rb.cz * baseTileSize;
+          const outerR = rb.radius * baseTileSize;
+          const innerR = Math.max(baseTileSize * 0.8, outerR - baseTileSize * 1.15);
+          const laneR = (outerR + innerR) / 2;
+
+          // 1. Outer circular curb
+          this.ctx.beginPath();
+          this.ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+          this.ctx.strokeStyle = isGameStyle ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 240, 255, 0.45)';
+          this.ctx.lineWidth = Math.max(1, 2 * this.zoom);
+          this.ctx.stroke();
+
+          // 2. Dashed yellow central ring divider
+          this.ctx.beginPath();
+          this.ctx.arc(cx, cy, laneR, 0, Math.PI * 2);
+          this.ctx.strokeStyle = 'rgba(245, 158, 11, 0.9)';
+          this.ctx.lineWidth = Math.max(1, 1.5 * this.zoom);
+          this.ctx.setLineDash([4, 4]);
+          this.ctx.stroke();
+          this.ctx.setLineDash([]);
+
+          // 3. Inner island curb ring & disc
+          this.ctx.beginPath();
+          this.ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+          this.ctx.fillStyle = rb.islandType === 'grass'
+            ? (isGameStyle ? '#235e23' : '#142d1f')
+            : (isGameStyle ? '#8c7d6b' : '#334155');
+          this.ctx.fill();
+          this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+          this.ctx.lineWidth = Math.max(1, 2 * this.zoom);
+          this.ctx.stroke();
         }
       }
     }
@@ -575,6 +660,50 @@ export class MapRendererCanvas {
           this.ctx.lineWidth = 1;
           this.ctx.stroke();
         }
+      }
+    }
+
+    // Render 3D Isometric Roundabout Ellipses on Ground Plane
+    if (this.layers.roads && this.snapshot!.roundabouts && this.snapshot!.roundabouts.length > 0) {
+      for (const rb of this.snapshot!.roundabouts) {
+        const p = toIso(rb.cx, rb.cz);
+        const rX = rb.radius * isoW * 0.5;
+        const rY = rX * 0.5; // Isometric 2:1 foreshortened projection
+        const innerRx = Math.max(isoW * 0.4, rX - isoW * 0.55);
+        const innerRy = innerRx * 0.5;
+        const laneRx = (rX + innerRx) / 2;
+        const laneRy = laneRx * 0.5;
+
+        // Asphalt ring ellipse
+        this.ctx.beginPath();
+        this.ctx.ellipse(p.x, p.y + isoH / 2, rX, rY, 0, 0, Math.PI * 2);
+        this.ctx.fillStyle = isGameStyle ? '#1c1f24' : '#0f172a';
+        this.ctx.fill();
+
+        // Outer white curb ellipse
+        this.ctx.strokeStyle = isGameStyle ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 240, 255, 0.45)';
+        this.ctx.lineWidth = Math.max(1, 1.8 * this.zoom);
+        this.ctx.stroke();
+
+        // Dashed yellow divider ellipse
+        this.ctx.beginPath();
+        this.ctx.ellipse(p.x, p.y + isoH / 2, laneRx, laneRy, 0, 0, Math.PI * 2);
+        this.ctx.strokeStyle = 'rgba(245, 158, 11, 0.9)';
+        this.ctx.lineWidth = Math.max(1, 1.5 * this.zoom);
+        this.ctx.setLineDash([4, 4]);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+
+        // Inner landscaped island ellipse
+        this.ctx.beginPath();
+        this.ctx.ellipse(p.x, p.y + isoH / 2, innerRx, innerRy, 0, 0, Math.PI * 2);
+        this.ctx.fillStyle = rb.islandType === 'grass'
+          ? (isGameStyle ? '#2d6a2d' : '#193324')
+          : (isGameStyle ? '#9e8e78' : '#334155');
+        this.ctx.fill();
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+        this.ctx.lineWidth = Math.max(1, 1.8 * this.zoom);
+        this.ctx.stroke();
       }
     }
 

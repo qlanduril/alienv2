@@ -12,7 +12,7 @@ import {
   RenderStateComponent
 } from '../core/Components';
 import { CityGenerator } from '../systems/CityGenerator';
-import { GeneratedMapData, SerializedTile } from './GeneratedMapSchema';
+import { GeneratedMapData, SerializedTile, RoadAxisType } from './GeneratedMapSchema';
 import { AssetLoader } from '../assets/AssetLoader';
 
 export class MapLoader {
@@ -59,7 +59,7 @@ export class MapLoader {
           let terrainType: TerrainType = TerrainType.GRASS;
           let overlayType: OverlayTileType = OverlayTileType.NONE;
           let isIntersection = false;
-          let roadAxis: 'NS' | 'EW' | 'DIAG' | undefined = undefined;
+          let roadAxis: RoadAxisType | undefined = undefined;
           let tileSprite: string | undefined = undefined;
 
           if (is2D) {
@@ -75,7 +75,13 @@ export class MapLoader {
             const val = (data.tiles as any)[gz * gridDim + gx];
             if (typeof val === 'number') {
               terrainType = val as TerrainType;
-              if (terrainType === TerrainType.ROAD_STRAIGHT_NS || terrainType === TerrainType.ROAD_STRAIGHT_EW || terrainType === TerrainType.ROAD_INTERSECTION) {
+              if (
+                terrainType === TerrainType.ROAD_STRAIGHT_NS ||
+                terrainType === TerrainType.ROAD_STRAIGHT_EW ||
+                terrainType === TerrainType.ROAD_INTERSECTION ||
+                terrainType === TerrainType.ROAD_ROUNDABOUT ||
+                (terrainType >= TerrainType.ROAD_CURVE_NE && terrainType <= TerrainType.ROAD_CURVE_SW)
+              ) {
                 overlayType = OverlayTileType.ROAD;
               } else if (terrainType === TerrainType.SIDEWALK) {
                 overlayType = OverlayTileType.SIDEWALK;
@@ -96,7 +102,11 @@ export class MapLoader {
           }
 
           if (overlayType === OverlayTileType.ROAD) {
-            if (isIntersection || terrainType === TerrainType.ROAD_INTERSECTION) {
+            if (terrainType === TerrainType.ROAD_ROUNDABOUT) {
+              TileMap.setRoundabout(gx, gz);
+            } else if (terrainType >= TerrainType.ROAD_CURVE_NE && terrainType <= TerrainType.ROAD_CURVE_SW) {
+              TileMap.setRoadCurve(gx, gz, terrainType);
+            } else if (isIntersection || terrainType === TerrainType.ROAD_INTERSECTION) {
               TileMap.setIntersection(gx, gz);
             } else {
               TileMap.setRoad(gx, gz, roadAxis === 'EW' ? 'EW' : 'NS');

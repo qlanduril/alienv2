@@ -1,11 +1,22 @@
 import { TerrainType, OverlayTileType } from '../rendering/TileSystem/TileMap';
 
+export type RoadAxisType = 'NS' | 'EW' | 'DIAG' | 'ROUNDABOUT' | 'CURVE_NE' | 'CURVE_NW' | 'CURVE_SE' | 'CURVE_SW';
+
+export interface RoundaboutInfo {
+  cx: number;
+  cz: number;
+  radius: number;
+  islandType: 'plaza' | 'grass';
+  monumentKey?: string;
+}
+
 export interface SerializedTile {
   terrainType: TerrainType;
   overlayType: OverlayTileType;
   isIntersection?: boolean;
-  roadAxis?: 'NS' | 'EW' | 'DIAG';
+  roadAxis?: RoadAxisType;
   tileSprite?: string;
+  roundaboutCenter?: { cx: number; cz: number; radius: number };
 }
 
 export interface SerializedBuilding {

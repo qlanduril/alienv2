@@ -6,7 +6,9 @@ import {
   GeneratedMapData,
   SerializedTile,
   SerializedBuilding,
-  SerializedWaypoint
+  SerializedWaypoint,
+  RoundaboutInfo,
+  RoadAxisType
 } from './GeneratedMapSchema';
 
 import { WFCSolver } from './WFCSolver';
@@ -17,10 +19,11 @@ export interface LayerSnapshot {
   layerName: string;
   description: string;
   gridDim: number;
-  tiles: { terrainType: TerrainType; overlayType: OverlayTileType; roadAxis?: 'NS' | 'EW' }[][];
+  tiles: { terrainType: TerrainType; overlayType: OverlayTileType; roadAxis?: RoadAxisType }[][];
   buildings: SerializedBuilding[];
   occupied: boolean[][];
   macroGrid?: { district: string; name: string }[][];
+  roundabouts?: RoundaboutInfo[];
 }
 
 export interface ProgressCallback {
@@ -45,6 +48,10 @@ export class MapBaker {
     const layerTimings: Record<string, number> = {};
     const gridDim = TileMap.GRID_DIM; // 64
     const snapshots: LayerSnapshot[] = [];
+    const currentRoundabouts: RoundaboutInfo[] = [];
+    const cellRoadAxes: (RoadAxisType | undefined)[][] = Array.from({ length: gridDim }, () =>
+      Array(gridDim).fill(undefined)
+    );
 
     TileMap.init();
 
@@ -124,15 +131,30 @@ export class MapBaker {
       return true;
     };
 
-    const captureSnapshot = (layerIndex: number, layerName: string, description: string, macroGridRef?: any): LayerSnapshot => {
+    const captureSnapshot = (
+      layerIndex: number,
+      layerName: string,
+      description: string,
+      macroGridRef?: any,
+      roundaboutsRef?: RoundaboutInfo[]
+    ): LayerSnapshot => {
       const clonedTiles = Array.from({ length: gridDim }, (_, gx) =>
         Array.from({ length: gridDim }, (_, gz) => {
           const cell = TileMap.getCell(gx, gz)!;
+          let axis = cellRoadAxes[gx]?.[gz];
+          if (!axis) {
+            if (cell.terrainType === TerrainType.ROAD_STRAIGHT_NS) axis = 'NS';
+            else if (cell.terrainType === TerrainType.ROAD_STRAIGHT_EW) axis = 'EW';
+            else if (cell.terrainType === TerrainType.ROAD_ROUNDABOUT) axis = 'ROUNDABOUT';
+            else if (cell.terrainType === TerrainType.ROAD_CURVE_NE) axis = 'CURVE_NE';
+            else if (cell.terrainType === TerrainType.ROAD_CURVE_NW) axis = 'CURVE_NW';
+            else if (cell.terrainType === TerrainType.ROAD_CURVE_SE) axis = 'CURVE_SE';
+            else if (cell.terrainType === TerrainType.ROAD_CURVE_SW) axis = 'CURVE_SW';
+          }
           return {
             terrainType: cell.terrainType,
             overlayType: cell.overlayType,
-            roadAxis: (cell.terrainType === TerrainType.ROAD_STRAIGHT_NS ? 'NS' :
-                      cell.terrainType === TerrainType.ROAD_STRAIGHT_EW ? 'EW' : undefined) as 'NS' | 'EW' | undefined
+            roadAxis: axis
           };
         })
       );
@@ -142,6 +164,8 @@ export class MapBaker {
         ? (macroGridRef as any[][]).map(row => row.map(m => ({ district: m.district || 'any', name: m.name || '' })))
         : undefined;
 
+      const activeRoundabouts = roundaboutsRef || (currentRoundabouts.length > 0 ? currentRoundabouts : undefined);
+
       const snap: LayerSnapshot = {
         layerIndex,
         layerName,
@@ -150,7 +174,8 @@ export class MapBaker {
         tiles: clonedTiles,
         buildings: clonedBuildings,
         occupied: clonedOccupied,
-        macroGrid: clonedMacroGrid
+        macroGrid: clonedMacroGrid,
+        roundabouts: activeRoundabouts ? activeRoundabouts.map(r => ({ ...r })) : undefined
       };
       snapshots.push(snap);
       return snap;
@@ -212,7 +237,7 @@ export class MapBaker {
     onProgress?.(2, this.TOTAL_LAYERS, `Pass 3: Solving 8x8 Macro-Block WFC grid...`, snap3);
     if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
-    // ── PASS 4: ROAD GRID RASTERIZATION ──────────────────────────────────
+    // ── PASS 4: ROAD GRID, ROUNDABOUTS & INFRASTRUCTURE ─────────────────
     t0 = performance.now();
 
     for (let mx = 0; mx < 8; mx++) {
@@ -220,6 +245,23 @@ export class MapBaker {
         const mod = macroGrid[mx][mz];
         const baseGx = mx * 8;
         const baseGz = mz * 8;
+
+        if (mod.id === 'grand_central_roundabout' || mod.id === 'district_rotary_park') {
+          currentRoundabouts.push({
+            cx: baseGx + 4.0,
+            cz: baseGz + 4.0,
+            radius: 2.3,
+            islandType: mod.id === 'district_rotary_park' ? 'grass' : 'plaza',
+            monumentKey: mod.id === 'grand_central_roundabout' ? 'sky_artdeco' : 'statue_liberty'
+          });
+        } else if (mod.id.startsWith('culdesac_') || mod.id === 'suburban_culdesac_loop') {
+          currentRoundabouts.push({
+            cx: baseGx + 4.0,
+            cz: baseGz + 4.0,
+            radius: 1.6,
+            islandType: 'grass'
+          });
+        }
 
         for (let lx = 0; lx < 8; lx++) {
           for (let lz = 0; lz < 8; lz++) {
@@ -231,8 +273,9 @@ export class MapBaker {
               if (cell && cell.terrainType !== TerrainType.WATER) {
                 cell.terrainType = cellData.terrainType;
                 cell.overlayType = cellData.overlayType;
+                cellRoadAxes[gx][gz] = cellData.roadAxis;
 
-                if (cellData.overlayType === OverlayTileType.ROAD) {
+                if (TileMap.isRoad(cellData.terrainType, cellData.overlayType)) {
                   occupied[gx][gz] = true;
                 }
               }
@@ -241,9 +284,45 @@ export class MapBaker {
         }
       }
     }
+
+    // Guarantee at least one signature Grand Central Roundabout at city center if none was placed
+    if (currentRoundabouts.length === 0) {
+      const rcx = 28.0, rcz = 28.0;
+      currentRoundabouts.push({
+        cx: rcx,
+        cz: rcz,
+        radius: 2.3,
+        islandType: 'plaza',
+        monumentKey: 'sky_artdeco'
+      });
+
+      for (let gx = 25; gx <= 30; gx++) {
+        for (let gz = 25; gz <= 30; gz++) {
+          const dist = Math.hypot(gx + 0.5 - rcx, gz + 0.5 - rcz);
+          if (dist <= 1.2) {
+            TileMap.setTerrain(gx, gz, TerrainType.PLAZA_STONE);
+            if (gx === 27 && gz === 27) {
+              placeBuilding(gx, gz, 'sky_artdeco', 'landmark', 0);
+            }
+          } else if (dist <= 2.8) {
+            TileMap.setRoundabout(gx, gz);
+            occupied[gx][gz] = true;
+            cellRoadAxes[gx][gz] = 'ROUNDABOUT';
+          }
+        }
+      }
+      // Radial feeder avenues connecting to surrounding grid
+      for (let d = 0; d < 2; d++) {
+        TileMap.setRoad(27 + d, 24, 'NS'); occupied[27 + d][24] = true; cellRoadAxes[27 + d][24] = 'NS';
+        TileMap.setRoad(27 + d, 31, 'NS'); occupied[27 + d][31] = true; cellRoadAxes[27 + d][31] = 'NS';
+        TileMap.setRoad(24, 27 + d, 'EW'); occupied[24][27 + d] = true; cellRoadAxes[24][27 + d] = 'EW';
+        TileMap.setRoad(31, 27 + d, 'EW'); occupied[31][27 + d] = true; cellRoadAxes[31][27 + d] = 'EW';
+      }
+    }
+
     layerTimings['Pass 4 (Road Grid)'] = performance.now() - t0;
-    const snap4 = captureSnapshot(3, 'Pass 4: Road Grid & Infrastructure', 'Avenues, street corridors, and intersection grid', macroGrid);
-    onProgress?.(3, this.TOTAL_LAYERS, 'Pass 4: Rasterizing Macro-Module road grid...', snap4);
+    const snap4 = captureSnapshot(3, 'Pass 4: Road Grid & Roundabouts', 'Avenues, circular traffic rotaries, curved boulevards & intersection grid', macroGrid, currentRoundabouts);
+    onProgress?.(3, this.TOTAL_LAYERS, 'Pass 4: Rasterizing road grid, circular rotaries & curved boulevards...', snap4);
     if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
     // ── PASS 5: BUILDINGS & LANDMARKS RASTERIZATION ───────────────────────
@@ -290,8 +369,14 @@ export class MapBaker {
           terrainType: cell.terrainType,
           overlayType: cell.overlayType,
           isIntersection: cell.terrainType === TerrainType.ROAD_INTERSECTION,
-          roadAxis: cell.terrainType === TerrainType.ROAD_STRAIGHT_NS ? 'NS' :
-                    cell.terrainType === TerrainType.ROAD_STRAIGHT_EW ? 'EW' : undefined
+          roadAxis: cellRoadAxes[gx]?.[gz] ||
+                    (cell.terrainType === TerrainType.ROAD_STRAIGHT_NS ? 'NS' :
+                     cell.terrainType === TerrainType.ROAD_STRAIGHT_EW ? 'EW' :
+                     cell.terrainType === TerrainType.ROAD_ROUNDABOUT ? 'ROUNDABOUT' :
+                     cell.terrainType === TerrainType.ROAD_CURVE_NE ? 'CURVE_NE' :
+                     cell.terrainType === TerrainType.ROAD_CURVE_NW ? 'CURVE_NW' :
+                     cell.terrainType === TerrainType.ROAD_CURVE_SE ? 'CURVE_SE' :
+                     cell.terrainType === TerrainType.ROAD_CURVE_SW ? 'CURVE_SW' : undefined)
         };
       })
     );

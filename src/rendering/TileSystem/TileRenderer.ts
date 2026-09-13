@@ -55,7 +55,13 @@ export class TileRenderer {
         const py = gz * cellSize;
         const t = cell.terrainType;
 
-        if (t === TerrainType.ROAD_STRAIGHT_NS || t === TerrainType.ROAD_STRAIGHT_EW || t === TerrainType.ROAD_INTERSECTION) {
+        if (
+          t === TerrainType.ROAD_STRAIGHT_NS ||
+          t === TerrainType.ROAD_STRAIGHT_EW ||
+          t === TerrainType.ROAD_INTERSECTION ||
+          t === TerrainType.ROAD_ROUNDABOUT ||
+          (t >= TerrainType.ROAD_CURVE_NE && t <= TerrainType.ROAD_CURVE_SW)
+        ) {
           // Asphalt base
           ctx.fillStyle = '#1c1f24';
           ctx.fillRect(px, py, cellSize, cellSize);
@@ -103,6 +109,66 @@ export class TileRenderer {
             ctx.fillRect(px + cellSize - 2, py, 2, 2);
             ctx.fillRect(px, py + cellSize - 2, 2, 2);
             ctx.fillRect(px + cellSize - 2, py + cellSize - 2, 2, 2);
+
+          } else if (t === TerrainType.ROAD_ROUNDABOUT) {
+            // Circular Roundabout rotary tile
+            ctx.strokeStyle = '#d0d7e0';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(px + 0.5, py + 0.5, cellSize - 1, cellSize - 1);
+            // Yellow circular dashed lane arc
+            ctx.strokeStyle = '#f5b800';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.38, 0, Math.PI * 2);
+            ctx.stroke();
+
+          } else if (t === TerrainType.ROAD_CURVE_NE) {
+            ctx.strokeStyle = '#f5b800';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(px + cellSize, py, cellSize / 2, Math.PI, Math.PI / 2, true);
+            ctx.stroke();
+            ctx.strokeStyle = '#d0d7e0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(px + cellSize, py, cellSize - 1, Math.PI, Math.PI / 2, true);
+            ctx.stroke();
+
+          } else if (t === TerrainType.ROAD_CURVE_NW) {
+            ctx.strokeStyle = '#f5b800';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(px, py, cellSize / 2, 0, Math.PI / 2, false);
+            ctx.stroke();
+            ctx.strokeStyle = '#d0d7e0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(px, py, cellSize - 1, 0, Math.PI / 2, false);
+            ctx.stroke();
+
+          } else if (t === TerrainType.ROAD_CURVE_SE) {
+            ctx.strokeStyle = '#f5b800';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(px + cellSize, py + cellSize, cellSize / 2, Math.PI, 3 * Math.PI / 2, false);
+            ctx.stroke();
+            ctx.strokeStyle = '#d0d7e0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(px + cellSize, py + cellSize, cellSize - 1, Math.PI, 3 * Math.PI / 2, false);
+            ctx.stroke();
+
+          } else if (t === TerrainType.ROAD_CURVE_SW) {
+            ctx.strokeStyle = '#f5b800';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(px, py + cellSize, cellSize / 2, 0, 3 * Math.PI / 2, true);
+            ctx.stroke();
+            ctx.strokeStyle = '#d0d7e0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(px, py + cellSize, cellSize - 1, 0, 3 * Math.PI / 2, true);
+            ctx.stroke();
           }
         }
       }

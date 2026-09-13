@@ -12,7 +12,12 @@ export enum TerrainType {
   SIDEWALK = 3,
   PLAZA_STONE = 4,
   GRASS = 5,
-  WATER = 6
+  WATER = 6,
+  ROAD_ROUNDABOUT = 7,
+  ROAD_CURVE_NE = 8,
+  ROAD_CURVE_NW = 9,
+  ROAD_CURVE_SE = 10,
+  ROAD_CURVE_SW = 11,
 }
 
 export enum OverlayTileType {
@@ -124,10 +129,48 @@ export class TileMap {
     cell.overlayType = OverlayTileType.ROAD;
   }
 
+  /** Mark a cell as a road roundabout rotary. */
+  public static setRoundabout(gx: number, gz: number) {
+    const cell = this.getCell(gx, gz);
+    if (!cell) return;
+    cell.terrainType = TerrainType.ROAD_ROUNDABOUT;
+    cell.overlayType = OverlayTileType.ROAD;
+  }
+
+  /** Mark a cell as a curved road segment. */
+  public static setRoadCurve(gx: number, gz: number, curve: 'NE' | 'NW' | 'SE' | 'SW' | TerrainType) {
+    const cell = this.getCell(gx, gz);
+    if (!cell) return;
+    if (typeof curve === 'number') {
+      cell.terrainType = curve;
+    } else {
+      const typeMap = {
+        NE: TerrainType.ROAD_CURVE_NE,
+        NW: TerrainType.ROAD_CURVE_NW,
+        SE: TerrainType.ROAD_CURVE_SE,
+        SW: TerrainType.ROAD_CURVE_SW,
+      };
+      cell.terrainType = typeMap[curve];
+    }
+    cell.overlayType = OverlayTileType.ROAD;
+  }
+
+  /** Checks if a terrain or overlay tile represents any road variant. */
+  public static isRoad(terrainType: TerrainType, overlayType?: OverlayTileType): boolean {
+    return (
+      overlayType === OverlayTileType.ROAD ||
+      terrainType === TerrainType.ROAD_STRAIGHT_NS ||
+      terrainType === TerrainType.ROAD_STRAIGHT_EW ||
+      terrainType === TerrainType.ROAD_INTERSECTION ||
+      terrainType === TerrainType.ROAD_ROUNDABOUT ||
+      (terrainType >= TerrainType.ROAD_CURVE_NE && terrainType <= TerrainType.ROAD_CURVE_SW)
+    );
+  }
+
   /** Mark sidewalk flanks without overwriting road cells. */
   public static setSidewalkIfNotRoad(gx: number, gz: number) {
     const cell = this.getCell(gx, gz);
-    if (cell && cell.overlayType !== OverlayTileType.ROAD) {
+    if (cell && !this.isRoad(cell.terrainType, cell.overlayType)) {
       cell.terrainType = TerrainType.SIDEWALK;
       cell.overlayType = OverlayTileType.SIDEWALK;
     }

@@ -36,23 +36,24 @@ export class CameraController {
   private static targetZ: number = ZERO_VALUE;
 
   private static readonly ZOOM_STORAGE_KEY = 'alienv2_camera_zoom_frustum';
-  private static targetFrustumSize: number = 260;
-  private static currentFrustumSize: number = 260;
+  private static readonly DEFAULT_FRUSTUM_ZOOM = 380;
+  private static targetFrustumSize: number = 380;
+  private static currentFrustumSize: number = 380;
 
   public static init(camera: THREE.OrthographicCamera) {
     this.camera = camera;
     
-    // Restore saved zoom level from localStorage if available (reset if zoomed out > 380)
+    // Default to zoomed-out view (380). Reset if old default (260) or out of bounds.
     const saved = localStorage.getItem(this.ZOOM_STORAGE_KEY);
     if (saved) {
       const parsed = parseFloat(saved);
-      if (!isNaN(parsed) && parsed >= MIN_FRUSTUM_SIZE && parsed <= 380) {
+      if (!isNaN(parsed) && parsed >= 320 && parsed <= MAX_FRUSTUM_SIZE) {
         this.targetFrustumSize = parsed;
       } else {
-        this.targetFrustumSize = 260;
+        this.targetFrustumSize = this.DEFAULT_FRUSTUM_ZOOM;
       }
     } else {
-      this.targetFrustumSize = 260;
+      this.targetFrustumSize = this.DEFAULT_FRUSTUM_ZOOM;
     }
     this.currentFrustumSize = this.targetFrustumSize;
     SceneManager.setFrustumSize(this.currentFrustumSize);

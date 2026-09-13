@@ -12,7 +12,7 @@ const MAX_PIXEL_RATIO = 2.0;
 const SCENE_BACKGROUND_HEX = 0x0d1b2a;
 
 // Camera Orthographic Projection Constants
-const DEFAULT_FRUSTUM_SIZE = 260;
+const DEFAULT_FRUSTUM_SIZE = 380;
 const CAMERA_NEAR_PLANE = 1;
 const CAMERA_FAR_PLANE = 3500;
 const CAMERA_INIT_X = 200;
@@ -77,12 +77,13 @@ export class SceneManager {
   public static updateCameraProjection() {
     if (!this.camera) return;
     const aspect = window.innerWidth / window.innerHeight;
-    const frustumSize = this.currentFrustumSize;
+    // On portrait mobile screens (aspect < 1.0), widen frustum so the isometric city view remains expansive
+    const effectiveFrustum = aspect < 1.0 ? this.currentFrustumSize / Math.max(0.60, aspect) : this.currentFrustumSize;
 
-    this.camera.left = (-frustumSize * aspect) / HALF_DIVISOR;
-    this.camera.right = (frustumSize * aspect) / HALF_DIVISOR;
-    this.camera.top = frustumSize / HALF_DIVISOR;
-    this.camera.bottom = -frustumSize / HALF_DIVISOR;
+    this.camera.left = (-effectiveFrustum * aspect) / HALF_DIVISOR;
+    this.camera.right = (effectiveFrustum * aspect) / HALF_DIVISOR;
+    this.camera.top = effectiveFrustum / HALF_DIVISOR;
+    this.camera.bottom = -effectiveFrustum / HALF_DIVISOR;
     this.camera.updateProjectionMatrix();
   }
 

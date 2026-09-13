@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { ShowcaseManager } from '../systems/ShowcaseManager';
 import { HealthComponent, RenderStateComponent, ZonalHealthComponent, WeaponComponent, PlayerTagComponent } from '../core/Components';
 import { Entity, ECS } from '../core/ECS';
-import { CameraController } from './CameraController';
 import { ScoreSystem } from '../systems/ScoreSystem';
 import { DefenseSystem } from '../systems/DefenseSystem';
 import { WeaponSystem } from '../systems/WeaponSystem';
@@ -68,94 +67,84 @@ export class UIOverlay {
     // 1. Top HUD Container
     const hudContainer = document.createElement('div');
     hudContainer.style.position = 'fixed';
-    hudContainer.style.top = '20px';
-    hudContainer.style.left = '20px';
-    hudContainer.style.width = 'calc(100% / 1.25 - 32px)';
+    hudContainer.style.top = '14px';
+    hudContainer.style.left = '14px';
+    hudContainer.style.right = '14px';
     hudContainer.style.display = 'flex';
     hudContainer.style.justifyContent = 'space-between';
-    hudContainer.style.alignItems = 'center';
+    hudContainer.style.alignItems = 'flex-start';
     hudContainer.style.color = 'white';
     hudContainer.style.fontFamily = 'system-ui, -apple-system, sans-serif';
     hudContainer.style.zIndex = '1000';
     hudContainer.style.pointerEvents = 'none';
-    hudContainer.style.transform = 'scale(1.25)';
-    hudContainer.style.transformOrigin = 'top left';
 
-    // Score / Command Center HUD Panel
+    // Minimalist Score / Command Center HUD Panel
     this.scoreElement = document.createElement('div');
-    this.scoreElement.style.background = 'rgba(15, 23, 42, 0.88)';
+    this.scoreElement.style.background = 'rgba(15, 23, 42, 0.82)';
     this.scoreElement.style.backdropFilter = 'blur(10px)';
-    this.scoreElement.style.padding = '14px 20px';
-    this.scoreElement.style.borderRadius = '16px';
-    this.scoreElement.style.border = '1px solid rgba(255, 255, 255, 0.18)';
-    this.scoreElement.style.boxShadow = '0 12px 36px rgba(0, 0, 0, 0.6)';
+    this.scoreElement.style.padding = '8px 14px';
+    this.scoreElement.style.borderRadius = '12px';
+    this.scoreElement.style.border = '1px solid rgba(255, 255, 255, 0.12)';
+    this.scoreElement.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.5)';
     this.scoreElement.style.pointerEvents = 'auto';
-    this.scoreElement.style.minWidth = '270px';
+    this.scoreElement.style.minWidth = '210px';
+    this.scoreElement.style.maxWidth = '280px';
 
     this.scoreElement.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; flex-direction: column; gap: 5px;">
         <!-- Row 1: Score & High Score & Combo -->
         <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 10px;">
-          <div style="font-size: 20px; font-weight: 800; letter-spacing: 0.5px; color: #38bdf8;">
-            SCORE <span id="hud-score-val" style="color: #ffffff;">0</span>
+          <div style="font-size: 15px; font-weight: 800; letter-spacing: 0.5px; color: #38bdf8;">
+            SCORE <span id="hud-score-val" style="color: #ffffff; font-family: monospace; font-size: 16px;">0</span>
           </div>
-          <div style="font-size: 11px; font-weight: 700; color: #94a3b8;">
-            HIGH <span id="hud-high-val" style="color: #cbd5e1;">0</span>
+          <div style="font-size: 10px; font-weight: 700; color: #94a3b8;">
+            HI <span id="hud-high-val" style="color: #cbd5e1; font-family: monospace;">0</span>
           </div>
-          <div id="hud-combo-badge" style="display: none; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: #f59e0b; color: #000; box-shadow: 0 0 8px #f59e0b; transition: all 0.2s ease;">
-            x2 COMBO
+          <div id="hud-combo-badge" style="display: none; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 4px; background: #f59e0b; color: #000; box-shadow: 0 0 8px #f59e0b;">
+            x2
           </div>
         </div>
 
         <!-- Row 2: Destruction Progress Bar -->
-        <div style="display: flex; flex-direction: column; gap: 3px;">
-          <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #f87171;">
-            <span>CITY DESTRUCTION</span>
-            <span id="hud-destruct-val">0.0%</span>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; color: #f87171;">
+            <span>DESTRUCTION</span>
+            <span id="hud-destruct-val" style="font-family: monospace;">0.0%</span>
           </div>
-          <div style="width: 100%; height: 7px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden;">
-            <div id="hud-destruct-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #f97316, #ef4444); border-radius: 4px; transition: width 0.2s ease;"></div>
+          <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+            <div id="hud-destruct-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #f97316, #ef4444); border-radius: 3px; transition: width 0.2s ease;"></div>
           </div>
         </div>
 
-        <!-- Row 3: UFO Shield & Hull -->
-        <div style="display: flex; gap: 12px; font-size: 10px; font-weight: 700; margin-top: 2px;">
-          <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
-            <div style="display: flex; justify-content: space-between; color: #38bdf8;">
-              <span>SHIELD</span>
-              <span id="hud-shield-val">100%</span>
-            </div>
-            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden;">
+        <!-- Row 3: Slim UFO Shield & Hull -->
+        <div style="display: flex; gap: 8px; font-size: 9px; font-weight: 700;">
+          <div style="flex: 1; display: flex; align-items: center; gap: 4px;">
+            <span style="color: #38bdf8;">SHD</span>
+            <div style="flex: 1; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
               <div id="hud-shield-bar" style="width: 100%; height: 100%; background: #38bdf8; transition: width 0.15s ease;"></div>
             </div>
+            <span id="hud-shield-val" style="color: #38bdf8; font-family: monospace;">100%</span>
           </div>
-          <div style="flex: 1; display: flex; flex-direction: column; gap: 2px;">
-            <div style="display: flex; justify-content: space-between; color: #4ade80;">
-              <span>HULL</span>
-              <span id="hud-hull-val">100%</span>
-            </div>
-            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden;">
+          <div style="flex: 1; display: flex; align-items: center; gap: 4px;">
+            <span style="color: #4ade80;">HUL</span>
+            <div style="flex: 1; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
               <div id="hud-hull-bar" style="width: 100%; height: 100%; background: #4ade80; transition: width 0.15s ease;"></div>
             </div>
+            <span id="hud-hull-val" style="color: #4ade80; font-family: monospace;">100%</span>
           </div>
         </div>
 
-        <!-- Row 4: Weapons Selection Dock -->
-        <div style="display: flex; gap: 8px; margin-top: 4px;">
-          <button id="weapon-btn-1" style="flex: 1; padding: 5px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; border: 1px solid #38bdf8; background: #0284c7; color: white; cursor: pointer; transition: all 0.15s ease;">
-            [1] DEATH RAY
+        <!-- Row 4: Compact Weapons & Flight Mode Dock -->
+        <div style="display: flex; gap: 5px; margin-top: 2px;">
+          <button id="weapon-btn-1" style="flex: 1; padding: 4px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; border: 1px solid #38bdf8; background: #0284c7; color: white; cursor: pointer; transition: all 0.15s ease;">
+            [1] RAY
           </button>
-          <button id="weapon-btn-2" style="position: relative; flex: 1; padding: 5px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); background: #1e293b; color: #94a3b8; cursor: pointer; overflow: hidden; transition: all 0.15s ease;">
-            <span style="position: relative; z-index: 2;">[2] CLUSTER BOMB</span>
+          <button id="weapon-btn-2" style="position: relative; flex: 1; padding: 4px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); background: #1e293b; color: #94a3b8; cursor: pointer; overflow: hidden; transition: all 0.15s ease;">
+            <span style="position: relative; z-index: 2;">[2] BOMB</span>
             <div id="cluster-cooldown-overlay" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(245, 158, 11, 0.4); z-index: 1;"></div>
           </button>
-        </div>
-
-        <!-- Row 5: Flight Mode Toggle for Laptop Trackpad Players -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 10px;">
-          <span style="color: #94a3b8; font-weight: 600;">FLIGHT MODE:</span>
-          <button id="autopilot-btn" title="Tip: If playing on laptop trackpad, toggle Autopilot [F] to glide toward mouse without holding keys!" style="padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; border: 1px solid #38bdf8; background: rgba(56, 189, 248, 0.15); color: #38bdf8; cursor: pointer; transition: all 0.2s ease;">
-            🛸 [F] TWIN-STICK
+          <button id="autopilot-btn" title="Toggle Flight Mode [F]" style="padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; border: 1px solid #38bdf8; background: rgba(56, 189, 248, 0.15); color: #38bdf8; cursor: pointer;">
+            🛸 [F]
           </button>
         </div>
       </div>
@@ -218,27 +207,32 @@ export class UIOverlay {
     this.popupsContainer.style.zIndex = '999';
     document.body.appendChild(this.popupsContainer);
 
-    // Controls Panel (Right side)
+    // Controls Panel (Right side — only shown in debug mode)
     this.controlPanel = document.createElement('div');
     this.controlPanel.style.display = 'flex';
-    this.controlPanel.style.gap = '12px';
+    this.controlPanel.style.gap = '8px';
     this.controlPanel.style.pointerEvents = 'auto';
 
-    // Mode Switcher Button
+    const isDebugMode = typeof window !== 'undefined' && (
+      window.location.search.includes('debug=1') ||
+      window.location.search.includes('showcase=1')
+    );
+
+    // Mode Switcher Button (Showcase)
     this.modeToggleButton = document.createElement('button');
     this.modeToggleButton.setAttribute('aria-label', 'Enter test showcase mode');
     this.modeToggleButton.setAttribute('aria-pressed', 'false');
-    this.modeToggleButton.style.padding = '12px 22px';
-    this.modeToggleButton.style.borderRadius = '14px';
+    this.modeToggleButton.style.padding = '8px 14px';
+    this.modeToggleButton.style.borderRadius = '10px';
     this.modeToggleButton.style.border = '1px solid rgba(59, 130, 246, 0.5)';
     this.modeToggleButton.style.background = 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)';
     this.modeToggleButton.style.color = 'white';
     this.modeToggleButton.style.fontWeight = '600';
-    this.modeToggleButton.style.fontSize = '15px';
+    this.modeToggleButton.style.fontSize = '12px';
     this.modeToggleButton.style.cursor = 'pointer';
     this.modeToggleButton.style.boxShadow = '0 4px 14px rgba(59, 130, 246, 0.4)';
     this.modeToggleButton.style.transition = 'all 0.2s ease';
-    this.modeToggleButton.innerText = '🔬 ENTER TEST SHOWCASE MODE';
+    this.modeToggleButton.innerText = '🔬 SHOWCASE';
 
     this.modeToggleButton.onclick = () => {
       ShowcaseManager.toggleMode();
@@ -246,64 +240,42 @@ export class UIOverlay {
       this.modeToggleButton.blur();
     };
 
-    this.modeToggleButton.onmouseover = () => {
-      this.modeToggleButton.style.transform = 'scale(1.05)';
-    };
-    this.modeToggleButton.onmouseout = () => {
-      this.modeToggleButton.style.transform = 'scale(1.0)';
-    };
-
-    this.modeToggleButton.onfocus = () => {
-      this.modeToggleButton.style.transform = 'scale(1.05)';
-      this.modeToggleButton.style.outline = '3px solid rgba(147, 197, 253, 0.8)';
-      this.modeToggleButton.style.outlineOffset = '2px';
-    };
-    this.modeToggleButton.onblur = () => {
-      this.modeToggleButton.style.transform = 'scale(1.0)';
-      this.modeToggleButton.style.outline = 'none';
-    };
-
-    this.controlPanel.appendChild(this.modeToggleButton);
-
-    // Zoom Controls
-    const btnZoomIn = this.createActionButton('🔍 Zoom IN', '#2563eb', 'Zoom Camera In', () => CameraController.adjustZoom(-35));
-    const btnZoomOut = this.createActionButton('🔍 Zoom OUT', '#475569', 'Zoom Camera Out', () => CameraController.adjustZoom(35));
-    this.controlPanel.appendChild(btnZoomIn);
-    this.controlPanel.appendChild(btnZoomOut);
-
     // Showcase Action Tools Container (Hidden in City mode)
     this.showcaseTools = document.createElement('div');
     this.showcaseTools.style.display = 'none';
-    this.showcaseTools.style.gap = '10px';
+    this.showcaseTools.style.gap = '8px';
 
-    const btnReset = this.createActionButton('🔄 Repair All', '#059669', 'Repair all showcase buildings', () => ShowcaseManager.resetAllHP());
-    const btnDamage = this.createActionButton('💥 Damage All 25%', '#dc2626', 'Damage all showcase buildings by 25 percent', () => ShowcaseManager.damageAll(SHOWCASE_DAMAGE_PERCENT));
+    const btnReset = this.createActionButton('🔄 Repair', '#059669', 'Repair all showcase buildings', () => ShowcaseManager.resetAllHP());
+    const btnDamage = this.createActionButton('💥 -25%', '#dc2626', 'Damage all showcase buildings by 25 percent', () => ShowcaseManager.damageAll(SHOWCASE_DAMAGE_PERCENT));
 
     this.showcaseTools.appendChild(btnReset);
     this.showcaseTools.appendChild(btnDamage);
-    this.controlPanel.appendChild(this.showcaseTools);
 
-    hudContainer.appendChild(this.controlPanel);
+    if (isDebugMode) {
+      this.controlPanel.appendChild(this.modeToggleButton);
+      this.controlPanel.appendChild(this.showcaseTools);
+      hudContainer.appendChild(this.controlPanel);
+    }
+
     document.body.appendChild(hudContainer);
 
-    // 2. Target Info Card (Bottom Center)
+    // 2. Target Info Card (Bottom Center, sleek and minimal)
     this.targetInfoPanel = document.createElement('div');
     this.targetInfoPanel.style.position = 'fixed';
-    this.targetInfoPanel.style.bottom = '24px';
+    this.targetInfoPanel.style.bottom = '20px';
     this.targetInfoPanel.style.left = '50%';
-    this.targetInfoPanel.style.transform = 'translateX(-50%) scale(1.25)';
-    this.targetInfoPanel.style.transformOrigin = 'bottom center';
-    this.targetInfoPanel.style.background = 'rgba(15, 23, 42, 0.9)';
-    this.targetInfoPanel.style.backdropFilter = 'blur(12px)';
-    this.targetInfoPanel.style.padding = '16px 32px';
-    this.targetInfoPanel.style.borderRadius = '18px';
-    this.targetInfoPanel.style.border = '2px solid rgba(59, 130, 246, 0.6)';
+    this.targetInfoPanel.style.transform = 'translateX(-50%)';
+    this.targetInfoPanel.style.background = 'rgba(15, 23, 42, 0.88)';
+    this.targetInfoPanel.style.backdropFilter = 'blur(10px)';
+    this.targetInfoPanel.style.padding = '8px 18px';
+    this.targetInfoPanel.style.borderRadius = '12px';
+    this.targetInfoPanel.style.border = '1px solid rgba(59, 130, 246, 0.5)';
     this.targetInfoPanel.style.color = 'white';
-    this.targetInfoPanel.style.fontFamily = 'monospace';
-    this.targetInfoPanel.style.fontSize = '18px';
+    this.targetInfoPanel.style.fontFamily = 'system-ui, monospace';
+    this.targetInfoPanel.style.fontSize = '13px';
     this.targetInfoPanel.style.pointerEvents = 'none';
     this.targetInfoPanel.style.display = 'none';
-    this.targetInfoPanel.style.boxShadow = '0 12px 36px rgba(0,0,0,0.6)';
+    this.targetInfoPanel.style.boxShadow = '0 8px 24px rgba(0,0,0,0.5)';
     document.body.appendChild(this.targetInfoPanel);
 
     // 3. Screen Labels Container for Showcase Buildings
@@ -423,8 +395,8 @@ export class UIOverlay {
     const safeName = escapeHtml(info.name);
     const safeKey = escapeHtml(info.key);
     this.targetInfoPanel.innerHTML = `
-      <div style="font-weight: bold; font-size: 17px; margin-bottom: 6px; color: #60a5fa; letter-spacing: 0.5px;">🎯 TARGET: ${safeName} <span style="opacity: 0.7; font-weight: normal; font-size: 14px;">[${safeKey}]</span></div>
-      <div style="font-size: 15px;">HP: <span style="color: ${hpColor}; font-weight: bold;">${info.hp}/${info.maxHp} (${hpPercent}%)</span> | Frame: <span style="color: #f472b6; font-weight: bold;">#${info.frame}</span></div>
+      <div style="font-weight: bold; font-size: 13px; margin-bottom: 3px; color: #60a5fa; letter-spacing: 0.5px;">🎯 TARGET: ${safeName} <span style="opacity: 0.7; font-weight: normal; font-size: 12px;">[${safeKey}]</span></div>
+      <div style="font-size: 12px;">HP: <span style="color: ${hpColor}; font-weight: bold;">${info.hp}/${info.maxHp} (${hpPercent}%)</span> · Frame: <span style="color: #f472b6; font-weight: bold;">#${info.frame}</span></div>
     `;
   }
 

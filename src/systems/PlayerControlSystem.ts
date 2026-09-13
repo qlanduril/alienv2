@@ -79,7 +79,14 @@ export class PlayerControlSystem {
           dirX -= 1; dirZ += 1; // Screen LEFT
         }
         if (InputManager.isKeyDown('KeyD') || InputManager.isKeyDown('ArrowRight') || InputManager.isKeyDown('d')) {
-          dirX += 1; dirZ -= 1; // Screen RIGHT (Fixed: was dirZ += 1 which moved down)
+          dirX += 1; dirZ -= 1; // Screen RIGHT
+        }
+
+        // Virtual Joystick input (maps screen-space joystick direction to isometric world space)
+        const joy = InputManager.joystickVector;
+        if (joy.x !== 0 || joy.y !== 0) {
+          dirX += (joy.y + joy.x);
+          dirZ += (joy.y - joy.x);
         }
 
         // Toggle Mouse-Flight Mode with 'F' key (useful for touchpad players)

@@ -1,14 +1,12 @@
 import * as THREE from 'three';
 import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
 export class AssetLoader {
   private static loader = new THREE.TextureLoader();
-  private static dracoLoader = new DRACOLoader();
   private static gltfLoader = new GLTFLoader();
   private static textures = new Map<string, THREE.Texture>();
   private static gltfModels = new Map<string, GLTF>();
-  public static mapData: any[] = [];
+  public static mapData: any = null;
   public static spriteOffsets: any = {};
 
   public static getAssetUrl(path: string): string {
@@ -30,10 +28,6 @@ export class AssetLoader {
   }
 
   public static async loadAll(): Promise<void> {
-    // Configure DRACOLoader for compressed GLTF models
-    this.dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/gltf/');
-    this.gltfLoader.setDRACOLoader(this.dracoLoader);
-
     const promises: Promise<any>[] = [];
 
     // 0. Preload 3D GLB Models (awaited so they are immediately available on frame 0)
@@ -50,17 +44,17 @@ export class AssetLoader {
       console.warn('[AssetLoader] financial_tower 3D load notice:', err);
     }));
 
-    // 1. Load Map Data
+    // 1. Load Map Data (Fast cached fetch)
     promises.push(
-      fetch(this.getAssetUrl(`/map_data.json?t=${Date.now()}`), { cache: 'no-store' })
+      fetch(this.getAssetUrl('/map_data.json'))
         .then(res => res.json())
         .then(data => { this.mapData = data; })
         .catch(err => console.error("Failed to load map data:", err))
     );
 
-    // 1.5 Load Sprite Offsets
+    // 1.5 Load Sprite Offsets (Fast cached fetch)
     promises.push(
-      fetch(this.getAssetUrl(`/sprite_offsets.json?t=${Date.now()}`), { cache: 'no-store' })
+      fetch(this.getAssetUrl('/sprite_offsets.json'))
         .then(res => res.json())
         .then(data => { this.spriteOffsets = data; })
         .catch(err => console.error("Failed to load sprite offsets:", err))
@@ -153,19 +147,21 @@ export class AssetLoader {
       slFrames.forEach((f, idx) => {
         this.loadTexture(`building_statue_liberty_stage_${idx+1}`, `/buildingv2/statue_liberty/png/${f}`);
       });
-    }, 100);
+    }, 50);
 
-    // 7. Load FX Textures
-    for (let i = 0; i < 11; i++) {
-      promises.push(this.loadTexture(`fx_blast_${i}`, `/blast/frame_${i}.png`));
-    }
-    for (let i = 0; i < 7; i++) {
-      promises.push(this.loadTexture(`fx_blast360_${i}`, `/blast360/frame_${i}.png`));
-    }
-    for (let i = 0; i < 10; i++) {
-      promises.push(this.loadTexture(`fx_fire_${i}`, `/fire/frame_${i}.png`));
-    }
-    promises.push(this.loadTexture('fx_crater', '/crater.png', false));
+    // 7. Load FX Textures (Deferred / Asynchronous — does not block initial boot)
+    setTimeout(() => {
+      for (let i = 0; i < 11; i++) {
+        this.loadTexture(`fx_blast_${i}`, `/blast/frame_${i}.png`);
+      }
+      for (let i = 0; i < 7; i++) {
+        this.loadTexture(`fx_blast360_${i}`, `/blast360/frame_${i}.png`);
+      }
+      for (let i = 0; i < 10; i++) {
+        this.loadTexture(`fx_fire_${i}`, `/fire/frame_${i}.png`);
+      }
+      this.loadTexture('fx_crater', '/crater.png', false);
+    }, 80);
 
     await Promise.all(promises);
   }

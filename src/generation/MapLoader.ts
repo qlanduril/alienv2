@@ -21,18 +21,24 @@ export class MapLoader {
    */
   public static async loadAndInstantiate(jsonPath: string = '/map_data.json'): Promise<boolean> {
     try {
-      const resolvedPath = AssetLoader.getAssetUrl(jsonPath);
-      console.log(`[MapLoader] Fetching authoritative city map from ${resolvedPath}...`);
-      let response = await fetch(`${resolvedPath}?t=${Date.now()}`, { cache: 'no-store' });
-
-      if (!response.ok && jsonPath !== '/generated_map.json') {
-        const fallbackPath = AssetLoader.getAssetUrl('/generated_map.json');
-        response = await fetch(`${fallbackPath}?t=${Date.now()}`, { cache: 'no-store' });
-      }
-
       let data: GeneratedMapData | null = null;
-      if (response.ok) {
-        data = await response.json();
+
+      // Reuse preloaded mapData if already loaded by AssetLoader
+      if (AssetLoader.mapData && (AssetLoader.mapData as any).tiles) {
+        data = AssetLoader.mapData as GeneratedMapData;
+      } else {
+        const resolvedPath = AssetLoader.getAssetUrl(jsonPath);
+        console.log(`[MapLoader] Fetching authoritative city map from ${resolvedPath}...`);
+        let response = await fetch(resolvedPath);
+
+        if (!response.ok && jsonPath !== '/generated_map.json') {
+          const fallbackPath = AssetLoader.getAssetUrl('/generated_map.json');
+          response = await fetch(fallbackPath);
+        }
+
+        if (response.ok) {
+          data = await response.json();
+        }
       }
 
       if (!data || !data.tiles || data.tiles.length === 0) {

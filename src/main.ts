@@ -13,6 +13,7 @@ import { DefenseRenderer } from './rendering/DefenseRenderer';
 import { ECS } from './core/ECS';
 import { PositionComponent, PlayerTagComponent, WeaponComponent } from './core/Components';
 import { InputManager } from './input/InputManager';
+import { MobileControls } from './input/MobileControls';
 import { RaycasterHelper } from './input/Raycaster';
 
 import { MapLoader } from './generation/MapLoader';
@@ -36,6 +37,7 @@ async function bootstrap() {
 
   // 1. Setup Input (Pure DOM)
   InputManager.init();
+  MobileControls.init();
   if (progressBar) progressBar.style.width = '30%';
 
   // 2. Setup Rendering Layer (Three.js)

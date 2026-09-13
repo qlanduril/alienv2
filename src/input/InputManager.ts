@@ -7,6 +7,25 @@ export class InputManager {
   private static screenWidth: number = window.innerWidth;
   private static screenHeight: number = window.innerHeight;
 
+  // Virtual Joystick & Touch state
+  public static joystickVector: { x: number; y: number } = { x: 0, y: 0 };
+  public static isMobile: boolean = false;
+  private static virtualFirePrimary: boolean = false;
+  private static virtualFireSecondary: boolean = false;
+
+  public static setVirtualJoystick(x: number, y: number): void {
+    this.joystickVector.x = x;
+    this.joystickVector.y = y;
+  }
+
+  public static setVirtualFirePrimary(down: boolean): void {
+    this.virtualFirePrimary = down;
+  }
+
+  public static setVirtualFireSecondary(down: boolean): void {
+    this.virtualFireSecondary = down;
+  }
+
   public static init() {
     window.addEventListener('keydown', (e) => {
       if (e.code) this.keys[e.code] = true;
@@ -64,11 +83,11 @@ export class InputManager {
   }
 
   public static isPointerDown(): boolean {
-    return this.pointerDown;
+    return this.pointerDown || this.virtualFirePrimary;
   }
 
   public static isSecondaryPointerDown(): boolean {
-    return this.pointerSecondaryDown;
+    return this.pointerSecondaryDown || this.virtualFireSecondary;
   }
 
   // Returns Normalized Device Coordinates (NDC) for Raycasting

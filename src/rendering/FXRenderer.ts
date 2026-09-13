@@ -127,19 +127,43 @@ export class FXRenderer {
   private static blast360Textures: THREE.Texture[] = [];
   private static fireTextures: THREE.Texture[] = [];
 
+  private static getBlastTextures(): THREE.Texture[] {
+    if (this.blastTextures.length < BLAST_TEXTURE_COUNT) {
+      this.blastTextures = [];
+      for (let i = ZERO_VALUE; i < BLAST_TEXTURE_COUNT; i++) {
+        const tex = AssetLoader.getTexture(`fx_blast_${i}`);
+        if (tex) this.blastTextures.push(tex);
+      }
+    }
+    return this.blastTextures;
+  }
+
+  private static getBlast360Textures(): THREE.Texture[] {
+    if (this.blast360Textures.length < BLAST360_TEXTURE_COUNT) {
+      this.blast360Textures = [];
+      for (let i = ZERO_VALUE; i < BLAST360_TEXTURE_COUNT; i++) {
+        const tex = AssetLoader.getTexture(`fx_blast360_${i}`);
+        if (tex) this.blast360Textures.push(tex);
+      }
+    }
+    return this.blast360Textures;
+  }
+
+  private static getFireTextures(): THREE.Texture[] {
+    if (this.fireTextures.length < FIRE_TEXTURE_COUNT) {
+      this.fireTextures = [];
+      for (let i = ZERO_VALUE; i < FIRE_TEXTURE_COUNT; i++) {
+        const tex = AssetLoader.getTexture(`fx_fire_${i}`);
+        if (tex) this.fireTextures.push(tex);
+      }
+    }
+    return this.fireTextures;
+  }
+
   public static preloadTextureArrays() {
-    for (let i = ZERO_VALUE; i < BLAST_TEXTURE_COUNT; i++) {
-      const tex = AssetLoader.getTexture(`fx_blast_${i}`);
-      if (tex) this.blastTextures.push(tex);
-    }
-    for (let i = ZERO_VALUE; i < BLAST360_TEXTURE_COUNT; i++) {
-      const tex = AssetLoader.getTexture(`fx_blast360_${i}`);
-      if (tex) this.blast360Textures.push(tex);
-    }
-    for (let i = ZERO_VALUE; i < FIRE_TEXTURE_COUNT; i++) {
-      const tex = AssetLoader.getTexture(`fx_fire_${i}`);
-      if (tex) this.fireTextures.push(tex);
-    }
+    this.getBlastTextures();
+    this.getBlast360Textures();
+    this.getFireTextures();
     
     for (let i = ZERO_VALUE; i < INACTIVE_SPRITE_POOL_SIZE; i++) {
       this.inactiveSprites.push(new AnimatedSprite3D([]));
@@ -402,7 +426,7 @@ export class FXRenderer {
   }
 
   private static spawnExplosion(x: number, y: number, z: number, type: 'blast' | 'blast360', data: any) {
-    const textures = type === 'blast' ? this.blastTextures : this.blast360Textures;
+    const textures = type === 'blast' ? this.getBlastTextures() : this.getBlast360Textures();
     if (textures.length === ZERO_VALUE) return;
 
     const durations = type === 'blast' ? [...BLAST_FRAME_DURATIONS] : [...BLAST360_FRAME_DURATIONS];
@@ -508,7 +532,7 @@ export class FXRenderer {
   }
 
   private static spawnFire(x: number, y: number, z: number, data: any) {
-    const textures = this.fireTextures;
+    const textures = this.getFireTextures();
     if (textures.length === ZERO_VALUE) return;
 
     const anim = this.getSprite(textures, false, [...FIRE_FRAME_DURATIONS]);

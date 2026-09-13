@@ -12,13 +12,24 @@ import {
 import { WFCSolver } from './WFCSolver';
 import { WFC_MACRO_MODULES } from './WFCMacroModules';
 
+export interface LayerSnapshot {
+  layerIndex: number;
+  layerName: string;
+  description: string;
+  gridDim: number;
+  tiles: { terrainType: TerrainType; overlayType: OverlayTileType; roadAxis?: 'NS' | 'EW' }[][];
+  buildings: SerializedBuilding[];
+  occupied: boolean[][];
+  macroGrid?: { district: string; name: string }[][];
+}
+
 export interface ProgressCallback {
-  (layer: number, totalLayers: number, message: string): void;
+  (layer: number, totalLayers: number, message: string, snapshot?: LayerSnapshot): void;
 }
 
 export class MapBaker {
   private static readonly SCHEMA_VERSION = '1.3.0';
-  private static readonly TOTAL_LAYERS = 6;
+  public static readonly TOTAL_LAYERS = 6;
 
   /**
    * Main Dual-Preset Offline Bake Pipeline (Passes 1 through 6)
@@ -26,12 +37,14 @@ export class MapBaker {
   public static async bake(
     seed: number = 42,
     preset: CityPresetName = 'retro_arcade',
-    onProgress?: ProgressCallback
-  ): Promise<{ data: GeneratedMapData; jsonString: string }> {
+    onProgress?: ProgressCallback,
+    stepDelayMs: number = 0
+  ): Promise<{ data: GeneratedMapData; jsonString: string; snapshots: LayerSnapshot[] }> {
     const startTime = performance.now();
     const config = getCityPreset(preset);
     const layerTimings: Record<string, number> = {};
     const gridDim = TileMap.GRID_DIM; // 64
+    const snapshots: LayerSnapshot[] = [];
 
     TileMap.init();
 
@@ -111,9 +124,40 @@ export class MapBaker {
       return true;
     };
 
+    const captureSnapshot = (layerIndex: number, layerName: string, description: string, macroGridRef?: any): LayerSnapshot => {
+      const clonedTiles = Array.from({ length: gridDim }, (_, gx) =>
+        Array.from({ length: gridDim }, (_, gz) => {
+          const cell = TileMap.getCell(gx, gz)!;
+          return {
+            terrainType: cell.terrainType,
+            overlayType: cell.overlayType,
+            roadAxis: (cell.terrainType === TerrainType.ROAD_STRAIGHT_NS ? 'NS' :
+                      cell.terrainType === TerrainType.ROAD_STRAIGHT_EW ? 'EW' : undefined) as 'NS' | 'EW' | undefined
+          };
+        })
+      );
+      const clonedOccupied = occupied.map(row => [...row]);
+      const clonedBuildings = serializedBuildings.map(b => ({ ...b }));
+      const clonedMacroGrid = macroGridRef
+        ? (macroGridRef as any[][]).map(row => row.map(m => ({ district: m.district || 'any', name: m.name || '' })))
+        : undefined;
+
+      const snap: LayerSnapshot = {
+        layerIndex,
+        layerName,
+        description,
+        gridDim,
+        tiles: clonedTiles,
+        buildings: clonedBuildings,
+        occupied: clonedOccupied,
+        macroGrid: clonedMacroGrid
+      };
+      snapshots.push(snap);
+      return snap;
+    };
+
     // ── PASS 1: MACRO GEOGRAPHY (Ocean Coastline Spline & Grass Default) ──
     let t0 = performance.now();
-    onProgress?.(0, this.TOTAL_LAYERS, `Pass 1: Macro geography for '${config.name}'...`);
 
     for (let gx = 0; gx < gridDim; gx++) {
       for (let gz = 0; gz < gridDim; gz++) {
@@ -137,10 +181,12 @@ export class MapBaker {
       }
     }
     layerTimings['Pass 1 (Geography)'] = performance.now() - t0;
+    const snap1 = captureSnapshot(0, 'Pass 1: Macro Geography', 'Ocean coastlines, harbor canal, and base terrain');
+    onProgress?.(0, this.TOTAL_LAYERS, `Pass 1: Macro geography for '${config.name}'...`, snap1);
+    if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
     // ── PASS 2: WATER PLATFORMS & ISLAND ANCHORS ─────────────────────────
     t0 = performance.now();
-    onProgress?.(1, this.TOTAL_LAYERS, 'Pass 2: Water platforms & Statue of Liberty island anchor...');
 
     const platformGx = 52, platformGz = 52, platformW = 6, platformH = 6;
     paintTerrain(platformGx, platformGz, platformW, platformH, TerrainType.PLAZA_STONE);
@@ -151,17 +197,23 @@ export class MapBaker {
       }
     }
     placeBuilding(platformGx + 1, platformGz + 1, 'statue_liberty', 'landmark', 0);
+    layerTimings['Pass 2 (Platforms)'] = performance.now() - t0;
+    const snap2 = captureSnapshot(1, 'Pass 2: Islands & Platforms', 'Water platforms and Statue of Liberty island anchor');
+    onProgress?.(1, this.TOTAL_LAYERS, 'Pass 2: Water platforms & island anchors...', snap2);
+    if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
     
-    // ── PASS 3, 4 & 5: HIERARCHICAL 8x8 MACRO-BLOCK WFC SOLVE & RASTERIZATION ───
+    // ── PASS 3: HIERARCHICAL 8x8 MACRO-BLOCK WFC SOLVE ───────────────────
     t0 = performance.now();
-    onProgress?.(2, this.TOTAL_LAYERS, `Pass 3: Solving 8x8 Macro-Block WFC grid...`);
 
     const wfcSolver = new WFCSolver(gridDim);
     const macroGrid = wfcSolver.solveMacroGrid(8, WFC_MACRO_MODULES, seed);
     layerTimings['Pass 3 (Macro WFC Solve)'] = performance.now() - t0;
+    const snap3 = captureSnapshot(2, 'Pass 3: Macro WFC Districts', '8x8 Macro-Block district allocation', macroGrid);
+    onProgress?.(2, this.TOTAL_LAYERS, `Pass 3: Solving 8x8 Macro-Block WFC grid...`, snap3);
+    if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
+    // ── PASS 4: ROAD GRID RASTERIZATION ──────────────────────────────────
     t0 = performance.now();
-    onProgress?.(3, this.TOTAL_LAYERS, 'Pass 4: Rasterizing Macro-Module tiles & Landmark siting...');
 
     for (let mx = 0; mx < 8; mx++) {
       for (let mz = 0; mz < 8; mz++) {
@@ -183,7 +235,34 @@ export class MapBaker {
                 if (cellData.overlayType === OverlayTileType.ROAD) {
                   occupied[gx][gz] = true;
                 }
+              }
+            }
+          }
+        }
+      }
+    }
+    layerTimings['Pass 4 (Road Grid)'] = performance.now() - t0;
+    const snap4 = captureSnapshot(3, 'Pass 4: Road Grid & Infrastructure', 'Avenues, street corridors, and intersection grid', macroGrid);
+    onProgress?.(3, this.TOTAL_LAYERS, 'Pass 4: Rasterizing Macro-Module road grid...', snap4);
+    if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
+    // ── PASS 5: BUILDINGS & LANDMARKS RASTERIZATION ───────────────────────
+    t0 = performance.now();
+
+    for (let mx = 0; mx < 8; mx++) {
+      for (let mz = 0; mz < 8; mz++) {
+        const mod = macroGrid[mx][mz];
+        const baseGx = mx * 8;
+        const baseGz = mz * 8;
+
+        for (let lx = 0; lx < 8; lx++) {
+          for (let lz = 0; lz < 8; lz++) {
+            const gx = baseGx + lx;
+            const gz = baseGz + lz;
+            if (gx < gridDim && gz < gridDim) {
+              const cellData = mod.grid[lx][lz];
+              const cell = TileMap.getCell(gx, gz);
+              if (cell && cell.terrainType !== TerrainType.WATER) {
                 if (cellData.buildingType && !occupied[gx][gz]) {
                   placeBuilding(gx, gz, cellData.buildingType, 'macro_wfc', 0);
                 }
@@ -196,11 +275,13 @@ export class MapBaker {
 
     // Statue of Liberty Landmark Anchor on Island
     placeBuilding(51, 51, 'statue_liberty', 'landmark', 0);
-    layerTimings['Pass 4 & 5 (Macro Rasterization)'] = performance.now() - t0;
+    layerTimings['Pass 5 (Buildings)'] = performance.now() - t0;
+    const snap5 = captureSnapshot(4, 'Pass 5: Buildings & Footprints', 'Streetfront shops, mid-rises, skyscrapers, and civic anchors', macroGrid);
+    onProgress?.(4, this.TOTAL_LAYERS, 'Pass 5: Sited civic landmarks and building lots...', snap5);
+    if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
     // ── PASS 6: 4,096-TILE SERIALIZATION & PACKAGING ───────────────────────
     t0 = performance.now();
-    onProgress?.(5, this.TOTAL_LAYERS, 'Pass 6: 4,096-tile array serialization & map packaging...');
 
     const serializedTiles: SerializedTile[][] = Array.from({ length: gridDim }, (_, gx) =>
       Array.from({ length: gridDim }, (_, gz) => {
@@ -234,11 +315,14 @@ export class MapBaker {
     };
 
     const jsonString = JSON.stringify(mapData, null, 2);
+    const snap6 = captureSnapshot(5, 'Pass 6: Final Composite', '4,096-tile array serialization & map packaging', macroGrid);
+    onProgress?.(5, this.TOTAL_LAYERS, 'Pass 6: Map packaging complete!', snap6);
+
     console.log(
       `[MapBaker] Bake complete for '${config.name}'! Buildings: ${mapData.buildings.length}, ` +
       `Tiles: ${gridDim}x${gridDim} (4096 cells), Size: ${(jsonString.length / 1024).toFixed(1)} KB`
     );
 
-    return { data: mapData, jsonString };
+    return { data: mapData, jsonString, snapshots };
   }
 }

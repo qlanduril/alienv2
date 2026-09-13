@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ALINV-3D — Map Generation & Layer Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #060911;
+      --bg-panel: rgba(13, 20, 36, 0.85);
+      --bg-card: rgba(19, 30, 53, 0.6);
+      --border: rgba(255, 255, 255, 0.1);
+      --border-accent: rgba(0, 240, 255, 0.35);
+      --accent: #00f0ff;
+      --accent-glow: rgba(0, 240, 255, 0.25);
+      --amber: #f59e0b;
+      --emerald: #10b981;
+      --rose: #f43f5e;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', -apple-system, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background: var(--bg-main);
+      color: var(--text);
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Top Header Toolbar ─── */
+    header {
+      height: 58px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #0284c7, #00f0ff);
+      color: #000;
+      font-weight: 800;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+    }
+
+    .brand-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+    }
+
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+
+    label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    select, input[type="number"] {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 0.85rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select option {
+      background: #0f172a;
+      color: #fff;
+    }
+
+    input[type="number"] {
+      width: 65px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid var(--border);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background: #334155;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #0284c7 0%, #00f0ff 100%);
+      border-color: #38bdf8;
+      color: #000;
+      font-weight: 700;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    button.primary:hover:not(:disabled) {
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.45);
+      transform: translateY(-1px);
+    }
+
+    button.success {
+      background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      border-color: #34d399;
+      color: #000;
+      font-weight: 700;
+    }
+
+    /* ─── Main Workspace Layout ─── */
+    .workspace {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ─── Left Sidebar: Layer & Playback Controls ─── */
+    .sidebar-left {
+      width: 290px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(12px);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+      overflow-y: auto;
+    }
+
+    .panel-section {
+      padding: 1rem 1.15rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Stepper & Playback */
+    .stepper-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 0.75rem;
+    }
+
+    .stepper-row button {
+      flex: 1;
+      justify-content: center;
+      padding: 6px 8px;
+    }
+
+    .playback-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* Layer Switches List */
+    .layer-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .layer-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .layer-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .layer-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+
+    .layer-badge {
+      font-size: 0.95rem;
+    }
+
+    /* Custom Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 34px;
+      height: 18px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #334155;
+      transition: 0.2s;
+      border-radius: 18px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      transition: 0.2s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #0284c7;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(16px);
+      background-color: #00f0ff;
+    }
+
+    /* View Projections Toggle */
+    .pill-toggle {
+      display: flex;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 4px;
+      margin-bottom: 0.75rem;
+    }
+
+    .pill-btn {
+      flex: 1;
+      text-align: center;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      transition: all 0.15s ease;
+    }
+
+    .pill-btn.active {
+      background: #0284c7;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+    }
+
+    /* ─── Center Viewport: Interactive Canvas ─── */
+    .viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #060911;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    /* Floating Viewport Overlays */
+    .viewport-overlay-top {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+    }
+
+    .pass-tag {
+      background: #0284c7;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .pass-desc {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #cbd5e1;
+    }
+
+    .viewport-overlay-bottom {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      display: flex;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .hud-chip {
+      background: var(--bg-panel);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .hud-chip span {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .viewport-controls-floating {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .viewport-controls-floating button {
+      padding: 8px 12px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(10px);
+    }
+
+    /* ─── Right Sidebar: Inspector & Stats ─── */
+    .sidebar-right {
+      width: 310px;
+      background: var(--bg-panel);
+      backdrop-filter: blur(12px);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+      overflow-y: auto;
+    }
+
+    .inspect-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem;
+      margin-top: 0.5rem;
+    }
+
+    .inspect-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .tier-badge {
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tier-foreground { background: #0284c7; color: white; }
+    .tier-midground  { background: #6366f1; color: white; }
+    .tier-background { background: #9333ea; color: white; }
+    .tier-landmark   { background: #f59e0b; color: black; }
+
+    .inspect-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .inspect-prop {
+      background: rgba(0, 0, 0, 0.25);
+      padding: 5px 8px;
+      border-radius: 6px;
+    }
+
+    .inspect-prop-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .inspect-prop-val {
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      color: #e2e8f0;
+    }
+
+    /* Terminal Log Section */
+    .log-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem 1.15rem;
+      min-height: 160px;
+    }
+
+    textarea#log-terminal {
+      flex: 1;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #94a3b8;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      padding: 8px;
+      resize: none;
+      outline: none;
+      line-height: 1.4;
+    }
+  </style>
+  <script type="module" crossorigin src="./assets/generator-DVMylUfQ.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/WFCSolver-yCMU0xI6.js">
+</head>
+<body>
+
+  <!-- Top Header Toolbar -->
+  <header>
+    <div class="brand">
+      <div class="brand-badge">STUDIO</div>
+      <div>
+        <div class="brand-title">ALINV-3D MAP GENERATOR</div>
+        <div class="brand-subtitle">Procedural City Baker & Multi-Layer Visualizer</div>
+      </div>
+    </div>
+
+    <div class="top-controls">
+      <div class="control-group">
+        <label for="preset-select">Preset</label>
+        <select id="preset-select">
+          <option value="retro_arcade" selected>Retro Arcade City</option>
+          <option value="metropolitan_ny">Metropolitan NY</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="seed-input">Seed</label>
+        <input type="number" id="seed-input" value="42" min="1" max="999999" />
+      </div>
+
+      <button id="btn-bake" class="primary" title="Bake complete map instantly">
+        ⚡ Instant Bake
+      </button>
+
+      <button id="btn-play-layer" class="success" title="Generate layer-by-layer with animation">
+        ▶ Play Layers
+      </button>
+
+      <button id="btn-download" disabled title="Download baked map_data.json">
+        💾 JSON
+      </button>
+
+      <button id="btn-export-png" title="Export current view as PNG">
+        📷 Export PNG
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="workspace">
+
+    <!-- Left Sidebar: Layer & Playback Controls -->
+    <aside class="sidebar-left">
+      <!-- Step Navigation Section -->
+      <div class="panel-section">
+        <div class="section-title">
+          <span>Layer Stepper</span>
+          <span id="layer-step-badge" style="color:#cbd5e1; font-family:'JetBrains Mono';">Pass 6 / 6</span>
+        </div>
+
+        <div class="stepper-row">
+          <button id="btn-prev-layer" title="Previous Layer">⏮ Prev</button>
+          <button id="btn-next-layer" title="Next Layer">Next ⏭</button>
+        </div>
+
+        <div class="playback-bar">
+          <span>Speed</span>
+          <input type="range" id="speed-slider" min="100" max="1000" step="50" value="400" />
+          <span id="speed-val" style="font-family:'JetBrains Mono';">400ms</span>
+        </div>
+      </div>
+
+      <!-- Projection & View Mode -->
+      <div class="panel-section">
+        <div class="section-title">Projection Mode</div>
+        <div class="pill-toggle">
+          <button id="proj-2d-btn" class="pill-btn active">📐 2D Top-Down</button>
+          <button id="proj-iso-btn" class="pill-btn">🎲 2.5D Isometric</button>
+        </div>
+      </div>
+
+      <!-- Render Style / Theme -->
+      <div class="panel-section">
+        <div class="section-title">Render Style</div>
+        <div class="pill-toggle">
+          <button id="theme-blueprint-btn" class="pill-btn active">⚡ Studio Blueprint</button>
+          <button id="theme-game-btn" class="pill-btn">🎮 In-Game Tiles</button>
+        </div>
+      </div>
+
+      <!-- Layer Visibility Toggles -->
+      <div class="panel-section" style="flex:1;">
+        <div class="section-title">
+          <span>Visible Layers</span>
+          <div style="display:flex; gap:4px;">
+            <button id="btn-all-layers" style="padding:2px 6px; font-size:0.68rem;">All</button>
+            <button id="btn-reset-layers" style="padding:2px 6px; font-size:0.68rem;">Default</button>
+          </div>
+        </div>
+
+        <div class="layer-list">
+          <label class="layer-item">
+            <div class="layer-label">
+              <span class="layer-badge">🌊</span>
+              <span>Water & Ocean</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="layer-water" checked />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="layer-item">
+            <div class="layer-label">
+              <span class="layer-badge">🌿</span>
+              <span>Base Terrain</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="layer-terrain" checked />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="layer-item">
+            <div class="layer-label">
+              <span class="layer-badge">🛣️</span>
+              <span>Roads & Lanes</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="layer-roads" checked />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="layer-item">
+            <div class="layer-label">
+              <span class="layer-badge">🏙️</span>
+              <span>Macro Districts</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="layer-districts" checked />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="layer-item">
+            <div class="layer-label">
+              <span class="layer-badge">🏢</span>
+              <span>Buildings</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="layer-buildings" checked />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="layer-item">
+            <div class="layer-label">
+              <span class="layer-badge">🌟</span>
+              <span>Civic & 3D Landmarks</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="layer-landmarks" checked />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="layer-item">
+            <div class="layer-label">
+              <span class="layer-badge">🛡️</span>
+              <span>Occupancy Mask</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="layer-occupancy" />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="layer-item">
+            <div class="layer-label">
+              <span class="layer-badge">📐</span>
+              <span>Grid Lines</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="layer-grid" checked />
+              <span class="slider"></span>
+            </div>
+          </label>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center Canvas Viewport -->
+    <main class="viewport" id="viewport-container">
+      <canvas id="map-canvas"></canvas>
+
+      <!-- Overlay: Current Pass Description -->
+      <div class="viewport-overlay-top">
+        <span id="hud-pass-badge" class="pass-tag">PASS 6</span>
+        <span id="hud-pass-desc" class="pass-desc">Final Composite (Ready)</span>
+      </div>
+
+      <!-- Overlay: Coordinates & Info -->
+      <div class="viewport-overlay-bottom">
+        <div class="hud-chip">GRID: <span id="hud-coord-grid">--</span></div>
+        <div class="hud-chip">WORLD: <span id="hud-coord-world">--</span></div>
+        <div class="hud-chip">TERRAIN: <span id="hud-terrain-type">--</span></div>
+      </div>
+
+      <!-- Floating Zoom Controls -->
+      <div class="viewport-controls-floating">
+        <button id="btn-zoom-in" title="Zoom In">+</button>
+        <button id="btn-zoom-out" title="Zoom Out">−</button>
+        <button id="btn-fit-view" title="Center Map">⛶ Fit</button>
+      </div>
+    </main>
+
+    <!-- Right Sidebar: Inspector & Stats -->
+    <aside class="sidebar-right">
+      <!-- Live Cell Inspector -->
+      <div class="panel-section">
+        <div class="section-title">Cell Inspector</div>
+        <div id="inspector-card" class="inspect-card">
+          <div class="inspect-title">
+            <span id="inspect-title-name">Hover tile to inspect</span>
+            <span id="inspect-tier-badge" class="tier-badge" style="display:none;"></span>
+          </div>
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px;" id="inspect-subtitle">
+            64x64 Grid Tile
+          </div>
+
+          <div class="inspect-grid">
+            <div class="inspect-prop">
+              <div class="inspect-prop-label">Grid Cell</div>
+              <div id="inspect-cell" class="inspect-prop-val">--</div>
+            </div>
+            <div class="inspect-prop">
+              <div class="inspect-prop-label">World Pos</div>
+              <div id="inspect-world" class="inspect-prop-val">--</div>
+            </div>
+            <div class="inspect-prop">
+              <div class="inspect-prop-label">District</div>
+              <div id="inspect-district" class="inspect-prop-val">--</div>
+            </div>
+            <div class="inspect-prop">
+              <div class="inspect-prop-label">Max HP</div>
+              <div id="inspect-hp" class="inspect-prop-val">--</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generation Stats -->
+      <div class="panel-section">
+        <div class="section-title">Map Metrics</div>
+        <div id="stats-panel" class="inspect-grid">
+          <div class="inspect-prop">
+            <div class="inspect-prop-label">Buildings</div>
+            <div id="stat-buildings" class="inspect-prop-val">--</div>
+          </div>
+          <div class="inspect-prop">
+            <div class="inspect-prop-label">Total Tiles</div>
+            <div class="inspect-prop-val">4,096</div>
+          </div>
+          <div class="inspect-prop">
+            <div class="inspect-prop-label">JSON Size</div>
+            <div id="stat-size" class="inspect-prop-val">--</div>
+          </div>
+          <div class="inspect-prop">
+            <div class="inspect-prop-label">Bake Time</div>
+            <div id="stat-time" class="inspect-prop-val">--</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Log Stream -->
+      <div class="log-container">
+        <div class="section-title">Bake Log</div>
+        <textarea id="log-terminal" readonly placeholder="Generation logs will appear here..."></textarea>
+      </div>
+    </aside>
+
+  </div>
+
+</body>
+</html>

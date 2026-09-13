@@ -63,6 +63,76 @@ function createMacroGrid(baseTerrain: TerrainType): MacroCellData[][] {
   );
 }
 
+/** Helper to construct a complete 4-sided perimeter ring road tour around a signature 3D landmark */
+function createRingTourSuperblock(
+  buildingKey: string,
+  _buildingW: number,
+  _buildingH: number,
+  cornerBuildingKey: string = 'b1'
+): MacroCellData[][] {
+  const g = createMacroGrid(TerrainType.PLAZA_STONE);
+
+  // 1. Center 3D building on plaza island [2..2+W-1, 2..2+H-1]
+  g[2][2] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: buildingKey };
+
+  // 2. Complete 4-Sided Perimeter Ring Road Tour around building
+  // North road (z=1)
+  for (let x = 2; x <= 5; x++) {
+    g[x][1] = { terrainType: TerrainType.ROAD_STRAIGHT_EW, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+  }
+  // South road (z=6)
+  for (let x = 2; x <= 5; x++) {
+    g[x][6] = { terrainType: TerrainType.ROAD_STRAIGHT_EW, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+  }
+  // West road (x=1)
+  for (let z = 2; z <= 5; z++) {
+    g[1][z] = { terrainType: TerrainType.ROAD_STRAIGHT_NS, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+  }
+  // East road (x=6)
+  for (let z = 2; z <= 5; z++) {
+    g[6][z] = { terrainType: TerrainType.ROAD_STRAIGHT_NS, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+  }
+
+  // 3. Ring Corners (Smooth 90-degree curved turns)
+  g[1][1] = { terrainType: TerrainType.ROAD_CURVE_NW, overlayType: OverlayTileType.ROAD, roadAxis: 'CURVE_NW' };
+  g[6][1] = { terrainType: TerrainType.ROAD_CURVE_NE, overlayType: OverlayTileType.ROAD, roadAxis: 'CURVE_NE' };
+  g[1][6] = { terrainType: TerrainType.ROAD_CURVE_SW, overlayType: OverlayTileType.ROAD, roadAxis: 'CURVE_SW' };
+  g[6][6] = { terrainType: TerrainType.ROAD_CURVE_SE, overlayType: OverlayTileType.ROAD, roadAxis: 'CURVE_SE' };
+
+  // 4. Feeder Portals connecting Ring to Exterior Network (Sockets on all 4 borders)
+  // North portal at (3,0), (4,0)
+  g[3][0] = { terrainType: TerrainType.ROAD_STRAIGHT_NS, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+  g[4][0] = { terrainType: TerrainType.ROAD_STRAIGHT_NS, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+  g[3][1] = { terrainType: TerrainType.ROAD_INTERSECTION, overlayType: OverlayTileType.ROAD, isIntersection: true };
+  g[4][1] = { terrainType: TerrainType.ROAD_INTERSECTION, overlayType: OverlayTileType.ROAD, isIntersection: true };
+
+  // South portal at (3,7), (4,7)
+  g[3][7] = { terrainType: TerrainType.ROAD_STRAIGHT_NS, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+  g[4][7] = { terrainType: TerrainType.ROAD_STRAIGHT_NS, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+  g[3][6] = { terrainType: TerrainType.ROAD_INTERSECTION, overlayType: OverlayTileType.ROAD, isIntersection: true };
+  g[4][6] = { terrainType: TerrainType.ROAD_INTERSECTION, overlayType: OverlayTileType.ROAD, isIntersection: true };
+
+  // West portal at (0,3), (0,4)
+  g[0][3] = { terrainType: TerrainType.ROAD_STRAIGHT_EW, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+  g[0][4] = { terrainType: TerrainType.ROAD_STRAIGHT_EW, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+  g[1][3] = { terrainType: TerrainType.ROAD_INTERSECTION, overlayType: OverlayTileType.ROAD, isIntersection: true };
+  g[1][4] = { terrainType: TerrainType.ROAD_INTERSECTION, overlayType: OverlayTileType.ROAD, isIntersection: true };
+
+  // East portal at (7,3), (7,4)
+  g[7][3] = { terrainType: TerrainType.ROAD_STRAIGHT_EW, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+  g[7][4] = { terrainType: TerrainType.ROAD_STRAIGHT_EW, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+  g[6][3] = { terrainType: TerrainType.ROAD_INTERSECTION, overlayType: OverlayTileType.ROAD, isIntersection: true };
+  g[6][4] = { terrainType: TerrainType.ROAD_INTERSECTION, overlayType: OverlayTileType.ROAD, isIntersection: true };
+
+  // 5. Outer Corner Pavilions (Outside the ring road)
+  g[0][0] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: cornerBuildingKey };
+  g[7][0] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: cornerBuildingKey };
+  g[0][7] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: cornerBuildingKey };
+  g[7][7] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: cornerBuildingKey };
+
+  return g;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // STANDARDIZED 8x8 MACRO MODULE CATALOG (Center Portals at x in [3, 4], z in [3, 4])
 // ─────────────────────────────────────────────────────────────────────────────
@@ -193,7 +263,7 @@ export const WFC_MACRO_MODULES: WFCMacroModule[] = [
       g[5][5] = { terrainType: TerrainType.ROAD_ROUNDABOUT, overlayType: OverlayTileType.ROAD, roadAxis: 'CURVE_SE' };
 
       // Central Garden Island (2x2)
-      g[3][3] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'statue_liberty' };
+      g[3][3] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'b1' };
       g[4][3] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE };
       g[3][4] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE };
       g[4][4] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE };
@@ -350,7 +420,7 @@ export const WFC_MACRO_MODULES: WFCMacroModule[] = [
       g[4][4] = { terrainType: TerrainType.ROAD_INTERSECTION, overlayType: OverlayTileType.ROAD, isIntersection: true };
 
       // North zone: Tech / civic campus
-      g[2][1] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'spaceship_hq' };
+      g[2][1] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'sky_biotech' };
       g[1][6] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
       g[6][6] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'sky_cyber' };
       return g;
@@ -895,8 +965,8 @@ export const WFC_MACRO_MODULES: WFCMacroModule[] = [
     },
     grid: (() => {
       const g = createMacroGrid(TerrainType.PLAZA_STONE);
-      // Center 4x4 Mega Titan anchor
-      g[2][2] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'mega_titan' };
+      // Center tower anchor
+      g[2][2] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: '5' };
       // Surrounding boutique towers
       g[1][1] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'sky_cyber' };
       g[6][1] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'sky_artdeco' };
@@ -920,8 +990,8 @@ export const WFC_MACRO_MODULES: WFCMacroModule[] = [
     },
     grid: (() => {
       const g = createMacroGrid(TerrainType.PLAZA_STONE);
-      // Spaceship HQ anchor
-      g[1][1] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'spaceship_hq' };
+      // Cyber Research anchor
+      g[1][1] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'sky_cyber' };
       g[5][1] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'sky_cyber' };
       g[1][5] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'sky_biotech' };
       g[5][5] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'b4' };
@@ -977,6 +1047,273 @@ export const WFC_MACRO_MODULES: WFCMacroModule[] = [
       g[5][1] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
       g[1][5] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'res_bronze' };
       g[5][5] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b3' };
+      return g;
+    })()
+  },
+
+  // ── GROUP 7: DEDICATED 3D LANDMARK SUPERBLOCKS (Ring Tour Around 3D Buildings) ─
+
+  // 26. Downtown Apex 3D Mega-Titan Ring Tour Superblock (4x4 3D Tower)
+  {
+    id: 'superblock_mega_titan',
+    name: 'Downtown Apex 3D Mega-Titan Ring Tour Superblock',
+    district: 'downtown',
+    weight: 50.0,
+    sockets: {
+      N: MacroSocketType.ROAD_MAIN,
+      E: MacroSocketType.ROAD_MAIN,
+      S: MacroSocketType.ROAD_MAIN,
+      W: MacroSocketType.ROAD_MAIN
+    },
+    grid: createRingTourSuperblock('mega_titan', 4, 4, 'b1')
+  },
+
+  // 27. Alien Citadel 3D Spaceship HQ Ring Tour Superblock (4x4 3D Citadel)
+  {
+    id: 'superblock_spaceship_hq',
+    name: 'Alien Citadel 3D Spaceship HQ Ring Tour Superblock',
+    district: 'tech',
+    weight: 50.0,
+    sockets: {
+      N: MacroSocketType.ROAD_MAIN,
+      E: MacroSocketType.ROAD_MAIN,
+      S: MacroSocketType.ROAD_MAIN,
+      W: MacroSocketType.ROAD_MAIN
+    },
+    grid: createRingTourSuperblock('spaceship_hq', 4, 4, 'b1')
+  },
+
+  // 28. Metro Financial 3D Tower Ring Tour Superblock (3x3 3D Skyscraper)
+  {
+    id: 'superblock_financial_tower',
+    name: 'Metro Financial 3D Tower Ring Tour Superblock',
+    district: 'downtown',
+    weight: 50.0,
+    sockets: {
+      N: MacroSocketType.ROAD_MAIN,
+      E: MacroSocketType.ROAD_MAIN,
+      S: MacroSocketType.ROAD_MAIN,
+      W: MacroSocketType.ROAD_MAIN
+    },
+    grid: createRingTourSuperblock('financial_tower', 3, 3, 'b1')
+  },
+
+  // 29. Quantum Energy 3D Cyber Reactor Ring Tour Superblock (3x3 3D Reactor)
+  {
+    id: 'superblock_cyber_reactor',
+    name: 'Quantum Energy 3D Cyber Reactor Ring Tour Superblock',
+    district: 'tech',
+    weight: 50.0,
+    sockets: {
+      N: MacroSocketType.ROAD_MAIN,
+      E: MacroSocketType.ROAD_MAIN,
+      S: MacroSocketType.ROAD_MAIN,
+      W: MacroSocketType.ROAD_MAIN
+    },
+    grid: createRingTourSuperblock('cyber_reactor', 3, 3, 'b1')
+  },
+
+  // 30. Suburban Cul-de-Sac Family Homes (Suburbs - Where people live!)
+  {
+    id: 'residential_culdesac_homes',
+    name: 'Suburban Cul-de-Sac Family Homes',
+    district: 'suburbs',
+    weight: 45.0,
+    sockets: {
+      N: MacroSocketType.ROAD_MAIN,
+      E: MacroSocketType.GREEN_PARK,
+      S: MacroSocketType.GREEN_PARK,
+      W: MacroSocketType.GREEN_PARK
+    },
+    grid: (() => {
+      const g = createMacroGrid(TerrainType.GRASS);
+      // North entrance roadway [3..4, 0..2]
+      for (let z = 0; z <= 2; z++) {
+        g[3][z] = { terrainType: TerrainType.ROAD_STRAIGHT_NS, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+        g[4][z] = { terrainType: TerrainType.ROAD_STRAIGHT_NS, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+      }
+      // Cul-de-sac circular turnaround [2..5, 3..5]
+      g[2][3] = { terrainType: TerrainType.ROAD_ROUNDABOUT, overlayType: OverlayTileType.ROAD, roadAxis: 'CURVE_NW' };
+      g[3][3] = { terrainType: TerrainType.ROAD_ROUNDABOUT, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+      g[4][3] = { terrainType: TerrainType.ROAD_ROUNDABOUT, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+      g[5][3] = { terrainType: TerrainType.ROAD_ROUNDABOUT, overlayType: OverlayTileType.ROAD, roadAxis: 'CURVE_NE' };
+
+      g[2][4] = { terrainType: TerrainType.ROAD_ROUNDABOUT, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+      g[3][4] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE }; // center mini-park
+      g[4][4] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE };
+      g[5][4] = { terrainType: TerrainType.ROAD_ROUNDABOUT, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+
+      g[2][5] = { terrainType: TerrainType.ROAD_ROUNDABOUT, overlayType: OverlayTileType.ROAD, roadAxis: 'CURVE_SW' };
+      g[3][5] = { terrainType: TerrainType.ROAD_ROUNDABOUT, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+      g[4][5] = { terrainType: TerrainType.ROAD_ROUNDABOUT, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+      g[5][5] = { terrainType: TerrainType.ROAD_ROUNDABOUT, overlayType: OverlayTileType.ROAD, roadAxis: 'CURVE_SE' };
+
+      // Sidewalk walkways to home doorsteps
+      g[1][2] = { terrainType: TerrainType.SIDEWALK, overlayType: OverlayTileType.SIDEWALK };
+      g[6][2] = { terrainType: TerrainType.SIDEWALK, overlayType: OverlayTileType.SIDEWALK };
+      g[1][4] = { terrainType: TerrainType.SIDEWALK, overlayType: OverlayTileType.SIDEWALK };
+      g[6][4] = { terrainType: TerrainType.SIDEWALK, overlayType: OverlayTileType.SIDEWALK };
+
+      // Family homes & brownstones
+      g[1][1] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      g[6][1] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      g[1][3] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      g[6][3] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      g[1][5] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'res_bronze' };
+      g[6][5] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'res_bronze' };
+      g[3][6] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      g[4][6] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      return g;
+    })()
+  },
+
+  // 31. Tree-Lined Residential Avenue with Homes & School (Suburbs)
+  {
+    id: 'residential_avenue_homes',
+    name: 'Tree-Lined Residential Avenue with Homes & School',
+    district: 'suburbs',
+    weight: 45.0,
+    sockets: {
+      N: MacroSocketType.ROAD_MAIN,
+      E: MacroSocketType.GREEN_PARK,
+      S: MacroSocketType.ROAD_MAIN,
+      W: MacroSocketType.GREEN_PARK
+    },
+    grid: (() => {
+      const g = createMacroGrid(TerrainType.GRASS);
+      // N-S Avenue [3..4, 0..7]
+      for (let z = 0; z < 8; z++) {
+        g[3][z] = { terrainType: TerrainType.ROAD_STRAIGHT_NS, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+        g[4][z] = { terrainType: TerrainType.ROAD_STRAIGHT_NS, overlayType: OverlayTileType.ROAD, roadAxis: 'NS' };
+        // Flanking sidewalks
+        g[2][z] = { terrainType: TerrainType.SIDEWALK, overlayType: OverlayTileType.SIDEWALK };
+        g[5][z] = { terrainType: TerrainType.SIDEWALK, overlayType: OverlayTileType.SIDEWALK };
+      }
+      // West residential row: Family brownstones & garden homes
+      g[1][1] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      g[1][3] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      g[1][5] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+
+      // East residential row: Corner bakery/grocer, homes, and school
+      g[6][0] = { terrainType: TerrainType.SIDEWALK, overlayType: OverlayTileType.NONE, buildingType: 'b1' }; // corner shop
+      g[6][2] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      g[6][4] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b3' };
+      g[6][6] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'school_civic' };
+      return g;
+    })()
+  },
+
+  // 32. Quiet Residential Garden Courtyard & Apartments (Suburbs)
+  {
+    id: 'residential_garden_block',
+    name: 'Residential Garden Block with Family Homes',
+    district: 'suburbs',
+    weight: 40.0,
+    sockets: {
+      N: MacroSocketType.GREEN_PARK,
+      E: MacroSocketType.ROAD_MAIN,
+      S: MacroSocketType.GREEN_PARK,
+      W: MacroSocketType.ROAD_MAIN
+    },
+    grid: (() => {
+      const g = createMacroGrid(TerrainType.GRASS);
+      // E-W Avenue [0..7, 3..4]
+      for (let x = 0; x < 8; x++) {
+        g[x][3] = { terrainType: TerrainType.ROAD_STRAIGHT_EW, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+        g[x][4] = { terrainType: TerrainType.ROAD_STRAIGHT_EW, overlayType: OverlayTileType.ROAD, roadAxis: 'EW' };
+        // Flanking sidewalks
+        g[x][2] = { terrainType: TerrainType.SIDEWALK, overlayType: OverlayTileType.SIDEWALK };
+        g[x][5] = { terrainType: TerrainType.SIDEWALK, overlayType: OverlayTileType.SIDEWALK };
+      }
+      // North homes
+      g[1][1] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      g[3][1] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      g[5][1] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b3' };
+      g[7][1] = { terrainType: TerrainType.SIDEWALK, overlayType: OverlayTileType.NONE, buildingType: 'b1' };
+
+      // South homes & apartments
+      g[1][6] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      g[3][6] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'res_bronze' };
+      g[5][6] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b2' };
+      return g;
+    })()
+  },
+
+  // 33. Waterfront Beach & Coastal Promenade (Harbor - Beach transition!)
+  {
+    id: 'waterfront_beach_coast',
+    name: 'Waterfront Beach & Coastal Surf Promenade',
+    district: 'harbor',
+    weight: 35.0,
+    sockets: {
+      N: MacroSocketType.GREEN_PARK,
+      E: MacroSocketType.WATER_CANAL,
+      S: MacroSocketType.WATER_CANAL,
+      W: MacroSocketType.WATER_CANAL
+    },
+    grid: (() => {
+      const g = createMacroGrid(TerrainType.WATER);
+      // North rows [0..1]: Green park & paved promenade
+      for (let x = 0; x < 8; x++) {
+        g[x][0] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE };
+        g[x][1] = { terrainType: TerrainType.SIDEWALK, overlayType: OverlayTileType.SIDEWALK };
+      }
+      // Middle rows [2..3]: Golden sandy beach
+      for (let x = 0; x < 8; x++) {
+        g[x][2] = { terrainType: TerrainType.SAND, overlayType: OverlayTileType.NONE };
+        g[x][3] = { terrainType: TerrainType.SAND, overlayType: OverlayTileType.NONE };
+      }
+      // Coastline rows [4..5]: Shallow coastal surf with foam
+      for (let x = 0; x < 8; x++) {
+        g[x][4] = { terrainType: TerrainType.WATER_SHORE, overlayType: OverlayTileType.NONE };
+        g[x][5] = { terrainType: TerrainType.WATER_SHORE, overlayType: OverlayTileType.NONE };
+      }
+      // Deep ocean water [6..7] (already set by createMacroGrid(WATER))
+
+      // Beachside cafe / pavilion
+      g[2][0] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b1' };
+      g[5][0] = { terrainType: TerrainType.GRASS, overlayType: OverlayTileType.NONE, buildingType: 'b1' };
+      return g;
+    })()
+  },
+
+  // 34. Liberty Island Offshore Basin (Harbor - Statue of Liberty in water!)
+  {
+    id: 'superblock_statue_liberty',
+    name: 'Liberty Island Offshore Water Basin',
+    district: 'harbor',
+    weight: 5.0,
+    sockets: {
+      N: MacroSocketType.WATER_CANAL,
+      E: MacroSocketType.WATER_CANAL,
+      S: MacroSocketType.WATER_CANAL,
+      W: MacroSocketType.WATER_CANAL
+    },
+    grid: (() => {
+      const g = createMacroGrid(TerrainType.WATER);
+      // Perimeter is deep water & shallow coastal surf
+      for (let x = 1; x <= 6; x++) {
+        g[x][1] = { terrainType: TerrainType.WATER_SHORE, overlayType: OverlayTileType.NONE };
+        g[x][6] = { terrainType: TerrainType.WATER_SHORE, overlayType: OverlayTileType.NONE };
+      }
+      for (let z = 1; z <= 6; z++) {
+        g[1][z] = { terrainType: TerrainType.WATER_SHORE, overlayType: OverlayTileType.NONE };
+        g[6][z] = { terrainType: TerrainType.WATER_SHORE, overlayType: OverlayTileType.NONE };
+      }
+
+      // Sandy beach shoreline around island
+      for (let x = 2; x <= 5; x++) {
+        g[x][2] = { terrainType: TerrainType.SAND, overlayType: OverlayTileType.NONE };
+        g[x][5] = { terrainType: TerrainType.SAND, overlayType: OverlayTileType.NONE };
+        g[2][x] = { terrainType: TerrainType.SAND, overlayType: OverlayTileType.NONE };
+        g[5][x] = { terrainType: TerrainType.SAND, overlayType: OverlayTileType.NONE };
+      }
+
+      // Center stone monument platform (3x3 footprint at [3..4, 3..4])
+      g[3][3] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE, buildingType: 'statue_liberty' };
+      g[4][3] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE };
+      g[3][4] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE };
+      g[4][4] = { terrainType: TerrainType.PLAZA_STONE, overlayType: OverlayTileType.NONE };
       return g;
     })()
   }

@@ -1,21 +1,39 @@
 import { MapBaker } from '../src/generation/MapBaker';
+import { CityPresetName } from '../src/generation/CityConfig';
 import * as fs from 'fs';
 import * as path from 'path';
 
 async function main() {
-  const seed = process.argv[2] ? parseInt(process.argv[2], 10) : 1337;
-  console.log(`[BakeScript] Baking offline city map with seed ${seed}...`);
+  const seedArg = process.argv[2];
+  const presetArg = (process.argv[3] || 'retro_arcade') as CityPresetName;
+  const seed = seedArg ? parseInt(seedArg, 10) : 42;
 
-  const { data, jsonString } = await MapBaker.bake(seed, (layer, total, msg) => {
-    console.log(`[Layer ${layer}/${total - 1}] ${msg}`);
-  });
+  console.log(`[BakeScript] Baking offline city map with seed ${seed} and preset '${presetArg}'...`);
 
-  const targetPath = path.join(process.cwd(), 'static', 'generated_map.json');
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.writeFileSync(targetPath, jsonString, 'utf-8');
+  const { data, jsonString } = await MapBaker.bake(
+    seed,
+    presetArg,
+    (layer, total, msg) => {
+      console.log(`[Pass ${layer + 1}/${total}] ${msg}`);
+    },
+    0
+  );
 
-  console.log(`[BakeScript] Successfully baked map with ${data.buildings.length} buildings (seed ${seed})!`);
-  console.log(`[BakeScript] Saved to: ${targetPath}`);
+  const staticDir = path.join(process.cwd(), 'static');
+  fs.mkdirSync(staticDir, { recursive: true });
+
+  const targetMapData = path.join(staticDir, 'map_data.json');
+  const targetGeneratedMap = path.join(staticDir, 'generated_map.json');
+
+  fs.writeFileSync(targetMapData, jsonString, 'utf-8');
+  fs.writeFileSync(targetGeneratedMap, jsonString, 'utf-8');
+
+  console.log(`\n[BakeScript] Successfully baked city map!`);
+  console.log(`  - Seed: ${data.seed}`);
+  console.log(`  - Buildings: ${data.buildings.length}`);
+  console.log(`  - Road tiles: ${data.tiles.flat().filter(t => t.overlayType === 1 || t.terrainType >= 2).length}`);
+  console.log(`  - Written to: ${targetMapData}`);
+  console.log(`  - Written to: ${targetGeneratedMap}`);
 }
 
 main().catch(err => {

@@ -330,6 +330,14 @@ export class WFCSolver {
           Array.from({ length: macroGridDim }, () => new Set<number>())
         );
 
+        const UNIQUE_SUPERBLOCK_IDS = new Set([
+          'superblock_mega_titan',
+          'superblock_spaceship_hq',
+          'superblock_financial_tower',
+          'superblock_cyber_reactor',
+          'superblock_statue_liberty'
+        ]);
+
         for (let mx = 0; mx < macroGridDim; mx++) {
           for (let mz = 0; mz < macroGridDim; mz++) {
             let targetDistrict: string;
@@ -337,33 +345,54 @@ export class WFCSolver {
               targetDistrict = 'downtown';
             } else if (mx <= 3 && mz <= 3) {
               targetDistrict = 'tech';
-            } else if (mx >= 4 && mz <= 3) {
-              targetDistrict = 'sports';
+            } else if (mx >= 4 && mz <= 2) {
+              targetDistrict = 'suburbs'; // North-East residential neighborhood
             } else if (mx <= 3 && mz >= 4) {
-              targetDistrict = 'suburbs';
+              targetDistrict = 'suburbs'; // South-West residential neighborhood
             } else {
-              targetDistrict = 'harbor';
+              targetDistrict = 'harbor';  // South-East coastal waters & harbor
             }
 
             for (let i = 0; i < modules.length; i++) {
               const mod = modules[i];
+              if (UNIQUE_SUPERBLOCK_IDS.has(mod.id)) continue; // Never add unique 3D superblocks to random unpinned pool
               if (mod.district === targetDistrict || mod.district === 'any') {
                 macroSuperposition[mx][mz].add(i);
               }
             }
 
-            // Fallback: If no district modules matched, allow all
+            // Fallback: If no district modules matched, allow all non-unique
             if (macroSuperposition[mx][mz].size === 0) {
-              for (let i = 0; i < modules.length; i++) macroSuperposition[mx][mz].add(i);
+              for (let i = 0; i < modules.length; i++) {
+                if (!UNIQUE_SUPERBLOCK_IDS.has(modules[i].id)) {
+                  macroSuperposition[mx][mz].add(i);
+                }
+              }
             }
           }
         }
 
-        // 2. Pin Signature Downtown Anchor: Grand Central Roundabout at (3, 3)
-        const grandRoundaboutIdx = modules.findIndex(m => m.id === 'grand_central_roundabout');
-        if (grandRoundaboutIdx >= 0 && macroGridDim > 3) {
-          macroSuperposition[3][3].clear();
-          macroSuperposition[3][3].add(grandRoundaboutIdx);
+        // 2. Pin Signature 3D Landmarks, Liberty Island & Residential Districts (Zones First)
+        const pinnedList: Array<{ mx: number; mz: number; modId: string }> = [
+          { mx: 3, mz: 3, modId: 'grand_central_roundabout' },    // Central Traffic Nexus
+          { mx: 1, mz: 1, modId: 'superblock_spaceship_hq' },      // Tech/Alien Citadel (1x 4x4 3D Spaceship HQ)
+          { mx: 2, mz: 2, modId: 'superblock_financial_tower' },   // Financial Hub (1x 3x3 3D Financial Tower)
+          { mx: 4, mz: 2, modId: 'superblock_mega_titan' },        // Downtown Apex Citadel (1x 4x4 3D Mega-Titan)
+          { mx: 4, mz: 4, modId: 'superblock_cyber_reactor' },     // Energy Grid (1x 3x3 3D Cyber Reactor)
+          { mx: 6, mz: 6, modId: 'superblock_statue_liberty' },    // 1x Statue of Liberty Offshore in Water Basin!
+          { mx: 6, mz: 5, modId: 'waterfront_beach_coast' },       // Beach & Coastal Surf
+          { mx: 5, mz: 6, modId: 'waterfront_beach_coast' },       // Beach & Coastal Surf
+          { mx: 5, mz: 1, modId: 'residential_culdesac_homes' },   // Suburban Family Homes (Cul-de-sac)
+          { mx: 5, mz: 0, modId: 'residential_avenue_homes' },     // Residential Avenue with Homes & School
+          { mx: 6, mz: 1, modId: 'residential_garden_courtyard' }, // Residential Courtyard with Green Parks
+        ];
+
+        for (const p of pinnedList) {
+          const idx = modules.findIndex(m => m.id === p.modId);
+          if (idx >= 0 && p.mx < macroGridDim && p.mz < macroGridDim) {
+            macroSuperposition[p.mx][p.mz].clear();
+            macroSuperposition[p.mx][p.mz].add(idx);
+          }
         }
 
         // 3. Queue-based Constraint Propagation (Arc Consistency)
@@ -422,6 +451,7 @@ export class WFCSolver {
                   let bestScore = -1;
                   for (let i = 0; i < modules.length; i++) {
                     const mod = modules[i];
+                    if (UNIQUE_SUPERBLOCK_IDS.has(mod.id)) continue;
                     let score = 0;
                     for (const nd of directions) {
                       const nnx = nx + nd.dx;
@@ -458,9 +488,11 @@ export class WFCSolver {
           }
         };
 
-        // Propagate initial pinned anchor constraints
-        if (grandRoundaboutIdx >= 0 && macroGridDim > 3) {
-          propagateMacro(3, 3);
+        // Propagate initial pinned anchor constraints (Zones First)
+        for (const p of pinnedList) {
+          if (p.mx < macroGridDim && p.mz < macroGridDim) {
+            propagateMacro(p.mx, p.mz);
+          }
         }
 
         // 4. Shannon Entropy Function

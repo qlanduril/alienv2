@@ -18,6 +18,8 @@ export enum TerrainType {
   ROAD_CURVE_NW = 9,
   ROAD_CURVE_SE = 10,
   ROAD_CURVE_SW = 11,
+  SAND = 12,
+  WATER_SHORE = 13,
 }
 
 export enum OverlayTileType {

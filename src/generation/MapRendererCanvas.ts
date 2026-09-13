@@ -266,6 +266,8 @@ export class MapRendererCanvas {
       return 'road_ew';
     }
     if (tile.terrainType === TerrainType.WATER) return 'water';
+    if (tile.terrainType === TerrainType.WATER_SHORE) return 'water';
+    if (tile.terrainType === TerrainType.SAND) return 'plaza_stone';
     if (tile.terrainType === TerrainType.PLAZA_STONE) return 'plaza_stone';
     if (tile.terrainType === TerrainType.SIDEWALK) return 'sidewalk';
     return 'grass';
@@ -288,24 +290,25 @@ export class MapRendererCanvas {
         const x = gx * baseTileSize;
         const y = gz * baseTileSize;
 
+        const isWater = tile.terrainType === TerrainType.WATER || tile.terrainType === TerrainType.WATER_SHORE;
+        const isRoad = tile.overlayType === OverlayTileType.ROAD ||
+                       tile.terrainType === TerrainType.ROAD_INTERSECTION ||
+                       tile.terrainType === TerrainType.ROAD_ROUNDABOUT ||
+                       (tile.terrainType >= TerrainType.ROAD_CURVE_NE && tile.terrainType <= TerrainType.ROAD_CURVE_SW);
+        const showThisTile = (!isWater || this.layers.water) && (!isRoad || this.layers.roads) && (isWater || isRoad || this.layers.terrain);
+
         if (isGameStyle) {
           const tileKey = this.getGameTileKey(tile);
           const img = this.tileImages.get(tileKey);
-
-          // If layer is disabled, draw generic base
-          const isWater = tile.terrainType === TerrainType.WATER;
-          const isRoad = tile.overlayType === OverlayTileType.ROAD ||
-                         tile.terrainType === TerrainType.ROAD_INTERSECTION ||
-                         tile.terrainType === TerrainType.ROAD_ROUNDABOUT ||
-                         (tile.terrainType >= TerrainType.ROAD_CURVE_NE && tile.terrainType <= TerrainType.ROAD_CURVE_SW);
-          const showThisTile = (!isWater || this.layers.water) && (!isRoad || this.layers.roads) && (isWater || isRoad || this.layers.terrain);
 
           if (showThisTile && img && img.complete && img.naturalWidth > 0) {
             this.ctx.drawImage(img, x, y, baseTileSize, baseTileSize);
           } else {
             // Authentic game fallback colors
             let fill = '#2d6a2d'; // Game grass
-            if (isWater) fill = this.layers.water ? '#0d3d7a' : '#081e3d';
+            if (tile.terrainType === TerrainType.WATER) fill = this.layers.water ? '#0a2f64' : '#081e3d';
+            else if (tile.terrainType === TerrainType.WATER_SHORE) fill = this.layers.water ? '#1888c8' : '#0a3556';
+            else if (tile.terrainType === TerrainType.SAND) fill = '#d4b27a';
             else if (isRoad && this.layers.roads) fill = '#1c1f24';
             else if (tile.terrainType === TerrainType.PLAZA_STONE) fill = '#9e8e78';
             else if (tile.terrainType === TerrainType.SIDEWALK) fill = '#5a6473';
@@ -318,6 +321,10 @@ export class MapRendererCanvas {
           let fill = '#172e22'; // default grass
           if (tile.terrainType === TerrainType.WATER) {
             fill = this.layers.water ? '#0a2342' : '#070f1a';
+          } else if (tile.terrainType === TerrainType.WATER_SHORE) {
+            fill = this.layers.water ? '#0284c7' : '#0a3556';
+          } else if (tile.terrainType === TerrainType.SAND) {
+            fill = this.layers.terrain ? '#ca8a04' : '#713f12';
           } else if (tile.terrainType === TerrainType.PLAZA_STONE) {
             fill = this.layers.terrain ? '#334155' : '#1e293b';
           } else if (tile.terrainType === TerrainType.SIDEWALK) {
@@ -329,7 +336,7 @@ export class MapRendererCanvas {
           this.ctx.fillStyle = fill;
           this.ctx.fillRect(x, y, baseTileSize, baseTileSize);
 
-          if (tile.terrainType === TerrainType.WATER && this.layers.water) {
+          if ((tile.terrainType === TerrainType.WATER || tile.terrainType === TerrainType.WATER_SHORE) && this.layers.water) {
             this.ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
             this.ctx.strokeRect(x + 1, y + 1, baseTileSize - 2, baseTileSize - 2);
           }
@@ -635,7 +642,11 @@ export class MapRendererCanvas {
 
         let fill = isGameStyle ? '#2d6a2d' : '#193324';
         if (tile.terrainType === TerrainType.WATER) {
-          fill = this.layers.water ? (isGameStyle ? '#0d3d7a' : '#0a2342') : '#070f1a';
+          fill = this.layers.water ? (isGameStyle ? '#0a2f64' : '#0a2342') : '#070f1a';
+        } else if (tile.terrainType === TerrainType.WATER_SHORE) {
+          fill = this.layers.water ? (isGameStyle ? '#1888c8' : '#0284c7') : '#0a3556';
+        } else if (tile.terrainType === TerrainType.SAND) {
+          fill = isGameStyle ? '#d4b27a' : (this.layers.terrain ? '#ca8a04' : '#713f12');
         } else if (tile.overlayType === OverlayTileType.ROAD && this.layers.roads) {
           fill = isGameStyle ? '#1c1f24' : '#0f172a';
         } else if (tile.terrainType === TerrainType.PLAZA_STONE && this.layers.terrain) {

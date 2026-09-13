@@ -39,11 +39,34 @@ export class TileRenderer {
         const py = gz * cellSize;
 
         if (cell.terrainType === TerrainType.WATER) {
-          ctx.fillStyle = '#0d3d7a'; // Navy harbor water
+          ctx.fillStyle = '#0a2f64'; // Deep ocean navy
+          ctx.fillRect(px, py, cellSize, cellSize);
+          // Subtle ocean swells
+          ctx.fillStyle = '#114488';
+          ctx.fillRect(px + 4, py + 6, cellSize - 8, 2);
+          ctx.fillRect(px + 8, py + 18, cellSize - 14, 2);
+        } else if (cell.terrainType === TerrainType.WATER_SHORE) {
+          // Shallow coastal water / surf
+          ctx.fillStyle = '#1888c8'; // Turquoise coastal water
+          ctx.fillRect(px, py, cellSize, cellSize);
+          // Foamy wave crests
+          ctx.fillStyle = '#8be4f8';
+          ctx.fillRect(px + 2, py + 6, cellSize - 4, 3);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(px + 6, py + 18, cellSize - 10, 2);
+        } else if (cell.terrainType === TerrainType.SAND) {
+          // Warm golden beach sand
+          ctx.fillStyle = '#d4b27a';
+          ctx.fillRect(px, py, cellSize, cellSize);
+          // Subtle sand grains & pebbles
+          ctx.fillStyle = '#c4a268';
+          ctx.fillRect(px + 4, py + 4, 2, 2);
+          ctx.fillRect(px + 18, py + 10, 2, 2);
+          ctx.fillRect(px + 10, py + 22, 2, 2);
         } else {
           ctx.fillStyle = '#2d6a2d'; // Park green grass
+          ctx.fillRect(px, py, cellSize, cellSize);
         }
-        ctx.fillRect(px, py, cellSize, cellSize);
       }
     }
 

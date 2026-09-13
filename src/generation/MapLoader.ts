@@ -23,21 +23,57 @@ export class MapLoader {
     try {
       let data: GeneratedMapData | null = null;
 
-      // Reuse preloaded mapData if already loaded by AssetLoader
-      if (AssetLoader.mapData && (AssetLoader.mapData as any).tiles) {
-        data = AssetLoader.mapData as GeneratedMapData;
-      } else {
-        const resolvedPath = AssetLoader.getAssetUrl(jsonPath);
-        console.log(`[MapLoader] Fetching authoritative city map from ${resolvedPath}...`);
-        let response = await fetch(resolvedPath);
-
-        if (!response.ok && jsonPath !== '/generated_map.json') {
-          const fallbackPath = AssetLoader.getAssetUrl('/generated_map.json');
-          response = await fetch(fallbackPath);
+      // 0. Check for URL parameters (?seed=..., ?preset=..., ?reset=1)
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('reset')) {
+          localStorage.removeItem('custom_baked_map');
+          console.log('[MapLoader] Cleared custom baked map from localStorage.');
+        } else if (urlParams.has('seed')) {
+          const seed = parseInt(urlParams.get('seed')!, 10) || 42;
+          const preset = (urlParams.get('preset') || 'retro_arcade') as any;
+          console.log(`[MapLoader] Dynamic on-the-fly bake requested via URL: seed=${seed}, preset=${preset}...`);
+          const { MapBaker } = await import('./MapBaker');
+          const bakeResult = await MapBaker.bake(seed, preset);
+          data = bakeResult.data;
         }
 
-        if (response.ok) {
-          data = await response.json();
+        // Check for map saved from /generator.html via "Play in Game"
+        if (!data) {
+          const customMapStr = localStorage.getItem('custom_baked_map');
+          if (customMapStr) {
+            try {
+              const parsed = JSON.parse(customMapStr);
+              if (parsed && parsed.tiles && parsed.tiles.length > 0) {
+                console.log(
+                  `[MapLoader] Loading custom baked map from Map Studio (seed: ${parsed.seed}, buildings: ${parsed.buildings?.length})...`
+                );
+                data = parsed as GeneratedMapData;
+              }
+            } catch (e) {
+              console.warn('[MapLoader] Failed to parse custom_baked_map from localStorage:', e);
+            }
+          }
+        }
+      }
+
+      // Reuse preloaded mapData if already loaded by AssetLoader and no custom override
+      if (!data) {
+        if (AssetLoader.mapData && (AssetLoader.mapData as any).tiles) {
+          data = AssetLoader.mapData as GeneratedMapData;
+        } else {
+          const resolvedPath = AssetLoader.getAssetUrl(jsonPath);
+          console.log(`[MapLoader] Fetching authoritative city map from ${resolvedPath}...`);
+          let response = await fetch(resolvedPath);
+
+          if (!response.ok && jsonPath !== '/generated_map.json') {
+            const fallbackPath = AssetLoader.getAssetUrl('/generated_map.json');
+            response = await fetch(fallbackPath);
+          }
+
+          if (response.ok) {
+            data = await response.json();
+          }
         }
       }
 
@@ -133,7 +169,7 @@ export class MapLoader {
       for (let x = 0; x < gridDim; x++) {
         for (let z = 0; z < gridDim; z++) {
           const c = TileMap.getCell(x, z);
-          if (c && (c.overlayType === OverlayTileType.ROAD || c.terrainType === TerrainType.WATER)) {
+          if (c && (c.overlayType === OverlayTileType.ROAD || c.terrainType === TerrainType.WATER || c.terrainType === TerrainType.WATER_SHORE)) {
             occupiedGrid[x][z] = 1;
           }
         }

@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnPlayLayer = document.getElementById('btn-play-layer') as HTMLButtonElement;
   const btnDownload = document.getElementById('btn-download') as HTMLButtonElement;
   const btnExportPng = document.getElementById('btn-export-png') as HTMLButtonElement;
+  const btnPlayGame = document.getElementById('btn-play-game') as HTMLButtonElement;
 
   const btnPrevLayer = document.getElementById('btn-prev-layer') as HTMLButtonElement;
   const btnNextLayer = document.getElementById('btn-next-layer') as HTMLButtonElement;
@@ -224,6 +225,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const curveSuffix = TerrainType[info.terrainType].replace('ROAD_CURVE_', '');
       displayTerrain = `CURVE (${curveSuffix})`;
       displayTitle = `Curved Avenue (${curveSuffix})`;
+    } else if (info.terrainType === TerrainType.SAND) {
+      displayTerrain = 'SAND BEACH';
+      displayTitle = 'Golden Beach Shore';
+    } else if (info.terrainType === TerrainType.WATER_SHORE) {
+      displayTerrain = 'COASTAL SURF';
+      displayTitle = 'Shallow Coastal Water';
     }
 
     hudCoordGrid.innerText = `[${info.gx}, ${info.gz}]`;
@@ -261,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBake.disabled = true;
     btnPlayLayer.disabled = true;
     btnDownload.disabled = true;
+    if (btnPlayGame) btnPlayGame.disabled = true;
     snapshots = [];
     currentSnapshotIndex = -1;
 
@@ -292,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
       statTime.innerText = `${result.data.metadata.layerTimings['Total Bake Time']?.toFixed(0) || 0} ms`;
 
       btnDownload.disabled = false;
+      if (btnPlayGame) btnPlayGame.disabled = false;
       appendLog(`Bake finished in ${result.data.metadata.layerTimings['Total Bake Time']?.toFixed(1)}ms. Buildings: ${result.data.metadata.buildingCount}`);
     } catch (err: any) {
       appendLog(`ERROR during generation: ${err?.message || err}`);
@@ -341,6 +350,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.removeChild(a);
     appendLog(`Exported map view as PNG.`);
   });
+
+  // Play in Game with this exact generated map!
+  if (btnPlayGame) {
+    btnPlayGame.addEventListener('click', () => {
+      if (!currentJsonString) return;
+      try {
+        localStorage.setItem('custom_baked_map', currentJsonString);
+        appendLog('🚀 Saved map to browser game storage! Launching 3D game...');
+        window.open('/', '_blank');
+      } catch (err: any) {
+        appendLog(`Failed to save map to localStorage: ${err?.message || err}`);
+      }
+    });
+  }
 
   // Auto-generate on boot so user sees the map right away!
   generateMap(false);

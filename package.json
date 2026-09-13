@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "bake": "python3 scripts/bake_assets.py",
+    "bake:map": "npx -y tsx scripts/bake-map.ts",
     "bake:osmnx": "python3 scripts/generate_osmnx_map.py",
     "dev": "vite",
     "build": "tsc && vite build",

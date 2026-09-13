@@ -14,6 +14,8 @@ import { BuildingRenderer } from '../rendering/BuildingRenderer';
 import { WeaponSystem } from './WeaponSystem';
 import { DefenseSystem } from './DefenseSystem';
 import { TrafficSystem } from './TrafficSystem';
+import { AudioSystem } from './AudioSystem';
+import { DecalManager } from '../rendering/TileSystem/DecalManager';
 
 // --- System Constants ---
 const ZONAL_DAMAGE_AMOUNT = 25; // 25 dmg per hit (little buildings 60-75 HP take 2-3 shots)
@@ -45,6 +47,7 @@ export class PlayerControlSystem {
   private static cachedHoveredEntity: Entity | null = null;
   private static cachedFallbackPoint: THREE.Vector3 | null = null;
   private static HOVER_CHECK_INTERVAL = 0.033; // ~30 FPS inspection throttling
+  private static beamDamageTimer = 0;
 
   public static init() {
     ECS.addSystem(this.tick.bind(this));
@@ -212,6 +215,8 @@ export class PlayerControlSystem {
           weapon.currentSelected = 'laser';
         } else if (InputManager.isKeyDown('Digit2') || InputManager.isKeyDown('2')) {
           weapon.currentSelected = 'cluster';
+        } else if (InputManager.isKeyDown('Digit3') || InputManager.isKeyDown('3')) {
+          weapon.currentSelected = 'beam';
         }
 
         const ufoPos = PlayerRenderer.getPlayerMeshPosition() || new THREE.Vector3(pos.worldX, 75, pos.worldY);
@@ -224,81 +229,105 @@ export class PlayerControlSystem {
         // Primary fire
         const isFiringPrimary = (InputManager.isPointerDown() || InputManager.isKeyDown('Space'));
 
-        if (isFiringPrimary) {
-          if (weapon.currentSelected === 'cluster') {
-            if (WeaponSystem.isClusterReady()) {
-              WeaponSystem.fireClusterBomb(ufoPos, { x: groundPoint.x, y: groundPoint.z });
-            }
-          } else if (weapon.heatLevel <= WEAPON_HEAT_DEFAULT) {
-            // Death Ray Laser
-            let targetEntity: Entity | null = null;
-            let targetZone: DamageZone = DamageZone.CENTER;
-            let targetUV = { x: 0.5, y: 0.5 };
-            let impactPoint: THREE.Vector3 | null = null;
+        if (weapon.currentSelected === 'beam') {
+          if (isFiringPrimary && !WeaponSystem.isBeamOverheated()) {
+            WeaponSystem.setBeamFiring(true);
+            AudioSystem.startContinuousBeamAudio();
 
-            if (InputManager.isKeyDown('Space')) {
-              targetEntity = this.findClosestBuildingNear(pos.worldX, pos.worldY, Infinity);
-              if (targetEntity) {
-                impactPoint = BuildingRenderer.getVisualCenter(targetEntity) || BuildingRenderer.getSpritePosition(targetEntity);
+            const aim = this.getAimTarget(pos, groundPoint);
+            WeaponSystem.updateBeamEndpoints(
+              ufoPos.x,
+              ufoPos.y - 3,
+              ufoPos.z,
+              aim.impactPoint.x,
+              aim.impactPoint.y,
+              aim.impactPoint.z
+            );
+
+            // High-power continuous zonal damage (~415 DPS, melts structures rapidly)
+            this.beamDamageTimer += delta;
+            if (this.beamDamageTimer >= 0.06) {
+              this.beamDamageTimer = 0;
+              const beamTickDamage = 25;
+
+              if (aim.targetEntity !== null) {
+                DestructionSystem.applyZonalDamage(aim.targetEntity, aim.targetZone, beamTickDamage, aim.targetUV);
               }
-            } else {
-              if (this.cachedHoveredHit) {
-                targetEntity = this.cachedHoveredHit.entity;
-                targetZone = this.cachedHoveredHit.zone;
-                targetUV = this.cachedHoveredHit.uvCenter;
-                impactPoint = this.cachedHoveredHit.point;
-              } else if (this.cachedHoveredEntity !== null) {
-                targetEntity = this.cachedHoveredEntity;
-                targetZone = DamageZone.CENTER;
-                targetUV = { x: 0.5, y: 0.5 };
-                impactPoint = this.cachedFallbackPoint || BuildingRenderer.getVisualCenter(targetEntity) || BuildingRenderer.getSpritePosition(targetEntity);
+
+              // Disintegrate defense units and traffic caught in beam impact footprint
+              DefenseSystem.checkTargetHit(aim.impactPoint.x, aim.impactPoint.z, 18, beamTickDamage);
+              TrafficSystem.applyDamageInRadius(aim.impactPoint.x, aim.impactPoint.z, 14);
+
+              // Sparks and scorch at impact
+              DestructionSystem.fxQueue.push({
+                type: 'sparks',
+                x: aim.impactPoint.x,
+                y: aim.impactPoint.y,
+                z: aim.impactPoint.z,
+                data: { count: 6 }
+              });
+
+              if (aim.impactPoint.y <= 2.5) {
+                DecalManager.spawnDecal(aim.impactPoint.x, aim.impactPoint.z, 'scorch', 8.5);
+              }
+
+              DestructionSystem.fxQueue.push({ type: 'shake', x: 0, y: 0, z: 0, data: { intensity: 4 } });
+            }
+          } else {
+            if (WeaponSystem.isBeamFiring()) {
+              WeaponSystem.setBeamFiring(false);
+              AudioSystem.stopContinuousBeamAudio();
+            }
+          }
+        } else {
+          // If previously firing beam and switched away
+          if (WeaponSystem.isBeamFiring()) {
+            WeaponSystem.setBeamFiring(false);
+            AudioSystem.stopContinuousBeamAudio();
+          }
+
+          if (isFiringPrimary) {
+            if (weapon.currentSelected === 'cluster') {
+              if (WeaponSystem.isClusterReady()) {
+                WeaponSystem.fireClusterBomb(ufoPos, { x: groundPoint.x, y: groundPoint.z });
+              }
+            } else if (weapon.heatLevel <= WEAPON_HEAT_DEFAULT) {
+              // Death Ray Pulse Laser
+              const aim = this.getAimTarget(pos, groundPoint);
+
+              if (aim.targetEntity !== null) {
+                DestructionSystem.applyZonalDamage(aim.targetEntity, aim.targetZone, ZONAL_DAMAGE_AMOUNT, aim.targetUV);
+                weapon.heatLevel = weapon.fireRate;
+
+                DestructionSystem.fxQueue.push({
+                  type: 'laser' as any,
+                  x: ufoPos.x,
+                  y: ufoPos.y - 3, // slightly below mothership body at beam port
+                  z: ufoPos.z,
+                  data: {
+                    tx: aim.impactPoint.x,
+                    ty: aim.impactPoint.y,
+                    tz: aim.impactPoint.z
+                  }
+                });
               } else {
-                const ndc = InputManager.getMouseNDC();
-                this.pointerVector.set(ndc.x, ndc.y);
-                const fallback = this.findBestBuildingNearCursor(this.pointerVector, SceneManager.camera);
-                if (fallback) {
-                  targetEntity = fallback.entity;
-                  targetZone = DamageZone.CENTER;
-                  targetUV = { x: 0.5, y: 0.5 };
-                  impactPoint = fallback.point;
-                } else if (groundPoint) {
-                  impactPoint = groundPoint;
-                }
+                // Weapon fired into open terrain/air — check defense units & traffic
+                weapon.heatLevel = weapon.fireRate;
+                DefenseSystem.checkTargetHit(aim.impactPoint.x, aim.impactPoint.z, 14, ZONAL_DAMAGE_AMOUNT);
+                TrafficSystem.applyDamageInRadius(aim.impactPoint.x, aim.impactPoint.z, 8);
+
+                DestructionSystem.fxQueue.push({
+                  type: 'laser' as any,
+                  x: ufoPos.x,
+                  y: ufoPos.y - 3,
+                  z: ufoPos.z,
+                  data: {
+                    tx: aim.impactPoint.x,
+                    ty: aim.impactPoint.y,
+                    tz: aim.impactPoint.z
+                  }
+                });
               }
-            }
-
-            if (targetEntity !== null && impactPoint !== null) {
-              DestructionSystem.applyZonalDamage(targetEntity, targetZone, ZONAL_DAMAGE_AMOUNT, targetUV);
-              weapon.heatLevel = weapon.fireRate;
-
-              DestructionSystem.fxQueue.push({
-                type: 'laser' as any,
-                x: ufoPos.x,
-                y: ufoPos.y - 3, // slightly below mothership body at beam port
-                z: ufoPos.z,
-                data: {
-                  tx: impactPoint.x,
-                  ty: impactPoint.y,
-                  tz: impactPoint.z
-                }
-              });
-            } else if (impactPoint !== null) {
-              // Weapon fired into open terrain/air — check defense units & traffic
-              weapon.heatLevel = weapon.fireRate;
-              DefenseSystem.checkTargetHit(impactPoint.x, impactPoint.z, 14, ZONAL_DAMAGE_AMOUNT);
-              TrafficSystem.applyDamageInRadius(impactPoint.x, impactPoint.z, 8);
-
-              DestructionSystem.fxQueue.push({
-                type: 'laser' as any,
-                x: ufoPos.x,
-                y: ufoPos.y - 3,
-                z: ufoPos.z,
-                data: {
-                  tx: impactPoint.x,
-                  ty: impactPoint.y,
-                  tz: impactPoint.z
-                }
-              });
             }
           }
         }
@@ -366,5 +395,54 @@ export class PlayerControlSystem {
 
   private static findClosestBuildingNear(wx: number, wz: number, maxRadiusSq: number): Entity | null {
     return SpatialGrid.findClosest(wx, wz, maxRadiusSq);
+  }
+
+  private static getAimTarget(pos: { worldX: number; worldY: number }, groundPoint: THREE.Vector3 | null): {
+    targetEntity: Entity | null;
+    targetZone: DamageZone;
+    targetUV: { x: number; y: number };
+    impactPoint: THREE.Vector3;
+  } {
+    let targetEntity: Entity | null = null;
+    let targetZone: DamageZone = DamageZone.CENTER;
+    let targetUV = { x: 0.5, y: 0.5 };
+    let impactPoint: THREE.Vector3 | null = null;
+
+    if (InputManager.isKeyDown('Space')) {
+      targetEntity = this.findClosestBuildingNear(pos.worldX, pos.worldY, Infinity);
+      if (targetEntity) {
+        impactPoint = BuildingRenderer.getVisualCenter(targetEntity) || BuildingRenderer.getSpritePosition(targetEntity);
+      }
+    } else {
+      if (this.cachedHoveredHit) {
+        targetEntity = this.cachedHoveredHit.entity;
+        targetZone = this.cachedHoveredHit.zone;
+        targetUV = this.cachedHoveredHit.uvCenter;
+        impactPoint = this.cachedHoveredHit.point;
+      } else if (this.cachedHoveredEntity !== null) {
+        targetEntity = this.cachedHoveredEntity;
+        targetZone = DamageZone.CENTER;
+        targetUV = { x: 0.5, y: 0.5 };
+        impactPoint = this.cachedFallbackPoint || BuildingRenderer.getVisualCenter(targetEntity) || BuildingRenderer.getSpritePosition(targetEntity);
+      } else {
+        const ndc = InputManager.getMouseNDC();
+        this.pointerVector.set(ndc.x, ndc.y);
+        const fallback = this.findBestBuildingNearCursor(this.pointerVector, SceneManager.camera);
+        if (fallback) {
+          targetEntity = fallback.entity;
+          targetZone = DamageZone.CENTER;
+          targetUV = { x: 0.5, y: 0.5 };
+          impactPoint = fallback.point;
+        } else if (groundPoint) {
+          impactPoint = groundPoint;
+        }
+      }
+    }
+
+    if (!impactPoint) {
+      impactPoint = groundPoint || new THREE.Vector3(pos.worldX, 0, pos.worldY);
+    }
+
+    return { targetEntity, targetZone, targetUV, impactPoint };
   }
 }

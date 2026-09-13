@@ -41,11 +41,15 @@ export interface Target {
 }
 
 export interface Weapon {
-  currentSelected: 'laser' | 'cluster';
+  currentSelected: 'laser' | 'cluster' | 'beam';
   heatLevel: number;
   fireRate: number;
   clusterCooldown: number;
   clusterMaxCooldown: number;
+  beamHeat: number;
+  beamMaxHeat: number;
+  beamOverheated: boolean;
+  beamFiring: boolean;
 }
 
 export interface PlayerTag {}

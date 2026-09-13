@@ -360,4 +360,145 @@ export class AudioSystem {
       gain.disconnect();
     };
   }
+
+  // ─── Continuous Beam Synthesizer (Sustained High-Voltage Hum) ────────────
+  private static beamOsc: OscillatorNode | null = null;
+  private static beamSubOsc: OscillatorNode | null = null;
+  private static beamFilter: BiquadFilterNode | null = null;
+  private static beamGain: GainNode | null = null;
+  private static isBeamAudioActive = false;
+
+  public static startContinuousBeamAudio() {
+    this.ensureAudioContext();
+    if (!this.ctx || !this.masterGain || this.isBeamAudioActive) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      this.isBeamAudioActive = true;
+
+      this.beamGain = this.ctx.createGain();
+      this.beamGain.gain.setValueAtTime(0.001, now);
+      this.beamGain.gain.exponentialRampToValueAtTime(0.25, now + 0.08);
+
+      this.beamFilter = this.ctx.createBiquadFilter();
+      this.beamFilter.type = 'lowpass';
+      this.beamFilter.frequency.setValueAtTime(750, now);
+      this.beamFilter.Q.setValueAtTime(3.5, now);
+
+      // Primary buzzing sawtooth oscillator
+      this.beamOsc = this.ctx.createOscillator();
+      this.beamOsc.type = 'sawtooth';
+      this.beamOsc.frequency.setValueAtTime(160, now);
+
+      // Sub-bass sine oscillator for thick low-end rumble
+      this.beamSubOsc = this.ctx.createOscillator();
+      this.beamSubOsc.type = 'sine';
+      this.beamSubOsc.frequency.setValueAtTime(65, now);
+
+      this.beamOsc.connect(this.beamFilter);
+      this.beamSubOsc.connect(this.beamFilter);
+      this.beamFilter.connect(this.beamGain);
+      this.beamGain.connect(this.masterGain);
+
+      this.beamOsc.start(now);
+      this.beamSubOsc.start(now);
+    } catch (err) {
+      console.warn('[AudioSystem] Error starting beam audio:', err);
+      this.isBeamAudioActive = false;
+    }
+  }
+
+  public static stopContinuousBeamAudio() {
+    if (!this.isBeamAudioActive || !this.ctx) return;
+    this.isBeamAudioActive = false;
+
+    try {
+      const now = this.ctx.currentTime;
+      if (this.beamGain) {
+        this.beamGain.gain.setValueAtTime(this.beamGain.gain.value, now);
+        this.beamGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+      }
+
+      const oscToStop = this.beamOsc;
+      const subToStop = this.beamSubOsc;
+      const gainToClean = this.beamGain;
+      const filterToClean = this.beamFilter;
+
+      setTimeout(() => {
+        try {
+          oscToStop?.stop();
+          subToStop?.stop();
+          oscToStop?.disconnect();
+          subToStop?.disconnect();
+          filterToClean?.disconnect();
+          gainToClean?.disconnect();
+        } catch (_) {}
+      }, 70);
+
+      this.beamOsc = null;
+      this.beamSubOsc = null;
+      this.beamFilter = null;
+      this.beamGain = null;
+    } catch (err) {
+      this.beamOsc = null;
+      this.beamSubOsc = null;
+      this.beamFilter = null;
+      this.beamGain = null;
+    }
+  }
+
+  // ─── Weapon Thermal Overheat Warning SFX ─────────────────────────────────
+  public static playOverheatSFX() {
+    this.ensureAudioContext();
+    if (!this.ctx || !this.masterGain || !this.noiseBuffer) return;
+
+    const now = this.ctx.currentTime;
+
+    // 1. Steam hiss pressure cutoff
+    const source = this.ctx.createBufferSource();
+    const filter = this.ctx.createBiquadFilter();
+    const gain = this.ctx.createGain();
+
+    source.buffer = this.noiseBuffer;
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(2400, now);
+    filter.frequency.exponentialRampToValueAtTime(500, now + 0.4);
+    filter.Q.setValueAtTime(2.0, now);
+
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+
+    source.start(now);
+    source.stop(now + 0.4);
+    source.onended = () => {
+      source.disconnect();
+      filter.disconnect();
+      gain.disconnect();
+    };
+
+    // 2. Descending shutdown tone (480 Hz → 90 Hz)
+    const toneOsc = this.ctx.createOscillator();
+    const toneGain = this.ctx.createGain();
+
+    toneOsc.type = 'sawtooth';
+    toneOsc.frequency.setValueAtTime(480, now);
+    toneOsc.frequency.exponentialRampToValueAtTime(90, now + 0.35);
+
+    toneGain.gain.setValueAtTime(0.22, now);
+    toneGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    toneOsc.connect(toneGain);
+    toneGain.connect(this.masterGain);
+
+    toneOsc.start(now);
+    toneOsc.stop(now + 0.35);
+    toneOsc.onended = () => {
+      toneOsc.disconnect();
+      toneGain.disconnect();
+    };
+  }
 }

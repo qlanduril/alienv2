@@ -13,6 +13,14 @@ export class WeaponRenderer {
   private static canisterTipMaterial: THREE.MeshBasicMaterial | null = null;
   private static bombletMaterial: THREE.MeshStandardMaterial | null = null;
 
+  // Continuous Death Ray Mega Beam meshes
+  private static beamGroup: THREE.Group | null = null;
+  private static beamOuterMesh: THREE.Mesh | null = null;
+  private static beamInnerMesh: THREE.Mesh | null = null;
+  private static beamImpactDisc: THREE.Mesh | null = null;
+  private static beamImpactLight: THREE.PointLight | null = null;
+  private static beamTime: number = 0;
+
   public static init() {
     if (this.group) return;
 
@@ -33,9 +41,63 @@ export class WeaponRenderer {
       emissiveIntensity: 0.8,
       roughness: 0.2
     });
+
+    // ── Mega Beam Assembly ──────────────────────────────────────────────
+    this.beamGroup = new THREE.Group();
+    this.beamGroup.visible = false;
+
+    // Outer pulsating plasma sheath
+    const outerGeo = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 16, 1, true);
+    const outerMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      transparent: true,
+      opacity: 0.65,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    this.beamOuterMesh = new THREE.Mesh(outerGeo, outerMat);
+    this.beamOuterMesh.renderOrder = 2100;
+    this.beamGroup.add(this.beamOuterMesh);
+
+    // Inner searing white core beam
+    const innerGeo = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 12, 1, true);
+    const innerMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    this.beamInnerMesh = new THREE.Mesh(innerGeo, innerMat);
+    this.beamInnerMesh.renderOrder = 2101;
+    this.beamGroup.add(this.beamInnerMesh);
+
+    // Ground impact plasma flare disc
+    const discGeo = new THREE.RingGeometry(0.4, 3.5, 24);
+    const discMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    this.beamImpactDisc = new THREE.Mesh(discGeo, discMat);
+    this.beamImpactDisc.rotation.x = -Math.PI / 2;
+    this.beamImpactDisc.renderOrder = 2102;
+    this.beamGroup.add(this.beamImpactDisc);
+
+    // High-intensity dynamic point light at impact site
+    this.beamImpactLight = new THREE.PointLight(0x00f0ff, 4.5, 36);
+    this.beamImpactLight.castShadow = false;
+    this.beamGroup.add(this.beamImpactLight);
+
+    SceneManager.scene.add(this.beamGroup);
   }
 
-  public static tick(_delta: number) {
+  public static tick(delta: number) {
     if (!this.group) {
       this.init();
     }
@@ -90,7 +152,63 @@ export class WeaponRenderer {
         mesh.visible = false;
       }
     }
+
+    // 3. Render Continuous Mega Death Ray Beam
+    if (this.beamGroup) {
+      if (WeaponSystem.isBeamFiring()) {
+        this.beamTime += delta;
+        this.beamGroup.visible = true;
+
+        const origin = WeaponSystem.beamOrigin;
+        const target = WeaponSystem.beamTarget;
+
+        this.beamDir.subVectors(target, origin);
+        const dist = this.beamDir.length();
+
+        if (dist > 0.1) {
+          this.beamMid.addVectors(origin, target).multiplyScalar(0.5);
+          this.beamQuat.setFromUnitVectors(this.upVector, this.beamDir.normalize());
+
+          // Pulsating high-energy outer plasma radius & blazing incandescent core
+          const pulse = 1.65 + Math.sin(this.beamTime * 28.0) * 0.35 + (Math.random() - 0.5) * 0.18;
+          const coreRadius = 0.65 + (Math.random() - 0.5) * 0.10;
+
+          if (this.beamOuterMesh) {
+            this.beamOuterMesh.position.copy(this.beamMid);
+            this.beamOuterMesh.quaternion.copy(this.beamQuat);
+            this.beamOuterMesh.scale.set(pulse, dist, pulse);
+          }
+
+          if (this.beamInnerMesh) {
+            this.beamInnerMesh.position.copy(this.beamMid);
+            this.beamInnerMesh.quaternion.copy(this.beamQuat);
+            this.beamInnerMesh.scale.set(coreRadius, dist, coreRadius);
+          }
+
+          // Impact plasma flare disc
+          if (this.beamImpactDisc) {
+            this.beamImpactDisc.position.set(target.x, target.y + 0.1, target.z);
+            this.beamImpactDisc.rotation.z += delta * 16.0;
+            const discScale = 1.45 + Math.sin(this.beamTime * 24.0) * 0.35;
+            this.beamImpactDisc.scale.set(discScale, discScale, 1);
+          }
+
+          // Impact dynamic light
+          if (this.beamImpactLight) {
+            this.beamImpactLight.position.set(target.x, target.y + 0.8, target.z);
+            this.beamImpactLight.intensity = 6.8 + Math.random() * 3.0;
+          }
+        }
+      } else {
+        this.beamGroup.visible = false;
+      }
+    }
   }
+
+  private static beamDir = new THREE.Vector3();
+  private static beamMid = new THREE.Vector3();
+  private static beamQuat = new THREE.Quaternion();
+  private static upVector = new THREE.Vector3(0, 1, 0);
 
   private static createCanisterMesh(): THREE.Group {
     const grp = new THREE.Group();

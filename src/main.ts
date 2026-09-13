@@ -94,7 +94,11 @@ async function bootstrap() {
     heatLevel: 0,
     fireRate: 0.2,
     clusterCooldown: 0,
-    clusterMaxCooldown: 2.5
+    clusterMaxCooldown: 2.5,
+    beamHeat: 0,
+    beamMaxHeat: 100,
+    beamOverheated: false,
+    beamFiring: false
   });
 
   // 6. Start Game Loop

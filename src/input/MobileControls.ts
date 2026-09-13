@@ -1,5 +1,7 @@
 import { InputManager } from './InputManager';
 import { PlayerControlSystem } from '../systems/PlayerControlSystem';
+import { ECS } from '../core/ECS';
+import { PlayerTagComponent, WeaponComponent } from '../core/Components';
 
 export class MobileControls {
   private static initialized = false;
@@ -163,10 +165,35 @@ export class MobileControls {
       flightBtn.style.borderColor = PlayerControlSystem.mouseFollowMode ? '#10b981' : 'rgba(56, 189, 248, 0.5)';
     };
 
+    // Continuous Mega Beam Button
+    const beamBtn = document.createElement('button');
+    beamBtn.id = 'mobile-beam-btn';
+    beamBtn.setAttribute('aria-label', 'Fire Continuous Death Ray');
+    beamBtn.style.width = '58px';
+    beamBtn.style.height = '58px';
+    beamBtn.style.borderRadius = '50%';
+    beamBtn.style.background = 'radial-gradient(circle at 35% 35%, #06b6d4 0%, #0891b2 70%, #0e7490 100%)';
+    beamBtn.style.border = '2px solid rgba(255, 255, 255, 0.6)';
+    beamBtn.style.boxShadow = '0 4px 16px rgba(6, 182, 212, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.6)';
+    beamBtn.style.color = '#ffffff';
+    beamBtn.style.fontFamily = 'system-ui, sans-serif';
+    beamBtn.style.fontSize = '11px';
+    beamBtn.style.fontWeight = '900';
+    beamBtn.style.cursor = 'pointer';
+    beamBtn.style.touchAction = 'none';
+    beamBtn.innerText = '⚡ BEAM';
+
     // Attach Action Button Handlers (multi-touch friendly)
     fireBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      for (const entity of ECS.entities) {
+        if (PlayerTagComponent.has(entity)) {
+          const w = WeaponComponent.get(entity);
+          if (w) w.currentSelected = 'laser';
+          break;
+        }
+      }
       InputManager.setVirtualFirePrimary(true);
       fireBtn.style.transform = 'scale(0.92)';
     }, { passive: false });
@@ -178,6 +205,28 @@ export class MobileControls {
     };
     fireBtn.addEventListener('touchend', stopFire, { passive: false });
     fireBtn.addEventListener('touchcancel', stopFire, { passive: false });
+
+    beamBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      for (const entity of ECS.entities) {
+        if (PlayerTagComponent.has(entity)) {
+          const w = WeaponComponent.get(entity);
+          if (w) w.currentSelected = 'beam';
+          break;
+        }
+      }
+      InputManager.setVirtualFirePrimary(true);
+      beamBtn.style.transform = 'scale(0.92)';
+    }, { passive: false });
+
+    const stopBeam = (e: Event) => {
+      e.preventDefault();
+      InputManager.setVirtualFirePrimary(false);
+      beamBtn.style.transform = 'scale(1.0)';
+    };
+    beamBtn.addEventListener('touchend', stopBeam, { passive: false });
+    beamBtn.addEventListener('touchcancel', stopBeam, { passive: false });
 
     bombBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
@@ -196,6 +245,7 @@ export class MobileControls {
 
     actionDock.appendChild(flightBtn);
     actionDock.appendChild(bombBtn);
+    actionDock.appendChild(beamBtn);
     actionDock.appendChild(fireBtn);
 
     this.container.appendChild(actionDock);

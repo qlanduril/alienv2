@@ -57,7 +57,10 @@ export class UIOverlay {
   private static hullBarEl: HTMLElement | null = null;
   private static weaponBtn1: HTMLButtonElement | null = null;
   private static weaponBtn2: HTMLButtonElement | null = null;
+  private static weaponBtn3: HTMLButtonElement | null = null;
   private static clusterOverlayEl: HTMLElement | null = null;
+  private static beamHeatOverlayEl: HTMLElement | null = null;
+  private static beamHeatTextEl: HTMLElement | null = null;
   private static autopilotBtn: HTMLButtonElement | null = null;
   private static popupsContainer: HTMLElement | null = null;
   private static currentDestructionPercent: number = 0;
@@ -143,6 +146,10 @@ export class UIOverlay {
             <span style="position: relative; z-index: 2;">[2] BOMB</span>
             <div id="cluster-cooldown-overlay" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(245, 158, 11, 0.4); z-index: 1;"></div>
           </button>
+          <button id="weapon-btn-3" style="position: relative; flex: 1.1; padding: 4px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; border: 1px solid rgba(255,255,255,0.2); background: #1e293b; color: #94a3b8; cursor: pointer; overflow: hidden; transition: all 0.15s ease;">
+            <span id="beam-btn-text" style="position: relative; z-index: 2;">[3] BEAM</span>
+            <div id="beam-heat-overlay" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: rgba(6, 182, 212, 0.45); z-index: 1; transition: height 0.06s linear;"></div>
+          </button>
           <button id="autopilot-btn" title="Toggle Flight Mode [F]" style="padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; border: 1px solid #38bdf8; background: rgba(56, 189, 248, 0.15); color: #38bdf8; cursor: pointer;">
             🛸 [F]
           </button>
@@ -163,7 +170,10 @@ export class UIOverlay {
     this.hullBarEl = this.scoreElement.querySelector('#hud-hull-bar');
     this.weaponBtn1 = this.scoreElement.querySelector('#weapon-btn-1');
     this.weaponBtn2 = this.scoreElement.querySelector('#weapon-btn-2');
+    this.weaponBtn3 = this.scoreElement.querySelector('#weapon-btn-3');
     this.clusterOverlayEl = this.scoreElement.querySelector('#cluster-cooldown-overlay');
+    this.beamHeatOverlayEl = this.scoreElement.querySelector('#beam-heat-overlay');
+    this.beamHeatTextEl = this.scoreElement.querySelector('#beam-btn-text');
     this.autopilotBtn = this.scoreElement.querySelector('#autopilot-btn');
 
     if (this.autopilotBtn) {
@@ -191,6 +201,18 @@ export class UIOverlay {
           if (PlayerTagComponent.has(entity)) {
             const w = WeaponComponent.get(entity);
             if (w) w.currentSelected = 'cluster';
+            break;
+          }
+        }
+      };
+    }
+
+    if (this.weaponBtn3) {
+      this.weaponBtn3.onclick = () => {
+        for (const entity of ECS.entities) {
+          if (PlayerTagComponent.has(entity)) {
+            const w = WeaponComponent.get(entity);
+            if (w) w.currentSelected = 'beam';
             break;
           }
         }
@@ -521,6 +543,9 @@ export class UIOverlay {
     }
 
     const isLaser = currentWeapon === 'laser';
+    const isCluster = currentWeapon === 'cluster';
+    const isBeam = currentWeapon === 'beam';
+
     if (this.weaponBtn1) {
       this.weaponBtn1.style.background = isLaser ? '#0284c7' : '#1e293b';
       this.weaponBtn1.style.borderColor = isLaser ? '#38bdf8' : 'rgba(255,255,255,0.2)';
@@ -528,13 +553,52 @@ export class UIOverlay {
     }
 
     if (this.weaponBtn2) {
-      this.weaponBtn2.style.background = !isLaser ? '#d97706' : '#1e293b';
-      this.weaponBtn2.style.borderColor = !isLaser ? '#f59e0b' : 'rgba(255,255,255,0.2)';
-      this.weaponBtn2.style.color = !isLaser ? '#ffffff' : '#94a3b8';
+      this.weaponBtn2.style.background = isCluster ? '#d97706' : '#1e293b';
+      this.weaponBtn2.style.borderColor = isCluster ? '#f59e0b' : 'rgba(255,255,255,0.2)';
+      this.weaponBtn2.style.color = isCluster ? '#ffffff' : '#94a3b8';
+    }
+
+    const beamHeatRatio = WeaponSystem.getBeamHeatRatio();
+    const isOverheated = WeaponSystem.isBeamOverheated();
+
+    if (this.weaponBtn3) {
+      if (isOverheated) {
+        this.weaponBtn3.style.background = 'rgba(127, 29, 29, 0.85)';
+        this.weaponBtn3.style.borderColor = '#ef4444';
+        this.weaponBtn3.style.color = '#fca5a5';
+      } else if (isBeam) {
+        this.weaponBtn3.style.background = '#0e7490';
+        this.weaponBtn3.style.borderColor = '#06b6d4';
+        this.weaponBtn3.style.color = '#ffffff';
+      } else {
+        this.weaponBtn3.style.background = '#1e293b';
+        this.weaponBtn3.style.borderColor = 'rgba(255,255,255,0.2)';
+        this.weaponBtn3.style.color = '#94a3b8';
+      }
     }
 
     if (this.clusterOverlayEl) {
       this.clusterOverlayEl.style.height = `${WeaponSystem.getClusterCooldownRatio() * 100}%`;
+    }
+
+    if (this.beamHeatOverlayEl) {
+      this.beamHeatOverlayEl.style.height = `${beamHeatRatio * 100}%`;
+      this.beamHeatOverlayEl.style.background = isOverheated
+        ? 'rgba(239, 68, 68, 0.7)'
+        : (beamHeatRatio > 0.7 ? 'rgba(249, 115, 22, 0.6)' : 'rgba(6, 182, 212, 0.45)');
+    }
+
+    if (this.beamHeatTextEl) {
+      if (isOverheated) {
+        this.beamHeatTextEl.innerText = 'OVERHEAT!';
+        this.beamHeatTextEl.style.color = '#fca5a5';
+      } else if (beamHeatRatio > 0.08) {
+        this.beamHeatTextEl.innerText = `BEAM ${Math.round(beamHeatRatio * 100)}%`;
+        this.beamHeatTextEl.style.color = '#ffffff';
+      } else {
+        this.beamHeatTextEl.innerText = '[3] BEAM';
+        this.beamHeatTextEl.style.color = isBeam ? '#ffffff' : '#94a3b8';
+      }
     }
 
     if (this.autopilotBtn) {

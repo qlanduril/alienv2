@@ -38,10 +38,27 @@ export class WeaponSystem {
   public static readonly CLUSTER_COOLDOWN_TIME = 2.5; // seconds
   private static clusterCooldown: number = 0;
 
+  // Continuous Mega Beam Thermal Constants
+  public static readonly BEAM_MAX_HEAT = 100;
+  public static readonly BEAM_HEAT_BUILD_RATE = 25.0; // 4.0s to 100%
+  public static readonly BEAM_HEAT_COOL_RATE = 35.0;  // ~2.8s to fully cool
+  public static readonly BEAM_OVERHEAT_RESET_THRESHOLD = 15.0; // re-arm when heat <= 15%
+
+  private static beamHeat: number = 0;
+  private static beamOverheated: boolean = false;
+  private static beamFiring: boolean = false;
+
+  // Beam 3D positions for visual rendering
+  public static beamOrigin: THREE.Vector3 = new THREE.Vector3();
+  public static beamTarget: THREE.Vector3 = new THREE.Vector3();
+
   public static init() {
     this.canisters = [];
     this.bomblets = [];
     this.clusterCooldown = 0;
+    this.beamHeat = 0;
+    this.beamOverheated = false;
+    this.beamFiring = false;
     ECS.addSystem(this.tick.bind(this));
   }
 
@@ -51,13 +68,33 @@ export class WeaponSystem {
       this.clusterCooldown = Math.max(0, this.clusterCooldown - delta);
     }
 
-    // Update Player WeaponComponent clusterCooldown
+    // 1.5. Manage continuous beam heat and overheat cooldown
+    if (this.beamFiring && !this.beamOverheated) {
+      this.beamHeat = Math.min(this.BEAM_MAX_HEAT, this.beamHeat + this.BEAM_HEAT_BUILD_RATE * delta);
+      if (this.beamHeat >= this.BEAM_MAX_HEAT) {
+        this.beamOverheated = true;
+        this.beamFiring = false;
+        AudioSystem.stopContinuousBeamAudio();
+        AudioSystem.playOverheatSFX();
+      }
+    } else {
+      this.beamHeat = Math.max(0, this.beamHeat - this.BEAM_HEAT_COOL_RATE * delta);
+      if (this.beamOverheated && this.beamHeat <= this.BEAM_OVERHEAT_RESET_THRESHOLD) {
+        this.beamOverheated = false;
+      }
+    }
+
+    // Update Player WeaponComponent state
     for (const entity of ECS.entities) {
       if (PlayerTagComponent.has(entity)) {
         const weapon = WeaponComponent.get(entity);
         if (weapon) {
           weapon.clusterCooldown = this.clusterCooldown;
           weapon.clusterMaxCooldown = this.CLUSTER_COOLDOWN_TIME;
+          weapon.beamHeat = this.beamHeat;
+          weapon.beamMaxHeat = this.BEAM_MAX_HEAT;
+          weapon.beamOverheated = this.beamOverheated;
+          weapon.beamFiring = this.beamFiring && !this.beamOverheated;
         }
         break;
       }
@@ -250,5 +287,35 @@ export class WeaponSystem {
 
   public static getClusterCooldownRatio(): number {
     return this.clusterCooldown / this.CLUSTER_COOLDOWN_TIME;
+  }
+
+  // ─── Continuous Beam Accessors & Mutators ───────────────────────────────
+  public static setBeamFiring(firing: boolean): void {
+    if (this.beamOverheated) {
+      this.beamFiring = false;
+      return;
+    }
+    this.beamFiring = firing;
+  }
+
+  public static isBeamFiring(): boolean {
+    return this.beamFiring && !this.beamOverheated;
+  }
+
+  public static isBeamOverheated(): boolean {
+    return this.beamOverheated;
+  }
+
+  public static getBeamHeatRatio(): number {
+    return Math.min(1.0, this.beamHeat / this.BEAM_MAX_HEAT);
+  }
+
+  public static getBeamHeat(): number {
+    return this.beamHeat;
+  }
+
+  public static updateBeamEndpoints(ox: number, oy: number, oz: number, tx: number, ty: number, tz: number): void {
+    this.beamOrigin.set(ox, oy, oz);
+    this.beamTarget.set(tx, ty, tz);
   }
 }

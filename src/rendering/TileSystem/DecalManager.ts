@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { SceneManager } from '../SceneManager';
 import { AssetLoader } from '../../assets/AssetLoader';
+import { TileMap } from './TileMap';
 
 // --- DecalManager Constants ---
 const ZERO_VALUE = 0;
-const DECAL_LAYER_Y_ALTITUDE = 0.02;
-const MESH_Y_BASE_ALTITUDE = 0.01;
+const DECAL_LAYER_Y_ALTITUDE = 0.0;
+const MESH_Y_BASE_ALTITUDE = 0.03;
 const MESH_Y_JITTER_RANGE = 0.005;
 
 const CANVAS_DIMENSION = 128;
@@ -194,7 +195,8 @@ export class DecalManager {
     const targetMesh = isCrater ? this.craterMesh : this.scorchMesh;
     const targetIndex = isCrater ? this.craterIndex : this.scorchIndex;
 
-    this.dummy.position.set(worldX, MESH_Y_BASE_ALTITUDE + Math.random() * MESH_Y_JITTER_RANGE, worldZ);
+    const elev = TileMap.getElevationAtWorld(worldX, worldZ);
+    this.dummy.position.set(worldX, elev + MESH_Y_BASE_ALTITUDE + Math.random() * MESH_Y_JITTER_RANGE, worldZ);
     this.dummy.rotation.set(DECAL_ROTATION_X, 0, Math.random() * Math.PI * 2);
     this.dummy.scale.set(size, size, 1);
     this.dummy.updateMatrix();

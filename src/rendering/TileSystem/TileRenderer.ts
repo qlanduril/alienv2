@@ -1,9 +1,8 @@
 import * as THREE from 'three';
-import { TileMap, TerrainType } from './TileMap';
+import { TileMap, TerrainType, ELEVATION_TIER_WATER } from './TileMap';
 import { SceneManager } from '../SceneManager';
 
 // --- TileRenderer Constants ---
-const GROUND_ALTITUDE = 0;
 const TEXTURE_ANISOTROPY = 4;
 const GROUND_ROTATION_X = -Math.PI / 2;
 
@@ -81,6 +80,8 @@ export class TileRenderer {
         if (
           t === TerrainType.ROAD_STRAIGHT_NS ||
           t === TerrainType.ROAD_STRAIGHT_EW ||
+          t === TerrainType.ROAD_RAMP_NS ||
+          t === TerrainType.ROAD_RAMP_EW ||
           t === TerrainType.ROAD_INTERSECTION ||
           t === TerrainType.ROAD_ROUNDABOUT ||
           (t >= TerrainType.ROAD_CURVE_NE && t <= TerrainType.ROAD_CURVE_SW)
@@ -89,7 +90,7 @@ export class TileRenderer {
           ctx.fillStyle = '#1c1f24';
           ctx.fillRect(px, py, cellSize, cellSize);
 
-          if (t === TerrainType.ROAD_STRAIGHT_NS) {
+          if (t === TerrainType.ROAD_STRAIGHT_NS || t === TerrainType.ROAD_RAMP_NS) {
             // Outer white curb lines
             ctx.fillStyle = '#d0d7e0';
             ctx.fillRect(px + 1, py, 1, cellSize);
@@ -104,7 +105,7 @@ export class TileRenderer {
             ctx.fillRect(px + cellSize * 0.75, py + 4, 1, 8);
             ctx.fillRect(px + cellSize * 0.75, py + 20, 1, 8);
 
-          } else if (t === TerrainType.ROAD_STRAIGHT_EW) {
+          } else if (t === TerrainType.ROAD_STRAIGHT_EW || t === TerrainType.ROAD_RAMP_EW) {
             // Outer white curb lines
             ctx.fillStyle = '#d0d7e0';
             ctx.fillRect(px, py + 1, cellSize, 1);
@@ -228,7 +229,202 @@ export class TileRenderer {
     groundTex.anisotropy = TEXTURE_ANISOTROPY;
     groundTex.needsUpdate = true;
 
-    const groundGeo = new THREE.PlaneGeometry(TileMap.MAP_BOUNDS, TileMap.MAP_BOUNDS);
+    const halfBound = TileMap.MAP_BOUNDS / 2; // 512
+    const tileSize = TileMap.TILE_SIZE;       // 16
+    const gridDim = TileMap.GRID_DIM;         // 64
+
+    const groundPositions: number[] = [];
+    const groundNormals: number[] = [];
+    const groundUvs: number[] = [];
+
+    const wallPositions: number[] = [];
+    const wallNormals: number[] = [];
+    const wallUvs: number[] = [];
+
+    for (let gx = 0; gx < gridDim; gx++) {
+      for (let gz = 0; gz < gridDim; gz++) {
+        const cell = cells[gx][gz];
+        const x0 = -halfBound + gx * tileSize;
+        const x1 = -halfBound + (gx + 1) * tileSize;
+        const z0 = -halfBound + gz * tileSize;
+        const z1 = -halfBound + (gz + 1) * tileSize;
+
+        const u0 = gx / gridDim;
+        const u1 = (gx + 1) / gridDim;
+        const v0 = 1.0 - gz / gridDim;
+        const v1 = 1.0 - (gz + 1) / gridDim;
+
+        let yNW = cell.elevation;
+        let yNE = cell.elevation;
+        let ySW = cell.elevation;
+        let ySE = cell.elevation;
+
+        // Smooth slope on road ramps
+        if (cell.terrainType === TerrainType.ROAD_RAMP_NS) {
+          const northCell = TileMap.getCell(gx, gz - 1);
+          const southCell = TileMap.getCell(gx, gz + 1);
+          const nElev = northCell ? northCell.elevation : cell.elevation;
+          const sElev = southCell ? southCell.elevation : cell.elevation;
+          yNW = nElev;
+          yNE = nElev;
+          ySW = sElev;
+          ySE = sElev;
+        } else if (cell.terrainType === TerrainType.ROAD_RAMP_EW) {
+          const westCell = TileMap.getCell(gx - 1, gz);
+          const eastCell = TileMap.getCell(gx + 1, gz);
+          const wElev = westCell ? westCell.elevation : cell.elevation;
+          const eElev = eastCell ? eastCell.elevation : cell.elevation;
+          yNW = wElev;
+          ySW = wElev;
+          yNE = eElev;
+          ySE = eElev;
+        }
+
+        // Top Face Quad (Two triangles: SW->NE->NW, SW->SE->NE)
+        groundPositions.push(
+          x0, ySW, z1,
+          x1, yNE, z0,
+          x0, yNW, z0,
+
+          x0, ySW, z1,
+          x1, ySE, z1,
+          x1, yNE, z0
+        );
+
+        groundUvs.push(
+          u0, v1,
+          u1, v0,
+          u0, v0,
+
+          u0, v1,
+          u1, v1,
+          u1, v0
+        );
+
+        groundNormals.push(
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0
+        );
+
+        // ── VERTICAL RETAINING WALL FACES ──
+        const cellElev = cell.elevation;
+
+        // 1. North Edge (Z = z0, normal: 0, 0, -1)
+        const northCell = gz > 0 ? cells[gx][gz - 1] : null;
+        const northElev = northCell ? northCell.elevation : (cellElev > 0 ? 0 : cellElev);
+        if (cellElev > northElev && cell.terrainType !== TerrainType.ROAD_RAMP_NS) {
+          const dy = cellElev - northElev;
+          const vTop = dy / 16;
+          wallPositions.push(
+            x1, northElev, z0,
+            x0, cellElev, z0,
+            x1, cellElev, z0,
+
+            x1, northElev, z0,
+            x0, northElev, z0,
+            x0, cellElev, z0
+          );
+          wallNormals.push(
+            0, 0, -1,  0, 0, -1,  0, 0, -1,
+            0, 0, -1,  0, 0, -1,  0, 0, -1
+          );
+          wallUvs.push(
+            1, 0,  0, vTop,  1, vTop,
+            1, 0,  0, 0,     0, vTop
+          );
+        }
+
+        // 2. South Edge (Z = z1, normal: 0, 0, 1)
+        const southCell = gz < gridDim - 1 ? cells[gx][gz + 1] : null;
+        const southElev = southCell
+          ? southCell.elevation
+          : (cell.terrainType === TerrainType.WATER ? ELEVATION_TIER_WATER : (cellElev > 0 ? 0 : cellElev));
+        if (cellElev > southElev && cell.terrainType !== TerrainType.ROAD_RAMP_NS) {
+          const dy = cellElev - southElev;
+          const vTop = dy / 16;
+          wallPositions.push(
+            x0, southElev, z1,
+            x1, cellElev, z1,
+            x0, cellElev, z1,
+
+            x0, southElev, z1,
+            x1, southElev, z1,
+            x1, cellElev, z1
+          );
+          wallNormals.push(
+            0, 0, 1,  0, 0, 1,  0, 0, 1,
+            0, 0, 1,  0, 0, 1,  0, 0, 1
+          );
+          wallUvs.push(
+            0, 0,  1, vTop,  0, vTop,
+            0, 0,  1, 0,     1, vTop
+          );
+        }
+
+        // 3. West Edge (X = x0, normal: -1, 0, 0)
+        const westCell = gx > 0 ? cells[gx - 1][gz] : null;
+        const westElev = westCell ? westCell.elevation : (cellElev > 0 ? 0 : cellElev);
+        if (cellElev > westElev && cell.terrainType !== TerrainType.ROAD_RAMP_EW) {
+          const dy = cellElev - westElev;
+          const vTop = dy / 16;
+          wallPositions.push(
+            x0, westElev, z0,
+            x0, cellElev, z1,
+            x0, cellElev, z0,
+
+            x0, westElev, z0,
+            x0, westElev, z1,
+            x0, cellElev, z1
+          );
+          wallNormals.push(
+            -1, 0, 0,  -1, 0, 0,  -1, 0, 0,
+            -1, 0, 0,  -1, 0, 0,  -1, 0, 0
+          );
+          wallUvs.push(
+            0, 0,  1, vTop,  0, vTop,
+            0, 0,  1, 0,     1, vTop
+          );
+        }
+
+        // 4. East Edge (X = x1, normal: 1, 0, 0)
+        const eastCell = gx < gridDim - 1 ? cells[gx + 1][gz] : null;
+        const eastElev = eastCell
+          ? eastCell.elevation
+          : (cell.terrainType === TerrainType.WATER ? ELEVATION_TIER_WATER : (cellElev > 0 ? 0 : cellElev));
+        if (cellElev > eastElev && cell.terrainType !== TerrainType.ROAD_RAMP_EW) {
+          const dy = cellElev - eastElev;
+          const vTop = dy / 16;
+          wallPositions.push(
+            x1, eastElev, z1,
+            x1, cellElev, z0,
+            x1, cellElev, z1,
+
+            x1, eastElev, z1,
+            x1, eastElev, z0,
+            x1, cellElev, z0
+          );
+          wallNormals.push(
+            1, 0, 0,  1, 0, 0,  1, 0, 0,
+            1, 0, 0,  1, 0, 0,  1, 0, 0
+          );
+          wallUvs.push(
+            1, 0,  0, vTop,  1, vTop,
+            1, 0,  0, 0,     0, vTop
+          );
+        }
+      }
+    }
+
+    const groundGeo = new THREE.BufferGeometry();
+    groundGeo.setAttribute('position', new THREE.Float32BufferAttribute(groundPositions, 3));
+    groundGeo.setAttribute('normal', new THREE.Float32BufferAttribute(groundNormals, 3));
+    groundGeo.setAttribute('uv', new THREE.Float32BufferAttribute(groundUvs, 2));
+    groundGeo.computeVertexNormals();
+
     const groundMat = new THREE.MeshStandardMaterial({
       map: groundTex,
       roughness: DEFAULT_ROUGHNESS,
@@ -237,10 +433,29 @@ export class TileRenderer {
     });
 
     const singleGroundMesh = new THREE.Mesh(groundGeo, groundMat);
-    singleGroundMesh.rotation.x = GROUND_ROTATION_X;
-    singleGroundMesh.position.set(0, GROUND_ALTITUDE, 0);
+    singleGroundMesh.position.set(0, 0, 0);
     singleGroundMesh.receiveShadow = true;
     singleGroundMesh.renderOrder = 0;
+
+    const wallGeo = new THREE.BufferGeometry();
+    wallGeo.setAttribute('position', new THREE.Float32BufferAttribute(wallPositions, 3));
+    wallGeo.setAttribute('normal', new THREE.Float32BufferAttribute(wallNormals, 3));
+    wallGeo.setAttribute('uv', new THREE.Float32BufferAttribute(wallUvs, 2));
+
+    const wallTex = this.createRetainingWallTexture();
+    const wallMat = new THREE.MeshStandardMaterial({
+      map: wallTex,
+      roughness: 0.85,
+      metalness: 0.1,
+      depthWrite: true,
+      side: THREE.FrontSide
+    });
+
+    const retainingWallMesh = new THREE.Mesh(wallGeo, wallMat);
+    retainingWallMesh.position.set(0, 0, 0);
+    retainingWallMesh.receiveShadow = true;
+    retainingWallMesh.castShadow = true;
+    retainingWallMesh.renderOrder = 1;
 
     // Extended base green landscape layer below the tiles
     const BASE_GROUND_SIZE = 4800; // Expansive exterior horizon
@@ -259,7 +474,6 @@ export class TileRenderer {
 
     // ── PASS 4: EXTENDED OCEAN HORIZON & ARTERIAL HIGHWAYS ────────────────────
     const EXTERIOR_LIMIT = BASE_GROUND_SIZE / 2; // 2400 world units
-    const halfBound = TileMap.MAP_BOUNDS / 2; // 512 world units
     const highwayLength = EXTERIOR_LIMIT - halfBound; // 1888 world units
 
     // Detect water boundary on South & East coasts
@@ -303,7 +517,7 @@ export class TileRenderer {
 
       const oceanMesh = new THREE.Mesh(oceanGeo, oceanMat);
       oceanMesh.rotation.x = GROUND_ROTATION_X;
-      oceanMesh.position.set(oceanStartX + oceanWidth / 2, -0.12, oceanStartZ + oceanHeight / 2);
+      oceanMesh.position.set(oceanStartX + oceanWidth / 2, ELEVATION_TIER_WATER, oceanStartZ + oceanHeight / 2);
       oceanMesh.receiveShadow = true;
       oceanMesh.renderOrder = -6;
       additionalMeshes.push(oceanMesh);
@@ -530,6 +744,7 @@ export class TileRenderer {
     for (const m of additionalMeshes) {
       this.layer0Group.add(m);
     }
+    this.layer0Group.add(retainingWallMesh);
     this.layer0Group.add(singleGroundMesh);
   }
 
@@ -694,6 +909,94 @@ export class TileRenderer {
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
     tex.repeat.set(24, 24);
+    tex.generateMipmaps = true;
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  private static createRetainingWallTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+
+    // 1. Concrete Base Tone
+    ctx.fillStyle = '#555b62'; // Architectural precast concrete
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Subtle concrete grain noise
+    for (let i = 0; i < 600; i++) {
+      const nx = Math.floor(Math.random() * 256);
+      const ny = Math.floor(Math.random() * 256);
+      ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.06)';
+      ctx.fillRect(nx, ny, 2, 2);
+    }
+
+    // 2. Vertical Formwork Panel Seams (every 64px)
+    for (let x = 0; x < 256; x += 64) {
+      // Dark groove recess
+      ctx.fillStyle = '#22252a';
+      ctx.fillRect(x, 0, 2, 256);
+      // Subtle highlight bevel
+      ctx.fillStyle = '#78808a';
+      ctx.fillRect(x + 2, 0, 1, 256);
+    }
+
+    // 3. Horizontal Seam Grooves (every 64px)
+    for (let y = 0; y < 256; y += 64) {
+      ctx.fillStyle = '#22252a';
+      ctx.fillRect(0, y, 256, 2);
+      ctx.fillStyle = '#78808a';
+      ctx.fillRect(0, y + 2, 256, 1);
+    }
+
+    // 4. Formwork Tie-Rod Indentation Holes (small dark circular recessed anchors)
+    for (let x = 32; x < 256; x += 64) {
+      for (let y = 20; y < 256; y += 64) {
+        // Outer anchor bevel
+        ctx.fillStyle = '#3a3f45';
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        // Inner hole
+        ctx.fillStyle = '#181a1d';
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 5. Drainage & Weathering Water Streaks (dripping down from panel seams)
+    ctx.fillStyle = 'rgba(20, 24, 28, 0.25)';
+    for (let x = 16; x < 256; x += 32) {
+      const streakLen = 40 + (Math.abs(x * 37) % 80);
+      ctx.fillRect(x, 0, 3, streakLen);
+      ctx.fillRect(x + 1, streakLen, 1, 20);
+    }
+
+    // 6. Base Foundation Embankment Trim (bottom 25%: rocky foundation trim matching concept art)
+    ctx.fillStyle = '#3d4248';
+    ctx.fillRect(0, 200, 256, 56);
+    // Rocky block mortar seams
+    ctx.fillStyle = '#202428';
+    ctx.fillRect(0, 200, 256, 3);
+    ctx.fillRect(0, 228, 256, 2);
+    for (let rx = 20; rx < 256; rx += 48) {
+      ctx.fillRect(rx, 200, 2, 28);
+      ctx.fillRect(rx + 24, 228, 2, 28);
+    }
+
+    // 7. Top Wall Coping Stone Cap (top 6px)
+    ctx.fillStyle = '#848d98';
+    ctx.fillRect(0, 0, 256, 5);
+    ctx.fillStyle = '#2c3035';
+    ctx.fillRect(0, 5, 256, 2);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
     tex.generateMipmaps = true;
     tex.needsUpdate = true;
     return tex;

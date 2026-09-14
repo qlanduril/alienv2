@@ -5,6 +5,12 @@ const HALF_DIVISOR = 2.0;
 const GRID_CELL_CENTER_OFFSET = 0.5;
 const DEFAULT_ELEVATION = 0;
 
+// Elevation Tiers (World Y units)
+export const ELEVATION_TIER_WATER = -14;
+export const ELEVATION_TIER_LOW   = 0;
+export const ELEVATION_TIER_MID   = 16;
+export const ELEVATION_TIER_HIGH  = 32;
+
 export enum TerrainType {
   ROAD_STRAIGHT_NS = 0,
   ROAD_STRAIGHT_EW = 1,
@@ -20,6 +26,8 @@ export enum TerrainType {
   ROAD_CURVE_SW = 11,
   SAND = 12,
   WATER_SHORE = 13,
+  ROAD_RAMP_NS = 14,
+  ROAD_RAMP_EW = 15,
 }
 
 export enum OverlayTileType {
@@ -45,6 +53,7 @@ export interface TileCell {
   worldX: number;
   worldZ: number;
   elevation: number;
+  elevationTier?: number;
   terrainType: TerrainType;
   overlayType: OverlayTileType;
   occupiedByBuildingId?: number;
@@ -157,6 +166,14 @@ export class TileMap {
     cell.overlayType = OverlayTileType.ROAD;
   }
 
+  /** Mark a cell as a road ramp connecting two elevation tiers. */
+  public static setRoadRamp(gx: number, gz: number, axis: 'NS' | 'EW') {
+    const cell = this.getCell(gx, gz);
+    if (!cell) return;
+    cell.terrainType = axis === 'NS' ? TerrainType.ROAD_RAMP_NS : TerrainType.ROAD_RAMP_EW;
+    cell.overlayType = OverlayTileType.ROAD;
+  }
+
   /** Checks if a terrain or overlay tile represents any road variant. */
   public static isRoad(terrainType: TerrainType, overlayType?: OverlayTileType): boolean {
     return (
@@ -165,7 +182,9 @@ export class TileMap {
       terrainType === TerrainType.ROAD_STRAIGHT_EW ||
       terrainType === TerrainType.ROAD_INTERSECTION ||
       terrainType === TerrainType.ROAD_ROUNDABOUT ||
-      (terrainType >= TerrainType.ROAD_CURVE_NE && terrainType <= TerrainType.ROAD_CURVE_SW)
+      (terrainType >= TerrainType.ROAD_CURVE_NE && terrainType <= TerrainType.ROAD_CURVE_SW) ||
+      terrainType === TerrainType.ROAD_RAMP_NS ||
+      terrainType === TerrainType.ROAD_RAMP_EW
     );
   }
 
@@ -193,6 +212,38 @@ export class TileMap {
   public static getCell(gx: number, gz: number): TileCell | null {
     if (gx < ZERO_VALUE || gx >= this.GRID_DIM || gz < ZERO_VALUE || gz >= this.GRID_DIM) return null;
     return this.cells[gx][gz];
+  }
+
+  public static getCellAtWorld(worldX: number, worldZ: number): TileCell | null {
+    const { gx, gz } = this.worldToGrid(worldX, worldZ);
+    return this.getCell(gx, gz);
+  }
+
+  public static getElevationAtWorld(worldX: number, worldZ: number): number {
+    const cell = this.getCellAtWorld(worldX, worldZ);
+    if (!cell) return 0;
+
+    if (cell.terrainType === TerrainType.ROAD_RAMP_NS) {
+      const northCell = this.getCell(cell.gridX, cell.gridZ - 1);
+      const southCell = this.getCell(cell.gridX, cell.gridZ + 1);
+      const northElev = northCell ? northCell.elevation : cell.elevation;
+      const southElev = southCell ? southCell.elevation : cell.elevation;
+      const halfSize = this.TILE_SIZE / 2;
+      const t = Math.max(0, Math.min(1, (worldZ - (cell.worldZ - halfSize)) / this.TILE_SIZE));
+      return northElev + (southElev - northElev) * t;
+    }
+
+    if (cell.terrainType === TerrainType.ROAD_RAMP_EW) {
+      const westCell = this.getCell(cell.gridX - 1, cell.gridZ);
+      const eastCell = this.getCell(cell.gridX + 1, cell.gridZ);
+      const westElev = westCell ? westCell.elevation : cell.elevation;
+      const eastElev = eastCell ? eastCell.elevation : cell.elevation;
+      const halfSize = this.TILE_SIZE / 2;
+      const t = Math.max(0, Math.min(1, (worldX - (cell.worldX - halfSize)) / this.TILE_SIZE));
+      return westElev + (eastElev - westElev) * t;
+    }
+
+    return cell.elevation;
   }
 
   // ─── Lot Registration ────────────────────────────────────────────────────────

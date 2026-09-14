@@ -279,7 +279,7 @@ export class CityGenerator {
     PositionComponent.set(entity, {
       worldX: lot.centerWorldX,
       worldY: lot.centerWorldZ, // Three.js depth axis
-      worldZ: 0.0               // Ground level
+      worldZ: TileMap.getElevationAtWorld(lot.centerWorldX, lot.centerWorldZ) // Plateau ground elevation
     });
 
     // ── Life points based on size & footprint ──────────────────────────────

@@ -1,4 +1,12 @@
-import { TileMap, TerrainType, OverlayTileType } from '../rendering/TileSystem/TileMap';
+import {
+  TileMap,
+  TerrainType,
+  OverlayTileType,
+  ELEVATION_TIER_WATER,
+  ELEVATION_TIER_LOW,
+  ELEVATION_TIER_MID,
+  ELEVATION_TIER_HIGH
+} from '../rendering/TileSystem/TileMap';
 import { LotManager } from '../rendering/TileSystem/LotManager';
 import { BUILDING_DEFS } from '../core/BuildingDefs';
 import { CityPresetName, getCityPreset } from './CityConfig';
@@ -21,7 +29,7 @@ export interface LayerSnapshot {
   layerName: string;
   description: string;
   gridDim: number;
-  tiles: { terrainType: TerrainType; overlayType: OverlayTileType; roadAxis?: RoadAxisType }[][];
+  tiles: { terrainType: TerrainType; overlayType: OverlayTileType; roadAxis?: RoadAxisType; elevation?: number; elevationTier?: number }[][];
   buildings: SerializedBuilding[];
   occupied: boolean[][];
   macroGrid?: { district: string; name: string }[][];
@@ -137,6 +145,19 @@ export class MapBaker {
         }
       }
 
+      // 3.5 Elevation Uniformity Check:
+      // Multi-tile buildings must sit on a single flat plateau tier (never straddle a cliff or ramp)
+      const baseTier = TileMap.getCell(gx, gz)?.elevationTier;
+      for (let dx = 0; dx < w; dx++) {
+        for (let dz = 0; dz < h; dz++) {
+          const tx = gx + dx, tz = gz + dz;
+          const c = TileMap.getCell(tx, tz);
+          if (!c || c.elevationTier !== baseTier) {
+            return false;
+          }
+        }
+      }
+
       // 4. Coastal Water Clearance Buffer:
       // Regular buildings must be at least 1 tile away from water & shoreline surf.
       // Skyscrapers and 3D landmarks must be at least 2 tiles away from water & shoreline surf.
@@ -226,7 +247,8 @@ export class MapBaker {
         typeKey: finalKey,
         lotType,
         centerWorldX: pos.x,
-        centerWorldZ: pos.z
+        centerWorldZ: pos.z,
+        elevation: TileMap.getCell(gx, gz)?.elevation ?? 0
       });
       return true;
     };
@@ -250,11 +272,15 @@ export class MapBaker {
             else if (cell.terrainType === TerrainType.ROAD_CURVE_NW) axis = 'CURVE_NW';
             else if (cell.terrainType === TerrainType.ROAD_CURVE_SE) axis = 'CURVE_SE';
             else if (cell.terrainType === TerrainType.ROAD_CURVE_SW) axis = 'CURVE_SW';
+            else if (cell.terrainType === TerrainType.ROAD_RAMP_NS) axis = 'RAMP_NS';
+            else if (cell.terrainType === TerrainType.ROAD_RAMP_EW) axis = 'RAMP_EW';
           }
           return {
             terrainType: cell.terrainType,
             overlayType: cell.overlayType,
-            roadAxis: axis
+            roadAxis: axis,
+            elevation: cell.elevation,
+            elevationTier: cell.elevationTier
           };
         })
       );
@@ -348,8 +374,52 @@ export class MapBaker {
       }
     }
 
+    // ── ESTABLISH STEPPED PLATEAU ELEVATION TIERS ──
+    for (let gx = 0; gx < gridDim; gx++) {
+      for (let gz = 0; gz < gridDim; gz++) {
+        const cell = TileMap.getCell(gx, gz)!;
+
+        // Tier 0 (Sunken Waterfront / Sea Level: Y = -14)
+        if (
+          cell.terrainType === TerrainType.WATER ||
+          cell.terrainType === TerrainType.WATER_SHORE ||
+          cell.terrainType === TerrainType.SAND ||
+          distToWater[gx][gz] <= 1
+        ) {
+          cell.elevationTier = 0;
+          cell.elevation = ELEVATION_TIER_WATER;
+          continue;
+        }
+
+        // Tier 3 (High-Tech Apex Citadel Summit: Y = +32)
+        // Pedestal centered around the central core (mega_titan at 34, 18)
+        const inApexX = gx >= 24 && gx <= 43;
+        const inApexZ = gz >= 14 && gz <= 33;
+        if (inApexX && inApexZ && distToWater[gx][gz] >= 6) {
+          cell.elevationTier = 3;
+          cell.elevation = ELEVATION_TIER_HIGH;
+          continue;
+        }
+
+        // Tier 2 (Mid-City Uptown Plateau: Y = +16)
+        // Wide raised terrace surrounding the citadel
+        const inMidX = gx >= 12 && gx <= 51;
+        const inMidZ = gz >= 10 && gz <= 47;
+        if (inMidX && inMidZ && distToWater[gx][gz] >= 4) {
+          cell.elevationTier = 2;
+          cell.elevation = ELEVATION_TIER_MID;
+          continue;
+        }
+
+        // Tier 1 (Downtown Lower Plains: Y = 0)
+        // Outer urban street grid, parks, and residential neighborhoods
+        cell.elevationTier = 1;
+        cell.elevation = ELEVATION_TIER_LOW;
+      }
+    }
+
     layerTimings['Pass 1 (Geography)'] = performance.now() - t0;
-    const snap1 = captureSnapshot(0, 'Pass 1: Macro Geography', 'Ocean coastlines, beach transitions, and shallow surf');
+    const snap1 = captureSnapshot(0, 'Pass 1: Macro Geography', 'Stepped plateaus, ocean coastlines, and beach transitions');
     onProgress?.(0, this.TOTAL_LAYERS, `Pass 1: Macro geography for '${config.name}'...`, snap1);
     if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
@@ -366,6 +436,11 @@ export class MapBaker {
             TileMap.setTerrain(tx, tz, TerrainType.SAND); // Island beach shoreline
           } else {
             TileMap.setTerrain(tx, tz, TerrainType.PLAZA_STONE); // Center monument plaza
+          }
+          const c = TileMap.getCell(tx, tz);
+          if (c) {
+            c.elevationTier = 1;
+            c.elevation = ELEVATION_TIER_LOW; // Raised monument island out of sunken water
           }
           occupied[tx][tz] = false;
         }
@@ -601,8 +676,45 @@ export class MapBaker {
       }
     }
 
+    // ── DETECT & DESIGNATE ROAD RAMPS BETWEEN ELEVATION TIERS ──
+    for (let gx = 1; gx < gridDim - 1; gx++) {
+      for (let gz = 1; gz < gridDim - 1; gz++) {
+        const cell = TileMap.getCell(gx, gz);
+        if (!cell || !TileMap.isRoad(cell.terrainType, cell.overlayType)) continue;
+
+        const northCell = TileMap.getCell(gx, gz - 1);
+        const southCell = TileMap.getCell(gx, gz + 1);
+        const westCell = TileMap.getCell(gx - 1, gz);
+        const eastCell = TileMap.getCell(gx + 1, gz);
+
+        const axis = cellRoadAxes[gx][gz];
+
+        // North-South road transition
+        if (northCell && southCell && northCell.elevation !== southCell.elevation) {
+          if (axis === 'NS' || cell.terrainType === TerrainType.ROAD_STRAIGHT_NS || cell.terrainType === TerrainType.ROAD_INTERSECTION) {
+            TileMap.setRoadRamp(gx, gz, 'NS');
+            cellRoadAxes[gx][gz] = 'RAMP_NS';
+            cell.elevation = (northCell.elevation + southCell.elevation) / 2;
+            cell.elevationTier = Math.min(northCell.elevationTier ?? 1, southCell.elevationTier ?? 1);
+            continue;
+          }
+        }
+
+        // East-West road transition
+        if (westCell && eastCell && westCell.elevation !== eastCell.elevation) {
+          if (axis === 'EW' || cell.terrainType === TerrainType.ROAD_STRAIGHT_EW || cell.terrainType === TerrainType.ROAD_INTERSECTION) {
+            TileMap.setRoadRamp(gx, gz, 'EW');
+            cellRoadAxes[gx][gz] = 'RAMP_EW';
+            cell.elevation = (westCell.elevation + eastCell.elevation) / 2;
+            cell.elevationTier = Math.min(westCell.elevationTier ?? 1, eastCell.elevationTier ?? 1);
+            continue;
+          }
+        }
+      }
+    }
+
     layerTimings['Pass 4 (Road Grid)'] = performance.now() - t0;
-    const snap4 = captureSnapshot(3, 'Pass 4: Arterial Roads & Alleys', 'Arterial avenues around zones, circular rotaries & interior alleys', macroGrid, currentRoundabouts);
+    const snap4 = captureSnapshot(3, 'Pass 4: Arterial Roads & Alleys', 'Arterial avenues, connecting ramps & interior alleys', macroGrid, currentRoundabouts);
     onProgress?.(3, this.TOTAL_LAYERS, 'Pass 4: Routing arterial roads around zones & interior alleys...', snap4);
     if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
@@ -678,24 +790,22 @@ export class MapBaker {
           ) {
             // Check if cell borders a sidewalk or road
             let hasStreetfront = false;
-            const neighbors = [[gx - 1, gz], [gx + 1, gz], [gx, gz - 1], [gx, gz + 1]];
-            for (const [nx, nz] of neighbors) {
-              const nc = TileMap.getCell(nx, nz);
-              if (nc && (nc.overlayType === OverlayTileType.SIDEWALK || nc.overlayType === OverlayTileType.ROAD)) {
-                hasStreetfront = true;
-                break;
+            for (let dx = -1; dx <= 1; dx++) {
+              for (let dz = -1; dz <= 1; dz++) {
+                const adj = TileMap.getCell(gx + dx, gz + dz);
+                if (adj && (adj.overlayType === OverlayTileType.ROAD || adj.overlayType === OverlayTileType.SIDEWALK)) {
+                  hasStreetfront = true;
+                  break;
+                }
               }
+              if (hasStreetfront) break;
             }
 
-            // District-aware infill: Suburbs get family homes (Brownstones b2) and quiet apartments (b3)
-            const mx = Math.floor(gx / 8);
-            const mz = Math.floor(gz / 8);
-            const mod = macroGrid[mx]?.[mz];
-            const isSuburbs = mod?.district === 'suburbs';
-
+            // High density infill: 80% chance if bordering streetfront
+            const isSuburbs = gx < 12 || gx > 52 || gz < 12 || gz > 52;
             const pool = isSuburbs
-              ? ['b2', 'b2', 'b2', 'b3', 'b1', 'res_bronze'] // 75% family homes & brownstones
-              : ['b1', 'b2', 'b3', 'b4', 'res_bronze', 'res_sky'];
+              ? ['res_bronze', 'res_sky', '1', '2']
+              : ['b1', 'b2', 'b3', 'b4', 'res_bronze', 'res_sky', '1', '2', '3', '4'];
 
             if (hasStreetfront && Math.abs(gx * 1337 + gz * 7331) % 100 < 80) {
               const pickKey = pool[Math.abs(gx * 31 + gz * 97) % pool.length];
@@ -720,9 +830,13 @@ export class MapBaker {
         return {
           terrainType: cell.terrainType,
           overlayType: cell.overlayType,
+          elevation: cell.elevation,
+          elevationTier: cell.elevationTier,
           isIntersection: cell.terrainType === TerrainType.ROAD_INTERSECTION,
           roadAxis: cellRoadAxes[gx]?.[gz] ||
-                    (cell.terrainType === TerrainType.ROAD_STRAIGHT_NS ? 'NS' :
+                    (cell.terrainType === TerrainType.ROAD_RAMP_NS ? 'RAMP_NS' :
+                     cell.terrainType === TerrainType.ROAD_RAMP_EW ? 'RAMP_EW' :
+                     cell.terrainType === TerrainType.ROAD_STRAIGHT_NS ? 'NS' :
                      cell.terrainType === TerrainType.ROAD_STRAIGHT_EW ? 'EW' :
                      cell.terrainType === TerrainType.ROAD_ROUNDABOUT ? 'ROUNDABOUT' :
                      cell.terrainType === TerrainType.ROAD_CURVE_NE ? 'CURVE_NE' :

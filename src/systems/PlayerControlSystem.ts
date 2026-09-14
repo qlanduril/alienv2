@@ -16,6 +16,7 @@ import { DefenseSystem } from './DefenseSystem';
 import { TrafficSystem } from './TrafficSystem';
 import { AudioSystem } from './AudioSystem';
 import { DecalManager } from '../rendering/TileSystem/DecalManager';
+import { TileMap } from '../rendering/TileSystem/TileMap';
 
 // --- System Constants ---
 const ZONAL_DAMAGE_AMOUNT = 25; // 25 dmg per hit (little buildings 60-75 HP take 2-3 shots)
@@ -390,7 +391,15 @@ export class PlayerControlSystem {
     const ndc = InputManager.getMouseNDC();
     this.pointerVector.set(ndc.x, ndc.y);
     this.raycaster.setFromCamera(this.pointerVector, SceneManager.camera);
-    return this.raycaster.ray.intersectPlane(this.groundPlane, this.groundIntersectPoint);
+    const hit = this.raycaster.ray.intersectPlane(this.groundPlane, this.groundIntersectPoint);
+    if (!hit) return null;
+
+    const elev = TileMap.getElevationAtWorld(hit.x, hit.z);
+    if (elev !== 0) {
+      const elevPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -elev);
+      this.raycaster.ray.intersectPlane(elevPlane, this.groundIntersectPoint);
+    }
+    return this.groundIntersectPoint;
   }
 
   private static findClosestBuildingNear(wx: number, wz: number, maxRadiusSq: number): Entity | null {

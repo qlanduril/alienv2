@@ -1,6 +1,6 @@
 import { TerrainType, OverlayTileType } from '../rendering/TileSystem/TileMap';
 
-export type RoadAxisType = 'NS' | 'EW' | 'DIAG' | 'ROUNDABOUT' | 'CURVE_NE' | 'CURVE_NW' | 'CURVE_SE' | 'CURVE_SW';
+export type RoadAxisType = 'NS' | 'EW' | 'DIAG' | 'ROUNDABOUT' | 'CURVE_NE' | 'CURVE_NW' | 'CURVE_SE' | 'CURVE_SW' | 'RAMP_NS' | 'RAMP_EW';
 
 export interface RoundaboutInfo {
   cx: number;
@@ -13,6 +13,8 @@ export interface RoundaboutInfo {
 export interface SerializedTile {
   terrainType: TerrainType;
   overlayType: OverlayTileType;
+  elevation?: number;
+  elevationTier?: number;
   isIntersection?: boolean;
   roadAxis?: RoadAxisType;
   tileSprite?: string;
@@ -28,6 +30,7 @@ export interface SerializedBuilding {
   lotType: string;
   centerWorldX: number;
   centerWorldZ: number;
+  elevation?: number;
 }
 
 export interface SerializedWaypoint {

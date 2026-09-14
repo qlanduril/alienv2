@@ -814,7 +814,7 @@ export class BuildingRenderer {
     // 5. Ground Contact Ambient Occlusion Shadow for 2D sprites
     const shadow = this.getOrCreateShadow(entity, pos, footprintWidth * vScale);
     if (shadow) {
-      shadow.position.set(pos.worldX + fx.shudderDX * 0.2, 0.04, pos.worldY + fx.shudderDZ * 0.2);
+      shadow.position.set(pos.worldX + fx.shudderDX * 0.2, (pos.worldZ || 0) + 0.04, pos.worldY + fx.shudderDZ * 0.2);
       shadow.visible = renderState.visible;
       const mat = shadow.material as THREE.MeshBasicMaterial;
       if (collapse) {
@@ -1017,7 +1017,7 @@ export class BuildingRenderer {
 
     const basePosX = model.userData.basePosX ?? pos.worldX;
     const basePosZ = model.userData.basePosZ ?? pos.worldY;
-    const basePosY = model.userData.basePosY ?? 0;
+    const basePosY = model.userData.basePosY ?? (pos.worldZ || 0);
 
     // 3D buildings remain strictly upright, relying exclusively on GLTF demolition keyframe tracks (no sideways tilt laying down)
     model.position.set(basePosX + fx.shudderDX, basePosY, basePosZ + fx.shudderDZ);
@@ -1130,7 +1130,7 @@ export class BuildingRenderer {
 
       const basePosX = pos.worldX;
       const basePosZ = pos.worldY; // Three.js Z depth
-      const basePosY = -minY;      // Sitting on Y = 0 ground plane
+      const basePosY = -minY + (pos.worldZ || 0); // Sitting on plateau elevation
 
       model.position.set(basePosX, basePosY, basePosZ);
       model.userData = { baseScale: targetScale, basePosX, basePosY, basePosZ };
@@ -1149,7 +1149,7 @@ export class BuildingRenderer {
           new THREE.PlaneGeometry(1, 1),
           new THREE.MeshBasicMaterial({ visible: true, transparent: true, opacity: 0, depthWrite: false })
         );
-        dummySprite.position.set(pos.worldX, actualHeight / 2, pos.worldY);
+        dummySprite.position.set(pos.worldX, (pos.worldZ || 0) + actualHeight / 2, pos.worldY);
         dummySprite.scale.set(actualFootprint, actualHeight, 1);
         dummySprite.rotation.y = ISOMETRIC_ROTATION_Y;
         dummySprite.userData = { entity };

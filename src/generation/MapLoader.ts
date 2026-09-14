@@ -98,11 +98,16 @@ export class MapLoader {
           let roadAxis: RoadAxisType | undefined = undefined;
           let tileSprite: string | undefined = undefined;
 
+          let elevation: number | undefined = undefined;
+          let elevationTier: number | undefined = undefined;
+
           if (is2D) {
             const serializedTile = (data.tiles as SerializedTile[][])[gx]?.[gz];
             if (serializedTile) {
               terrainType = serializedTile.terrainType;
               overlayType = serializedTile.overlayType;
+              elevation = serializedTile.elevation;
+              elevationTier = serializedTile.elevationTier;
               isIntersection = !!serializedTile.isIntersection;
               roadAxis = serializedTile.roadAxis;
               tileSprite = serializedTile.tileSprite;
@@ -116,7 +121,9 @@ export class MapLoader {
                 terrainType === TerrainType.ROAD_STRAIGHT_EW ||
                 terrainType === TerrainType.ROAD_INTERSECTION ||
                 terrainType === TerrainType.ROAD_ROUNDABOUT ||
-                (terrainType >= TerrainType.ROAD_CURVE_NE && terrainType <= TerrainType.ROAD_CURVE_SW)
+                (terrainType >= TerrainType.ROAD_CURVE_NE && terrainType <= TerrainType.ROAD_CURVE_SW) ||
+                terrainType === TerrainType.ROAD_RAMP_NS ||
+                terrainType === TerrainType.ROAD_RAMP_EW
               ) {
                 overlayType = OverlayTileType.ROAD;
               } else if (terrainType === TerrainType.SIDEWALK) {
@@ -125,16 +132,39 @@ export class MapLoader {
             } else if (val && typeof val === 'object') {
               terrainType = val.terrainType;
               overlayType = val.overlayType;
+              elevation = val.elevation;
+              elevationTier = val.elevationTier;
               isIntersection = !!val.isIntersection;
               roadAxis = val.roadAxis;
               tileSprite = val.tileSprite;
             }
           }
 
+          // Fallback elevation tier calculation for legacy map files
+          if (elevation === undefined || elevationTier === undefined) {
+            if (terrainType === TerrainType.WATER || terrainType === TerrainType.WATER_SHORE || terrainType === TerrainType.SAND) {
+              elevationTier = 0;
+              elevation = -14;
+            } else if (gx >= 24 && gx <= 43 && gz >= 14 && gz <= 33) {
+              elevationTier = 3;
+              elevation = 32;
+            } else if (gx >= 12 && gx <= 51 && gz >= 10 && gz <= 47) {
+              elevationTier = 2;
+              elevation = 16;
+            } else {
+              elevationTier = 1;
+              elevation = 0;
+            }
+          }
+
           TileMap.setTerrain(gx, gz, terrainType);
           const cell = TileMap.getCell(gx, gz);
-          if (cell && tileSprite) {
-            cell.tileSprite = tileSprite;
+          if (cell) {
+            cell.elevation = elevation;
+            cell.elevationTier = elevationTier;
+            if (tileSprite) {
+              cell.tileSprite = tileSprite;
+            }
           }
 
           if (overlayType === OverlayTileType.ROAD) {
@@ -144,6 +174,10 @@ export class MapLoader {
               TileMap.setRoadCurve(gx, gz, terrainType);
             } else if (isIntersection || terrainType === TerrainType.ROAD_INTERSECTION) {
               TileMap.setIntersection(gx, gz);
+            } else if (roadAxis === 'RAMP_NS' || terrainType === TerrainType.ROAD_RAMP_NS) {
+              TileMap.setRoadRamp(gx, gz, 'NS');
+            } else if (roadAxis === 'RAMP_EW' || terrainType === TerrainType.ROAD_RAMP_EW) {
+              TileMap.setRoadRamp(gx, gz, 'EW');
             } else {
               TileMap.setRoad(gx, gz, roadAxis === 'EW' ? 'EW' : 'NS');
             }
@@ -337,7 +371,7 @@ export class MapLoader {
     PositionComponent.set(entity, {
       worldX: lot.centerWorldX,
       worldY: lot.centerWorldZ, // Three.js depth axis
-      worldZ: 0.0               // Ground level
+      worldZ: TileMap.getElevationAtWorld(lot.centerWorldX, lot.centerWorldZ) // Plateau ground elevation
     });
 
     const buildingMaxHp = getBuildingMaxHP(def);

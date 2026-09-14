@@ -5,6 +5,7 @@ import { SceneManager } from './SceneManager';
 import { CameraController } from './CameraController';
 import { SpatialGrid } from '../core/SpatialGrid';
 import { BuildingRenderer } from './BuildingRenderer';
+import { TileMap } from './TileSystem/TileMap';
 
 // --- PlayerRenderer Constants (Giant Mothership Scale) ---
 const MOTHERSHIP_RADIUS = 14.0;          // 28-unit wide main saucer disc
@@ -57,10 +58,9 @@ export class PlayerRenderer {
     if (this.playerEntity !== null) {
       const pos = PositionComponent.get(this.playerEntity);
       if (pos) {
-        // Enforce hover altitude for mothership
-        if (pos.worldZ < 40) {
-          pos.worldZ = DEFAULT_UFO_ALTITUDE;
-        }
+        // Enforce hover altitude relative to underlying plateau elevation
+        const plateauElev = TileMap.getElevationAtWorld(pos.worldX, pos.worldY);
+        pos.worldZ = DEFAULT_UFO_ALTITUDE + plateauElev;
 
         if (this.mothershipGroup) {
           // Calculate movement velocity vector for tilt banking
@@ -89,7 +89,7 @@ export class PlayerRenderer {
 
           // Dynamic Surface Shadow directly under UFO position (worldX, worldY)
           if (this.groundShadowRing) {
-            let targetSurfaceY = 0.1;
+            let targetSurfaceY = plateauElev + 0.1;
             const nearbyEntities = SpatialGrid.queryRadius(pos.worldX, pos.worldY, 16);
             for (const entity of nearbyEntities) {
               const bPos = PositionComponent.get(entity);

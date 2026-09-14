@@ -61,6 +61,7 @@ export interface GenerationMetadata {
   buildingCount: number;
   boundaryExits?: BoundaryExitInfo[];
   boundaryWater?: BoundaryWaterInfo;
+  roundabouts?: RoundaboutInfo[];
 }
 
 export interface GeneratedMapData {
@@ -70,5 +71,6 @@ export interface GeneratedMapData {
   tiles: SerializedTile[][] | number[];
   buildings: SerializedBuilding[];
   roadWaypoints: SerializedWaypoint[];
+  roundabouts?: RoundaboutInfo[];
   metadata: GenerationMetadata;
 }

@@ -85,6 +85,7 @@ export class MapLoader {
 
       // ── Step 1: Initialize blank TileMap ──────────────────────────────
       TileMap.init();
+      TileMap.roundabouts = data.roundabouts || data.metadata?.roundabouts || [];
       const gridDim = TileMap.GRID_DIM; // 64
 
       // ── Step 2: Hydrate TileMap cells directly from pre-baked tiles ───
@@ -313,7 +314,9 @@ export class MapLoader {
       for (let gx = 1; gx < gridDim - 1; gx++) {
         for (let gz = 1; gz < gridDim - 1; gz++) {
           if (occupiedGrid[gx][gz] === 0) {
-            // Prefer lots adjacent to streets or sidewalks for realistic urban frontage
+            // Prefer lots adjacent to streets, sidewalks, or plazas/plateaus for realistic urban frontage
+            const c = TileMap.getCell(gx, gz);
+            const isPlazaOrPlateau = c?.terrainType === TerrainType.PLAZA_STONE || (c?.elevationTier ?? 1) >= 2;
             let nearStreet = false;
             for (let dx = -1; dx <= 1; dx++) {
               for (let dz = -1; dz <= 1; dz++) {
@@ -326,7 +329,7 @@ export class MapLoader {
               if (nearStreet) break;
             }
 
-            if (nearStreet && nextRand() < 0.44) {
+            if ((nearStreet || isPlazaOrPlateau) && nextRand() < 0.65) {
               occupiedGrid[gx][gz] = 2;
               const pick = infillTypes[Math.floor(nextRand() * infillTypes.length)];
               const pos = LotManager.computeLotWorldPos(gx, gz, 1, 1);

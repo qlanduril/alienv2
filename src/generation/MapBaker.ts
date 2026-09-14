@@ -624,6 +624,9 @@ export class MapBaker {
       }
     }
 
+    // Set authoritative roundabouts registry on TileMap for renderer access
+    TileMap.roundabouts = currentRoundabouts;
+
     // ── POST-ROAD COASTAL SHORELINE & PROMENADE SYNTHESIS ──
     // Re-verify that water transitions smoothly: WATER -> WATER_SHORE -> SAND -> SIDEWALK/GRASS -> ROADS
     for (let gx = 0; gx < gridDim; gx++) {
@@ -821,42 +824,137 @@ export class MapBaker {
       }
     }
 
-    // 4. Urban streetfront infill pass: ensure vibrant streets without empty pavement
-    // Strictly bounds inside [2..gridDim - 3] to leave outer perimeter buffer rings pristine green!
+    // 4. Tier-Partitioned Regional Building Infill Pass
+    // Partition the city grid into distinct regions keyed by (districtId, elevationTier).
+    // Every region is evaluated independently to ensure dense, vibrant architecture across ALL tiers
+    // without leaving large empty plateaus or sparse plazas!
+
+    interface RegionCell {
+      gx: number;
+      gz: number;
+      tier: number;
+      district: string;
+      hasStreetfront: boolean;
+      isPlaza: boolean;
+    }
+
+    const tierRegions = new Map<string, RegionCell[]>();
+
     for (let gx = 2; gx < gridDim - 2; gx++) {
       for (let gz = 2; gz < gridDim - 2; gz++) {
-        if (!occupied[gx][gz]) {
-          const cell = TileMap.getCell(gx, gz);
-          if (
-            cell &&
-            cell.overlayType !== OverlayTileType.ROAD &&
-            cell.terrainType !== TerrainType.WATER &&
-            cell.terrainType !== TerrainType.WATER_SHORE &&
-            cell.terrainType !== TerrainType.SAND &&
-            distToWater[gx][gz] > 2
-          ) {
-            // Check if cell borders a sidewalk or road
-            let hasStreetfront = false;
-            for (let dx = -1; dx <= 1; dx++) {
-              for (let dz = -1; dz <= 1; dz++) {
-                const adj = TileMap.getCell(gx + dx, gz + dz);
-                if (adj && (adj.overlayType === OverlayTileType.ROAD || adj.overlayType === OverlayTileType.SIDEWALK)) {
-                  hasStreetfront = true;
-                  break;
-                }
-              }
-              if (hasStreetfront) break;
+        const cell = TileMap.getCell(gx, gz);
+        if (
+          !cell ||
+          occupied[gx][gz] ||
+          cell.overlayType === OverlayTileType.ROAD ||
+          cell.terrainType === TerrainType.WATER ||
+          cell.terrainType === TerrainType.WATER_SHORE ||
+          cell.terrainType === TerrainType.SAND ||
+          distToWater[gx][gz] <= 2
+        ) {
+          continue;
+        }
+
+        const mx = Math.floor(gx / 8);
+        const mz = Math.floor(gz / 8);
+        const district = macroGrid[mx]?.[mz]?.district || 'downtown';
+        const tier = cell.elevationTier ?? 1;
+        const regionKey = `${district}_tier${tier}`;
+
+        let hasStreetfront = false;
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dz = -1; dz <= 1; dz++) {
+            const adj = TileMap.getCell(gx + dx, gz + dz);
+            if (adj && (adj.overlayType === OverlayTileType.ROAD || adj.overlayType === OverlayTileType.SIDEWALK)) {
+              hasStreetfront = true;
+              break;
             }
+          }
+          if (hasStreetfront) break;
+        }
 
-            // High density infill: 80% chance if bordering streetfront
-            const isSuburbs = gx < 12 || gx > 52 || gz < 12 || gz > 52;
-            const pool = isSuburbs
-              ? ['res_bronze', 'res_sky', '1', '2']
-              : ['b1', 'b2', 'b3', 'b4', 'res_bronze', 'res_sky', '1', '2', '3', '4'];
+        const isPlaza = cell.terrainType === TerrainType.PLAZA_STONE;
 
-            if (hasStreetfront && Math.abs(gx * 1337 + gz * 7331) % 100 < 80) {
-              const pickKey = pool[Math.abs(gx * 31 + gz * 97) % pool.length];
-              placeBuilding(gx, gz, pickKey, isSuburbs ? 'suburban_home' : 'dense_infill', 0);
+        if (!tierRegions.has(regionKey)) {
+          tierRegions.set(regionKey, []);
+        }
+
+        tierRegions.get(regionKey)!.push({
+          gx,
+          gz,
+          tier,
+          district,
+          hasStreetfront,
+          isPlaza
+        });
+      }
+    }
+
+    // Iterate through each Tier-District Region to enforce high urban density
+    for (const [regionKey, cells] of tierRegions.entries()) {
+      const parts = regionKey.split('_tier');
+      const district = parts[0];
+      const tier = parseInt(parts[1], 10) || 1;
+
+      // Target density quota per region:
+      // Tier 3 Apex: 82% density (Dense futuristic sci-fi corporate apex)
+      // Tier 2 Uptown: 78% density (Dense metropolitan mid-rise & high-rise plateau)
+      // Tier 1 Downtown/Tech: 78% density (Vibrant urban streetfronts)
+      // Tier 1 Suburbs/Sports: 68% density (Lively garden neighborhoods)
+      // Harbor: 60% density
+      const targetDensity = tier >= 3 ? 0.82 : tier === 2 ? 0.78 : (district === 'downtown' || district === 'tech') ? 0.78 : 0.68;
+
+      // Building pools tailored to district & tier:
+      let pool1x1: string[];
+      let pool2x2: string[];
+
+      if (tier >= 3) {
+        // Apex Summit
+        pool1x1 = ['sky_cyber', 'sky_artdeco', 'sky_biotech', 'b4', 'res_sky', '5', 'b3', 'b1'];
+        pool2x2 = ['b4', 'res_sky', '5'];
+      } else if (tier === 2) {
+        // Uptown Plateau
+        if (district === 'suburbs') {
+          pool1x1 = ['res_bronze', 'res_sky', 'b2', 'b3', 'b1', '1', '2'];
+          pool2x2 = ['res_bronze', 'res_sky', '2'];
+        } else {
+          pool1x1 = ['b4', 'b3', 'b2', 'b1', 'sky_cyber', 'sky_artdeco', 'sky_biotech', 'res_bronze', 'res_sky', '3', '4'];
+          pool2x2 = ['b4', 'res_sky', 'res_bronze', '3', '4'];
+        }
+      } else {
+        // Tier 1 Lower Plains
+        if (district === 'suburbs' || district === 'sports') {
+          pool1x1 = ['res_bronze', 'res_sky', 'b1', 'b2', 'b3', '1', '2', '3'];
+          pool2x2 = ['res_bronze', 'res_sky', '2', '3'];
+        } else if (district === 'harbor') {
+          pool1x1 = ['4', 'b3', 'b1', 'b2', 'res_bronze'];
+          pool2x2 = ['4', 'b4'];
+        } else {
+          pool1x1 = ['b1', 'b2', 'b3', 'b4', 'res_bronze', 'res_sky', '1', '2', '3', '4'];
+          pool2x2 = ['b4', 'res_sky', 'res_bronze', '3', '4'];
+        }
+      }
+
+      // Step 4.1: Attempt to place larger 2x2 anchors in open courtyard areas of the region
+      for (const c of cells) {
+        if (!occupied[c.gx][c.gz] && !occupied[c.gx + 1]?.[c.gz] && !occupied[c.gx]?.[c.gz + 1] && !occupied[c.gx + 1]?.[c.gz + 1]) {
+          const hasAccess = c.hasStreetfront || c.isPlaza || c.tier >= 2;
+          if (hasAccess && Math.abs(c.gx * 47 + c.gz * 89) % 100 < 35) {
+            const pick2x2 = pool2x2[Math.abs(c.gx * 19 + c.gz * 73) % pool2x2.length];
+            placeBuilding(c.gx, c.gz, pick2x2, 'regional_anchor', 0);
+          }
+        }
+      }
+
+      // Step 4.2: Infill remaining available cells to meet targeted density quota
+      for (const c of cells) {
+        if (!occupied[c.gx][c.gz]) {
+          const hasAccess = c.hasStreetfront || c.isPlaza || c.tier >= 2;
+          if (hasAccess) {
+            const roll = Math.abs(c.gx * 1337 + c.gz * 7331) % 100;
+            if (roll < targetDensity * 100) {
+              const pick1x1 = pool1x1[Math.abs(c.gx * 31 + c.gz * 97) % pool1x1.length];
+              placeBuilding(c.gx, c.gz, pick1x1, district === 'suburbs' ? 'suburban_home' : 'regional_dense_infill', 0);
             }
           }
         }
@@ -864,7 +962,7 @@ export class MapBaker {
     }
 
     layerTimings['Pass 6 (Buildings)'] = performance.now() - t0;
-    const snap6 = captureSnapshot(5, 'Pass 6: 3D Landmarks & Buildings', 'Signature 3D towers, commercial spires & streetfront infill with terrace setbacks', macroGrid);
+    const snap6 = captureSnapshot(5, 'Pass 6: 3D Landmarks & Buildings', 'Signature 3D towers, commercial spires & tier-partitioned regional building infill', macroGrid);
     onProgress?.(5, this.TOTAL_LAYERS, 'Pass 6: Instantiating 3D landmarks & building streetfronts...', snap6);
     if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
@@ -906,13 +1004,15 @@ export class MapBaker {
       tiles: serializedTiles,
       buildings: serializedBuildings,
       roadWaypoints,
+      roundabouts: currentRoundabouts,
       metadata: {
         generatedAt: new Date().toISOString(),
         layerTimings,
         wfcAttempts: 50,
         buildingCount: serializedBuildings.length,
         boundaryExits,
-        boundaryWater
+        boundaryWater,
+        roundabouts: currentRoundabouts
       }
     };
 

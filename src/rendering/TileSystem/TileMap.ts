@@ -68,6 +68,8 @@ export interface RoadWaypoint {
   nextWaypoints: string[]; // populated at runtime
 }
 
+import { RoundaboutInfo } from '../../generation/GeneratedMapSchema';
+
 export class TileMap {
   public static readonly TILE_SIZE = 16;        // 16 world units per grid cell
   public static readonly MAP_BOUNDS = 1024;
@@ -84,6 +86,9 @@ export class TileMap {
   /** Populated by CityGenerator from MapDefinition road waypoints */
   public static roadWaypoints: RoadWaypoint[] = [];
 
+  /** Authoritative circular roundabout definitions */
+  public static roundabouts: RoundaboutInfo[] = [];
+
   // ─── Initialisation ──────────────────────────────────────────────────────────
 
   /**
@@ -94,6 +99,7 @@ export class TileMap {
     this.cells = [];
     this.buildingLots.clear();
     this.roadWaypoints = [];
+    this.roundabouts = [];
 
     const halfBound = this.MAP_BOUNDS / HALF_DIVISOR;
 

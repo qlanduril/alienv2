@@ -135,66 +135,198 @@ export class TileRenderer {
             ctx.fillRect(px + cellSize - 2, py + cellSize - 2, 2, 2);
 
           } else if (t === TerrainType.ROAD_ROUNDABOUT) {
-            // Circular Roundabout rotary tile
-            ctx.strokeStyle = '#d0d7e0';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(px + 0.5, py + 0.5, cellSize - 1, cellSize - 1);
-            // Yellow circular dashed lane arc
-            ctx.strokeStyle = '#f5b800';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(px + cellSize / 2, py + cellSize / 2, cellSize * 0.38, 0, Math.PI * 2);
-            ctx.stroke();
+            // Asphalt base is filled above. Individual strokeRect boxes and isolated circles removed.
+            // Unified continuous multi-cell roundabouts are rendered seamlessly in PASS 2.5 below.
 
           } else if (t === TerrainType.ROAD_CURVE_NE) {
-            ctx.strokeStyle = '#f5b800';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(px + cellSize, py, cellSize / 2, Math.PI, Math.PI / 2, true);
-            ctx.stroke();
+            // Connects North (x=cellSize/2, y=0) to East (x=cellSize, y=cellSize/2)
+            const cx = px + cellSize;
+            const cy = py;
+
+            // Inner white curb (R = 2)
             ctx.strokeStyle = '#d0d7e0';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(px + cellSize, py, cellSize - 1, Math.PI, Math.PI / 2, true);
+            ctx.arc(cx, cy, 2, Math.PI, Math.PI / 2, true);
             ctx.stroke();
+
+            // Outer white curb (R = cellSize - 2)
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize - 2, Math.PI, Math.PI / 2, true);
+            ctx.stroke();
+
+            // Center double yellow line (R = cellSize / 2)
+            ctx.strokeStyle = '#f5b800';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize / 2, Math.PI, Math.PI / 2, true);
+            ctx.stroke();
+
+            // Dashed white lane dividers
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 4]);
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize * 0.25, Math.PI, Math.PI / 2, true);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize * 0.75, Math.PI, Math.PI / 2, true);
+            ctx.stroke();
+            ctx.setLineDash([]);
 
           } else if (t === TerrainType.ROAD_CURVE_NW) {
-            ctx.strokeStyle = '#f5b800';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(px, py, cellSize / 2, 0, Math.PI / 2, false);
-            ctx.stroke();
+            // Connects North (x=cellSize/2, y=0) to West (x=0, y=cellSize/2)
+            const cx = px;
+            const cy = py;
+
+            // Inner white curb (R = 2)
             ctx.strokeStyle = '#d0d7e0';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(px, py, cellSize - 1, 0, Math.PI / 2, false);
+            ctx.arc(cx, cy, 2, 0, Math.PI / 2, false);
             ctx.stroke();
+
+            // Outer white curb (R = cellSize - 2)
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize - 2, 0, Math.PI / 2, false);
+            ctx.stroke();
+
+            // Center double yellow line (R = cellSize / 2)
+            ctx.strokeStyle = '#f5b800';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize / 2, 0, Math.PI / 2, false);
+            ctx.stroke();
+
+            // Dashed white lane dividers
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 4]);
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize * 0.25, 0, Math.PI / 2, false);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize * 0.75, 0, Math.PI / 2, false);
+            ctx.stroke();
+            ctx.setLineDash([]);
 
           } else if (t === TerrainType.ROAD_CURVE_SE) {
-            ctx.strokeStyle = '#f5b800';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(px + cellSize, py + cellSize, cellSize / 2, Math.PI, 3 * Math.PI / 2, false);
-            ctx.stroke();
+            // Connects South (x=cellSize/2, y=cellSize) to East (x=cellSize, y=cellSize/2)
+            const cx = px + cellSize;
+            const cy = py + cellSize;
+
+            // Inner white curb (R = 2)
             ctx.strokeStyle = '#d0d7e0';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(px + cellSize, py + cellSize, cellSize - 1, Math.PI, 3 * Math.PI / 2, false);
+            ctx.arc(cx, cy, 2, Math.PI, 3 * Math.PI / 2, false);
             ctx.stroke();
 
-          } else if (t === TerrainType.ROAD_CURVE_SW) {
+            // Outer white curb (R = cellSize - 2)
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize - 2, Math.PI, 3 * Math.PI / 2, false);
+            ctx.stroke();
+
+            // Center double yellow line (R = cellSize / 2)
             ctx.strokeStyle = '#f5b800';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(px, py + cellSize, cellSize / 2, 0, 3 * Math.PI / 2, true);
+            ctx.arc(cx, cy, cellSize / 2, Math.PI, 3 * Math.PI / 2, false);
             ctx.stroke();
+
+            // Dashed white lane dividers
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 4]);
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize * 0.25, Math.PI, 3 * Math.PI / 2, false);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize * 0.75, Math.PI, 3 * Math.PI / 2, false);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+          } else if (t === TerrainType.ROAD_CURVE_SW) {
+            // Connects South (x=cellSize/2, y=cellSize) to West (x=0, y=cellSize/2)
+            const cx = px;
+            const cy = py + cellSize;
+
+            // Inner white curb (R = 2)
             ctx.strokeStyle = '#d0d7e0';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(px, py + cellSize, cellSize - 1, 0, 3 * Math.PI / 2, true);
+            ctx.arc(cx, cy, 2, 0, 3 * Math.PI / 2, true);
             ctx.stroke();
+
+            // Outer white curb (R = cellSize - 2)
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize - 2, 0, 3 * Math.PI / 2, true);
+            ctx.stroke();
+
+            // Center double yellow line (R = cellSize / 2)
+            ctx.strokeStyle = '#f5b800';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize / 2, 0, 3 * Math.PI / 2, true);
+            ctx.stroke();
+
+            // Dashed white lane dividers
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 4]);
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize * 0.25, 0, 3 * Math.PI / 2, true);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(cx, cy, cellSize * 0.75, 0, 3 * Math.PI / 2, true);
+            ctx.stroke();
+            ctx.setLineDash([]);
           }
         }
+      }
+    }
+
+    // PASS 2.5: Unified Continuous Circular Roundabouts Layer
+    if (TileMap.roundabouts && TileMap.roundabouts.length > 0) {
+      for (const rb of TileMap.roundabouts) {
+        const centerPx = rb.cx * cellSize;
+        const centerPy = rb.cz * cellSize;
+        const outerR = rb.radius * cellSize;
+        const innerR = Math.max(cellSize * 0.8, outerR - cellSize * 1.15);
+        const laneR = (outerR + innerR) / 2;
+
+        // 1. Continuous circular asphalt ring
+        ctx.beginPath();
+        ctx.arc(centerPx, centerPy, outerR, 0, Math.PI * 2);
+        ctx.fillStyle = '#1c1f24';
+        ctx.fill();
+
+        // 2. Outer white curb ring
+        ctx.beginPath();
+        ctx.arc(centerPx, centerPy, outerR - 1, 0, Math.PI * 2);
+        ctx.strokeStyle = '#d0d7e0';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 3. Dashed yellow central rotary lane ring
+        ctx.beginPath();
+        ctx.arc(centerPx, centerPy, laneR, 0, Math.PI * 2);
+        ctx.strokeStyle = '#f5b800';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 4. Landscaped inner island (park green grass or travertine plaza)
+        ctx.beginPath();
+        ctx.arc(centerPx, centerPy, innerR, 0, Math.PI * 2);
+        ctx.fillStyle = rb.islandType === 'grass' ? '#2d6a2d' : '#9e8e78';
+        ctx.fill();
+
+        // 5. Inner island curb ring
+        ctx.strokeStyle = '#d0d7e0';
+        ctx.lineWidth = 2;
+        ctx.stroke();
       }
     }
 

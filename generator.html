@@ -483,6 +483,10 @@
     .tier-midground  { background: #6366f1; color: white; }
     .tier-background { background: #9333ea; color: white; }
     .tier-landmark   { background: #f59e0b; color: black; }
+    .tier-elev-3     { background: #8b5cf6; color: white; }
+    .tier-elev-2     { background: #f59e0b; color: black; }
+    .tier-elev-1     { background: #10b981; color: white; }
+    .tier-elev-0     { background: #0284c7; color: white; }
 
     .inspect-grid {
       display: grid;
@@ -534,9 +538,9 @@
       line-height: 1.4;
     }
   </style>
-  <script type="module" crossorigin src="./assets/generator-BseRheGs.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/WFCSolver-CbDy7Xj-.js">
-  <link rel="modulepreload" crossorigin href="./assets/MapBaker-Ccpk1nte.js">
+  <script type="module" crossorigin src="./assets/generator-DT2RSmbj.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/WFCSolver-BkGZlmbZ.js">
+  <link rel="modulepreload" crossorigin href="./assets/MapBaker-DGexNHnp.js">
 </head>
 <body>
 
@@ -595,7 +599,7 @@
       <div class="panel-section">
         <div class="section-title">
           <span>Layer Stepper</span>
-          <span id="layer-step-badge" style="color:#cbd5e1; font-family:'JetBrains Mono';">Pass 6 / 6</span>
+          <span id="layer-step-badge" style="color:#cbd5e1; font-family:'JetBrains Mono';">Pass 7 / 7</span>
         </div>
 
         <div class="stepper-row">
@@ -646,6 +650,17 @@
             </div>
             <div class="switch">
               <input type="checkbox" id="layer-water" checked />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="layer-item">
+            <div class="layer-label">
+              <span class="layer-badge">⛰️</span>
+              <span>Plateau Tiers & Cliffs</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="layer-elevation" checked />
               <span class="slider"></span>
             </div>
           </label>
@@ -736,7 +751,7 @@
 
       <!-- Overlay: Current Pass Description -->
       <div class="viewport-overlay-top">
-        <span id="hud-pass-badge" class="pass-tag">PASS 6</span>
+        <span id="hud-pass-badge" class="pass-tag">PASS 7</span>
         <span id="hud-pass-desc" class="pass-desc">Final Composite (Ready)</span>
       </div>
 
@@ -745,6 +760,7 @@
         <div class="hud-chip">GRID: <span id="hud-coord-grid">--</span></div>
         <div class="hud-chip">WORLD: <span id="hud-coord-world">--</span></div>
         <div class="hud-chip">TERRAIN: <span id="hud-terrain-type">--</span></div>
+        <div class="hud-chip">ALT: <span id="hud-elevation">0m</span></div>
       </div>
 
       <!-- Floating Zoom Controls -->
@@ -779,11 +795,15 @@
               <div id="inspect-world" class="inspect-prop-val">--</div>
             </div>
             <div class="inspect-prop">
+              <div class="inspect-prop-label">Elevation</div>
+              <div id="inspect-elevation" class="inspect-prop-val">--</div>
+            </div>
+            <div class="inspect-prop">
               <div class="inspect-prop-label">District</div>
               <div id="inspect-district" class="inspect-prop-val">--</div>
             </div>
-            <div class="inspect-prop">
-              <div class="inspect-prop-label">Max HP</div>
+            <div class="inspect-prop" style="grid-column: span 2;">
+              <div class="inspect-prop-label">Max HP / Status</div>
               <div id="inspect-hp" class="inspect-prop-val">--</div>
             </div>
           </div>

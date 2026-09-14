@@ -312,109 +312,222 @@ export class TileRenderer {
 
         // ── VERTICAL RETAINING WALL FACES ──
         const cellElev = cell.elevation;
-
-        // 1. North Edge (Z = z0, normal: 0, 0, -1)
         const northCell = gz > 0 ? cells[gx][gz - 1] : null;
         const northElev = northCell ? northCell.elevation : (cellElev > 0 ? 0 : cellElev);
-        if (cellElev > northElev && cell.terrainType !== TerrainType.ROAD_RAMP_NS) {
-          const dy = cellElev - northElev;
-          const vTop = dy / 16;
-          wallPositions.push(
-            x1, northElev, z0,
-            x0, cellElev, z0,
-            x1, cellElev, z0,
-
-            x1, northElev, z0,
-            x0, northElev, z0,
-            x0, cellElev, z0
-          );
-          wallNormals.push(
-            0, 0, -1,  0, 0, -1,  0, 0, -1,
-            0, 0, -1,  0, 0, -1,  0, 0, -1
-          );
-          wallUvs.push(
-            1, 0,  0, vTop,  1, vTop,
-            1, 0,  0, 0,     0, vTop
-          );
-        }
-
-        // 2. South Edge (Z = z1, normal: 0, 0, 1)
         const southCell = gz < gridDim - 1 ? cells[gx][gz + 1] : null;
         const southElev = southCell
           ? southCell.elevation
           : (cell.terrainType === TerrainType.WATER ? ELEVATION_TIER_WATER : (cellElev > 0 ? 0 : cellElev));
-        if (cellElev > southElev && cell.terrainType !== TerrainType.ROAD_RAMP_NS) {
-          const dy = cellElev - southElev;
-          const vTop = dy / 16;
-          wallPositions.push(
-            x0, southElev, z1,
-            x1, cellElev, z1,
-            x0, cellElev, z1,
-
-            x0, southElev, z1,
-            x1, southElev, z1,
-            x1, cellElev, z1
-          );
-          wallNormals.push(
-            0, 0, 1,  0, 0, 1,  0, 0, 1,
-            0, 0, 1,  0, 0, 1,  0, 0, 1
-          );
-          wallUvs.push(
-            0, 0,  1, vTop,  0, vTop,
-            0, 0,  1, 0,     1, vTop
-          );
-        }
-
-        // 3. West Edge (X = x0, normal: -1, 0, 0)
         const westCell = gx > 0 ? cells[gx - 1][gz] : null;
         const westElev = westCell ? westCell.elevation : (cellElev > 0 ? 0 : cellElev);
-        if (cellElev > westElev && cell.terrainType !== TerrainType.ROAD_RAMP_EW) {
-          const dy = cellElev - westElev;
-          const vTop = dy / 16;
-          wallPositions.push(
-            x0, westElev, z0,
-            x0, cellElev, z1,
-            x0, cellElev, z0,
-
-            x0, westElev, z0,
-            x0, westElev, z1,
-            x0, cellElev, z1
-          );
-          wallNormals.push(
-            -1, 0, 0,  -1, 0, 0,  -1, 0, 0,
-            -1, 0, 0,  -1, 0, 0,  -1, 0, 0
-          );
-          wallUvs.push(
-            0, 0,  1, vTop,  0, vTop,
-            0, 0,  1, 0,     1, vTop
-          );
-        }
-
-        // 4. East Edge (X = x1, normal: 1, 0, 0)
         const eastCell = gx < gridDim - 1 ? cells[gx + 1][gz] : null;
         const eastElev = eastCell
           ? eastCell.elevation
           : (cell.terrainType === TerrainType.WATER ? ELEVATION_TIER_WATER : (cellElev > 0 ? 0 : cellElev));
-        if (cellElev > eastElev && cell.terrainType !== TerrainType.ROAD_RAMP_EW) {
-          const dy = cellElev - eastElev;
-          const vTop = dy / 16;
-          wallPositions.push(
-            x1, eastElev, z1,
-            x1, cellElev, z0,
-            x1, cellElev, z1,
 
-            x1, eastElev, z1,
-            x1, eastElev, z0,
-            x1, cellElev, z0
-          );
-          wallNormals.push(
-            1, 0, 0,  1, 0, 0,  1, 0, 0,
-            1, 0, 0,  1, 0, 0,  1, 0, 0
-          );
-          wallUvs.push(
-            1, 0,  0, vTop,  1, vTop,
-            1, 0,  0, 0,     0, vTop
-          );
+        // RAMP-SPECIFIC SIDEWALLS (Flanks along highway viaduct ramps)
+        if (cell.terrainType === TerrainType.ROAD_RAMP_NS) {
+          // Ramp slopes from northElev at z0 to southElev at z1
+          const nElev = yNW;
+          const sElev = ySW;
+
+          // West flank (facing West: -1, 0, 0)
+          if (westElev < Math.max(nElev, sElev)) {
+            const topZ0 = nElev, botZ0 = Math.min(topZ0, westElev);
+            const topZ1 = sElev, botZ1 = Math.min(topZ1, westElev);
+            if (topZ0 > botZ0 || topZ1 > botZ1) {
+              wallPositions.push(
+                x0, botZ0, z0,
+                x0, topZ1, z1,
+                x0, topZ0, z0,
+
+                x0, botZ0, z0,
+                x0, botZ1, z1,
+                x0, topZ1, z1
+              );
+              wallNormals.push(
+                -1, 0, 0,  -1, 0, 0,  -1, 0, 0,
+                -1, 0, 0,  -1, 0, 0,  -1, 0, 0
+              );
+              wallUvs.push(
+                0, 0,  1, (topZ1 - botZ1) / 16,  0, (topZ0 - botZ0) / 16,
+                0, 0,  1, 0,                    1, (topZ1 - botZ1) / 16
+              );
+            }
+          }
+
+          // East flank (facing East: 1, 0, 0)
+          if (eastElev < Math.max(nElev, sElev)) {
+            const topZ0 = nElev, botZ0 = Math.min(topZ0, eastElev);
+            const topZ1 = sElev, botZ1 = Math.min(topZ1, eastElev);
+            if (topZ0 > botZ0 || topZ1 > botZ1) {
+              wallPositions.push(
+                x1, botZ1, z1,
+                x1, topZ0, z0,
+                x1, topZ1, z1,
+
+                x1, botZ1, z1,
+                x1, botZ0, z0,
+                x1, topZ0, z0
+              );
+              wallNormals.push(
+                1, 0, 0,  1, 0, 0,  1, 0, 0,
+                1, 0, 0,  1, 0, 0,  1, 0, 0
+              );
+              wallUvs.push(
+                1, 0,  0, (topZ0 - botZ0) / 16,  1, (topZ1 - botZ1) / 16,
+                1, 0,  0, 0,                    0, (topZ0 - botZ0) / 16
+              );
+            }
+          }
+        } else if (cell.terrainType === TerrainType.ROAD_RAMP_EW) {
+          // Ramp slopes from westElev at x0 to eastElev at x1
+          const wElev = yNW;
+          const eElev = yNE;
+
+          // North flank (facing North: 0, 0, -1)
+          if (northElev < Math.max(wElev, eElev)) {
+            const topX0 = wElev, botX0 = Math.min(topX0, northElev);
+            const topX1 = eElev, botX1 = Math.min(topX1, northElev);
+            if (topX0 > botX0 || topX1 > botX1) {
+              wallPositions.push(
+                x1, botX1, z0,
+                x0, topX0, z0,
+                x1, topX0, z0,
+
+                x1, botX1, z0,
+                x0, botX0, z0,
+                x0, topX0, z0
+              );
+              wallNormals.push(
+                0, 0, -1,  0, 0, -1,  0, 0, -1,
+                0, 0, -1,  0, 0, -1,  0, 0, -1
+              );
+              wallUvs.push(
+                1, 0,  0, (topX0 - botX0) / 16,  1, (topX1 - botX1) / 16,
+                1, 0,  0, 0,                    0, (topX0 - botX0) / 16
+              );
+            }
+          }
+
+          // South flank (facing South: 0, 0, 1)
+          if (southElev < Math.max(wElev, eElev)) {
+            const topX0 = wElev, botX0 = Math.min(topX0, southElev);
+            const topX1 = eElev, botX1 = Math.min(topX1, southElev);
+            if (topX0 > botX0 || topX1 > botX1) {
+              wallPositions.push(
+                x0, botX0, z1,
+                x1, topX1, z1,
+                x0, topX0, z1,
+
+                x0, botX0, z1,
+                x1, botX1, z1,
+                x1, topX1, z1
+              );
+              wallNormals.push(
+                0, 0, 1,  0, 0, 1,  0, 0, 1,
+                0, 0, 1,  0, 0, 1,  0, 0, 1
+              );
+              wallUvs.push(
+                0, 0,  1, (topX1 - botX1) / 16,  0, (topX0 - botX0) / 16,
+                0, 0,  1, 0,                    1, (topX1 - botX1) / 16
+              );
+            }
+          }
+        } else {
+          // Standard Plateau Retaining Wall Faces (Flat cells)
+
+          // 1. North Edge (Z = z0, normal: 0, 0, -1)
+          if (cellElev > northElev) {
+            const dy = cellElev - northElev;
+            const vTop = dy / 16;
+            wallPositions.push(
+              x1, northElev, z0,
+              x0, cellElev, z0,
+              x1, cellElev, z0,
+
+              x1, northElev, z0,
+              x0, northElev, z0,
+              x0, cellElev, z0
+            );
+            wallNormals.push(
+              0, 0, -1,  0, 0, -1,  0, 0, -1,
+              0, 0, -1,  0, 0, -1,  0, 0, -1
+            );
+            wallUvs.push(
+              1, 0,  0, vTop,  1, vTop,
+              1, 0,  0, 0,     0, vTop
+            );
+          }
+
+          // 2. South Edge (Z = z1, normal: 0, 0, 1)
+          if (cellElev > southElev) {
+            const dy = cellElev - southElev;
+            const vTop = dy / 16;
+            wallPositions.push(
+              x0, southElev, z1,
+              x1, cellElev, z1,
+              x0, cellElev, z1,
+
+              x0, southElev, z1,
+              x1, southElev, z1,
+              x1, cellElev, z1
+            );
+            wallNormals.push(
+              0, 0, 1,  0, 0, 1,  0, 0, 1,
+              0, 0, 1,  0, 0, 1,  0, 0, 1
+            );
+            wallUvs.push(
+              0, 0,  1, vTop,  0, vTop,
+              0, 0,  1, 0,     1, vTop
+            );
+          }
+
+          // 3. West Edge (X = x0, normal: -1, 0, 0)
+          if (cellElev > westElev) {
+            const dy = cellElev - westElev;
+            const vTop = dy / 16;
+            wallPositions.push(
+              x0, westElev, z0,
+              x0, cellElev, z1,
+              x0, cellElev, z0,
+
+              x0, westElev, z0,
+              x0, westElev, z1,
+              x0, cellElev, z1
+            );
+            wallNormals.push(
+              -1, 0, 0,  -1, 0, 0,  -1, 0, 0,
+              -1, 0, 0,  -1, 0, 0,  -1, 0, 0
+            );
+            wallUvs.push(
+              0, 0,  1, vTop,  0, vTop,
+              0, 0,  1, 0,     1, vTop
+            );
+          }
+
+          // 4. East Edge (X = x1, normal: 1, 0, 0)
+          if (cellElev > eastElev) {
+            const dy = cellElev - eastElev;
+            const vTop = dy / 16;
+            wallPositions.push(
+              x1, eastElev, z1,
+              x1, cellElev, z0,
+              x1, cellElev, z1,
+
+              x1, eastElev, z1,
+              x1, eastElev, z0,
+              x1, cellElev, z0
+            );
+            wallNormals.push(
+              1, 0, 0,  1, 0, 0,  1, 0, 0,
+              1, 0, 0,  1, 0, 0,  1, 0, 0
+            );
+            wallUvs.push(
+              1, 0,  0, vTop,  1, vTop,
+              1, 0,  0, 0,     0, vTop
+            );
+          }
         }
       }
     }

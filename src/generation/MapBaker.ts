@@ -42,10 +42,10 @@ export interface ProgressCallback {
 
 export class MapBaker {
   private static readonly SCHEMA_VERSION = '1.3.0';
-  public static readonly TOTAL_LAYERS = 6;
+  public static readonly TOTAL_LAYERS = 7;
 
   /**
-   * Main Dual-Preset Offline Bake Pipeline (Passes 1 through 6)
+   * Main Dual-Preset Offline Bake Pipeline (Passes 1 through 7)
    */
   public static async bake(
     seed: number = 42,
@@ -81,10 +81,6 @@ export class MapBaker {
       }
     };
 
-    /**
-     * Strict placement safety: Returns true ONLY if every cell of footprint + buffer ring is
-     * free, NOT occupied, NOT a road cell, and NOT ocean water.
-     */
     /**
      * Strict placement safety: Returns true ONLY if every cell of footprint + buffer ring is
      * free, NOT occupied, NOT a road cell, NOT water/shore/sand, and maintains a proper
@@ -154,6 +150,23 @@ export class MapBaker {
           const c = TileMap.getCell(tx, tz);
           if (!c || c.elevationTier !== baseTier) {
             return false;
+          }
+        }
+      }
+
+      // 3.6 Terrace Setback Check:
+      // High-rises, spires, and 3D landmarks must maintain at least 1 tile of terrace setback
+      // (promenade/sidewalk/road) from lower elevation cliff edges.
+      if (isTallOrLandmark) {
+        for (let dx = -1; dx <= w; dx++) {
+          for (let dz = -1; dz <= h; dz++) {
+            const tx = gx + dx, tz = gz + dz;
+            if (tx >= 0 && tx < gridDim && tz >= 0 && tz < gridDim) {
+              const neighborCell = TileMap.getCell(tx, tz);
+              if (neighborCell && (neighborCell.elevationTier ?? 1) < (baseTier ?? 1)) {
+                return false;
+              }
+            }
           }
         }
       }
@@ -374,7 +387,28 @@ export class MapBaker {
       }
     }
 
-    // ── ESTABLISH STEPPED PLATEAU ELEVATION TIERS ──
+    // Pass 1 Baseline Heights
+    for (let gx = 0; gx < gridDim; gx++) {
+      for (let gz = 0; gz < gridDim; gz++) {
+        const cell = TileMap.getCell(gx, gz)!;
+        if (cell.terrainType === TerrainType.WATER || cell.terrainType === TerrainType.WATER_SHORE || cell.terrainType === TerrainType.SAND) {
+          cell.elevationTier = 0;
+          cell.elevation = ELEVATION_TIER_WATER;
+        } else {
+          cell.elevationTier = 1;
+          cell.elevation = ELEVATION_TIER_LOW;
+        }
+      }
+    }
+
+    layerTimings['Pass 1 (Geography)'] = performance.now() - t0;
+    const snap1 = captureSnapshot(0, 'Pass 1: Macro Geography', 'Ocean coastlines, shallow coastal surf, and beach transitions');
+    onProgress?.(0, this.TOTAL_LAYERS, `Pass 1: Macro geography for '${config.name}'...`, snap1);
+    if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
+
+    // ── PASS 2: STEPPED PLATEAU ELEVATION LAYER (8x8 MACRO-DISTRICT TIERS) ──
+    t0 = performance.now();
+
     for (let gx = 0; gx < gridDim; gx++) {
       for (let gz = 0; gz < gridDim; gz++) {
         const cell = TileMap.getCell(gx, gz)!;
@@ -391,39 +425,40 @@ export class MapBaker {
           continue;
         }
 
-        // Tier 3 (High-Tech Apex Citadel Summit: Y = +32)
-        // Pedestal centered around the central core (mega_titan at 34, 18)
-        const inApexX = gx >= 24 && gx <= 43;
-        const inApexZ = gz >= 14 && gz <= 33;
-        if (inApexX && inApexZ && distToWater[gx][gz] >= 6) {
+        // Macro-Block Coordinates (0..7, 0..7)
+        const mx = Math.floor(gx / 8);
+        const mz = Math.floor(gz / 8);
+
+        // Tier 3: Apex Citadel Summit (Y = +32)
+        // Snapped strictly to 2x2 macro-blocks: mx in [3, 4], mz in [2, 3] (gx: 24..39, gz: 16..31)
+        if ((mx === 3 || mx === 4) && (mz === 2 || mz === 3) && distToWater[gx][gz] >= 5) {
           cell.elevationTier = 3;
           cell.elevation = ELEVATION_TIER_HIGH;
           continue;
         }
 
-        // Tier 2 (Mid-City Uptown Plateau: Y = +16)
-        // Wide raised terrace surrounding the citadel
-        const inMidX = gx >= 12 && gx <= 51;
-        const inMidZ = gz >= 10 && gz <= 47;
-        if (inMidX && inMidZ && distToWater[gx][gz] >= 4) {
+        // Tier 2: Mid-City Uptown Plateau (Y = +16)
+        // Snapped strictly to macro-blocks: mx in [1..5], mz in [1..4] (gx: 8..47, gz: 8..39)
+        // (This cleanly encloses Quantum Reactor at mx=4,mz=4 without cutting its plaza!)
+        if (mx >= 1 && mx <= 5 && mz >= 1 && mz <= 4 && distToWater[gx][gz] >= 3) {
           cell.elevationTier = 2;
           cell.elevation = ELEVATION_TIER_MID;
           continue;
         }
 
-        // Tier 1 (Downtown Lower Plains: Y = 0)
+        // Tier 1: Downtown Lower Plains (Y = 0)
         // Outer urban street grid, parks, and residential neighborhoods
         cell.elevationTier = 1;
         cell.elevation = ELEVATION_TIER_LOW;
       }
     }
 
-    layerTimings['Pass 1 (Geography)'] = performance.now() - t0;
-    const snap1 = captureSnapshot(0, 'Pass 1: Macro Geography', 'Stepped plateaus, ocean coastlines, and beach transitions');
-    onProgress?.(0, this.TOTAL_LAYERS, `Pass 1: Macro geography for '${config.name}'...`, snap1);
+    layerTimings['Pass 2 (Plateau Tiers)'] = performance.now() - t0;
+    const snap2 = captureSnapshot(1, 'Pass 2: Stepped Plateau Elevation Layer', '8x8 Macro-District elevation tiers, retaining wall contours & ramp corridors');
+    onProgress?.(1, this.TOTAL_LAYERS, `Pass 2: Stepped plateau elevation tiers for '${config.name}'...`, snap2);
     if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
-    // ── PASS 2: 3D BUILDING ZONES & ISLAND ANCHORS (ZONES FIRST) ─────────
+    // ── PASS 3: 3D BUILDING ZONES & ISLAND ANCHORS (ZONES FIRST) ─────────
     t0 = performance.now();
 
     // 1. South-East Island Platform (Statue of Liberty exclusively in water area!)
@@ -460,22 +495,22 @@ export class MapBaker {
     // - Central Traffic Nexus at mx=3, mz=3 (gx 24..31, gz 24..31)
     paintTerrain(24, 24, 8, 8, TerrainType.PLAZA_STONE);
 
-    layerTimings['Pass 2 (Zones & Platforms)'] = performance.now() - t0;
-    const snap2 = captureSnapshot(1, 'Pass 2: 3D Building Zones & Platforms', 'Established 3D landmark superblocks and harbor island platform');
-    onProgress?.(1, this.TOTAL_LAYERS, 'Pass 2: Establishing 3D building zones & superblocks...', snap2);
+    layerTimings['Pass 3 (Zones & Platforms)'] = performance.now() - t0;
+    const snap3 = captureSnapshot(2, 'Pass 3: 3D Building Zones & Platforms', 'Established 3D landmark superblocks and harbor island platform');
+    onProgress?.(2, this.TOTAL_LAYERS, 'Pass 3: Establishing 3D building zones & superblocks...', snap3);
     if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
     
-    // ── PASS 3: ZONE-CONSTRAINED MACRO WFC ROAD SOLVE ───────────────────
+    // ── PASS 4: ZONE-CONSTRAINED MACRO WFC ROAD SOLVE ───────────────────
     t0 = performance.now();
 
     const wfcSolver = new WFCSolver(gridDim);
     const macroGrid = wfcSolver.solveMacroGrid(8, WFC_MACRO_MODULES, seed);
-    layerTimings['Pass 3 (Macro WFC Solve)'] = performance.now() - t0;
-    const snap3 = captureSnapshot(2, 'Pass 3: Macro WFC Districts', '8x8 Macro-Block district allocation with 3D anchors', macroGrid);
-    onProgress?.(2, this.TOTAL_LAYERS, `Pass 3: Solving 8x8 Macro-Block WFC grid around zones...`, snap3);
+    layerTimings['Pass 4 (Macro WFC Solve)'] = performance.now() - t0;
+    const snap4 = captureSnapshot(3, 'Pass 4: Macro WFC Districts', '8x8 Macro-Block district allocation with 3D anchors', macroGrid);
+    onProgress?.(3, this.TOTAL_LAYERS, `Pass 4: Solving 8x8 Macro-Block WFC grid around zones...`, snap4);
     if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
-    // ── PASS 4: ARTERIAL ROAD NETWORK & INTERIOR ALLEYS ─────────────────
+    // ── PASS 5: ARTERIAL ROAD NETWORK & HIGHWAY RAMPS ───────────────────
     t0 = performance.now();
 
     for (let mx = 0; mx < 8; mx++) {
@@ -676,49 +711,61 @@ export class MapBaker {
       }
     }
 
+
     // ── DETECT & DESIGNATE ROAD RAMPS BETWEEN ELEVATION TIERS ──
+    // Record baseline plateau elevations to ensure order-independent ramp grading
+    const plateauElevations: number[][] = Array.from({ length: gridDim }, (_, x) =>
+      Array.from({ length: gridDim }, (_, z) => TileMap.getCell(x, z)?.elevation ?? 0)
+    );
+
     for (let gx = 1; gx < gridDim - 1; gx++) {
       for (let gz = 1; gz < gridDim - 1; gz++) {
         const cell = TileMap.getCell(gx, gz);
         if (!cell || !TileMap.isRoad(cell.terrainType, cell.overlayType)) continue;
 
-        const northCell = TileMap.getCell(gx, gz - 1);
-        const southCell = TileMap.getCell(gx, gz + 1);
-        const westCell = TileMap.getCell(gx - 1, gz);
-        const eastCell = TileMap.getCell(gx + 1, gz);
+        const northElev = plateauElevations[gx][gz - 1];
+        const southElev = plateauElevations[gx][gz + 1];
+        const westElev = plateauElevations[gx - 1][gz];
+        const eastElev = plateauElevations[gx + 1][gz];
 
         const axis = cellRoadAxes[gx][gz];
 
-        // North-South road transition
-        if (northCell && southCell && northCell.elevation !== southCell.elevation) {
+        // North-South road transition across a tier boundary
+        if (northElev !== southElev && Math.abs(northElev - southElev) <= 16) {
           if (axis === 'NS' || cell.terrainType === TerrainType.ROAD_STRAIGHT_NS || cell.terrainType === TerrainType.ROAD_INTERSECTION) {
             TileMap.setRoadRamp(gx, gz, 'NS');
             cellRoadAxes[gx][gz] = 'RAMP_NS';
-            cell.elevation = (northCell.elevation + southCell.elevation) / 2;
-            cell.elevationTier = Math.min(northCell.elevationTier ?? 1, southCell.elevationTier ?? 1);
+            cell.elevation = (northElev + southElev) / 2;
+            cell.elevationTier = Math.min(
+              TileMap.getCell(gx, gz - 1)?.elevationTier ?? 1,
+              TileMap.getCell(gx, gz + 1)?.elevationTier ?? 1
+            );
             continue;
           }
         }
 
-        // East-West road transition
-        if (westCell && eastCell && westCell.elevation !== eastCell.elevation) {
+        // East-West road transition across a tier boundary
+        if (westElev !== eastElev && Math.abs(westElev - eastElev) <= 16) {
           if (axis === 'EW' || cell.terrainType === TerrainType.ROAD_STRAIGHT_EW || cell.terrainType === TerrainType.ROAD_INTERSECTION) {
             TileMap.setRoadRamp(gx, gz, 'EW');
             cellRoadAxes[gx][gz] = 'RAMP_EW';
-            cell.elevation = (westCell.elevation + eastCell.elevation) / 2;
-            cell.elevationTier = Math.min(westCell.elevationTier ?? 1, eastCell.elevationTier ?? 1);
+            cell.elevation = (westElev + eastElev) / 2;
+            cell.elevationTier = Math.min(
+              TileMap.getCell(gx - 1, gz)?.elevationTier ?? 1,
+              TileMap.getCell(gx + 1, gz)?.elevationTier ?? 1
+            );
             continue;
           }
         }
       }
     }
 
-    layerTimings['Pass 4 (Road Grid)'] = performance.now() - t0;
-    const snap4 = captureSnapshot(3, 'Pass 4: Arterial Roads & Alleys', 'Arterial avenues, connecting ramps & interior alleys', macroGrid, currentRoundabouts);
-    onProgress?.(3, this.TOTAL_LAYERS, 'Pass 4: Routing arterial roads around zones & interior alleys...', snap4);
+    layerTimings['Pass 5 (Road Grid & Ramps)'] = performance.now() - t0;
+    const snap5 = captureSnapshot(4, 'Pass 5: Arterial Roads & Highway Ramps', 'Arterial avenues, connecting highway ramps & interior alleys', macroGrid, currentRoundabouts);
+    onProgress?.(4, this.TOTAL_LAYERS, 'Pass 5: Routing arterial roads around zones & highway ramps...', snap5);
     if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
-    // ── PASS 5: 3D LANDMARKS & HIGH-DENSITY BUILDING INFILL ───────────────
+    // ── PASS 6: 3D LANDMARKS & HIGH-DENSITY BUILDING INFILL ───────────────
     t0 = performance.now();
 
     // 1. Gather all candidate buildings from the solved macro grid
@@ -760,11 +807,11 @@ export class MapBaker {
 
     // 3. Guarantee all 5 signature 3D Landmark models are placed
     const landmark3DList = [
-      { key: 'mega_titan',           gx: 34, gz: 18, lotType: 'landmark_3d' }, // 4x4 Apex Mega-Tower at mx=4, mz=2
-      { key: 'spaceship_hq',         gx: 10, gz: 10, lotType: 'landmark_3d' }, // 4x4 Alien Spaceship HQ at mx=1, mz=1
-      { key: 'financial_tower',      gx: 18, gz: 18, lotType: 'landmark_3d' }, // 3x3 Metro Financial Tower at mx=2, mz=2
-      { key: 'cyber_reactor',        gx: 34, gz: 34, lotType: 'landmark_3d' }, // 3x3 Quantum Cyber Reactor at mx=4, mz=4
-      { key: 'art_deco_skyscraper',  gx: 18, gz: 34, lotType: 'landmark_3d' }, // 4x4 Art Deco Empire Tower at mx=2, mz=4
+      { key: 'mega_titan',           gx: 34, gz: 18, lotType: 'landmark_3d' }, // 4x4 Apex Mega-Tower at mx=4, mz=2 (Tier 3)
+      { key: 'spaceship_hq',         gx: 10, gz: 10, lotType: 'landmark_3d' }, // 4x4 Alien Spaceship HQ at mx=1, mz=1 (Tier 2)
+      { key: 'financial_tower',      gx: 18, gz: 18, lotType: 'landmark_3d' }, // 3x3 Metro Financial Tower at mx=2, mz=2 (Tier 2)
+      { key: 'cyber_reactor',        gx: 34, gz: 34, lotType: 'landmark_3d' }, // 3x3 Quantum Cyber Reactor at mx=4, mz=4 (Tier 2)
+      { key: 'art_deco_skyscraper',  gx: 18, gz: 34, lotType: 'landmark_3d' }, // 4x4 Art Deco Empire Tower at mx=2, mz=4 (Tier 2)
     ];
 
     for (const lm of landmark3DList) {
@@ -816,12 +863,12 @@ export class MapBaker {
       }
     }
 
-    layerTimings['Pass 5 (Buildings)'] = performance.now() - t0;
-    const snap5 = captureSnapshot(4, 'Pass 5: 3D Landmarks & Buildings', 'Signature 3D towers, commercial spires & streetfront infill', macroGrid);
-    onProgress?.(4, this.TOTAL_LAYERS, 'Pass 5: Instantiating 3D landmarks & building streetfronts...', snap5);
+    layerTimings['Pass 6 (Buildings)'] = performance.now() - t0;
+    const snap6 = captureSnapshot(5, 'Pass 6: 3D Landmarks & Buildings', 'Signature 3D towers, commercial spires & streetfront infill with terrace setbacks', macroGrid);
+    onProgress?.(5, this.TOTAL_LAYERS, 'Pass 6: Instantiating 3D landmarks & building streetfronts...', snap6);
     if (stepDelayMs > 0) await new Promise(r => setTimeout(r, stepDelayMs));
 
-    // ── PASS 6: 4,096-TILE SERIALIZATION & PACKAGING ───────────────────────
+    // ── PASS 7: 4,096-TILE SERIALIZATION & PACKAGING ───────────────────────
     t0 = performance.now();
 
     const serializedTiles: SerializedTile[][] = Array.from({ length: gridDim }, (_, gx) =>
@@ -870,8 +917,8 @@ export class MapBaker {
     };
 
     const jsonString = JSON.stringify(mapData, null, 2);
-    const snap6 = captureSnapshot(5, 'Pass 6: Final Composite', '4,096-tile array serialization & map packaging', macroGrid);
-    onProgress?.(5, this.TOTAL_LAYERS, 'Pass 6: Map packaging complete!', snap6);
+    const snap7 = captureSnapshot(6, 'Pass 7: Final Composite', '4,096-tile array serialization & map packaging', macroGrid);
+    onProgress?.(6, this.TOTAL_LAYERS, 'Pass 7: Map packaging complete!', snap7);
 
     console.log(
       `[MapBaker] Bake complete for '${config.name}'! Buildings: ${mapData.buildings.length}, ` +

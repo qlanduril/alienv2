@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Layer switches
   const layerWater = document.getElementById('layer-water') as HTMLInputElement;
+  const layerElevation = document.getElementById('layer-elevation') as HTMLInputElement;
   const layerTerrain = document.getElementById('layer-terrain') as HTMLInputElement;
   const layerRoads = document.getElementById('layer-roads') as HTMLInputElement;
   const layerDistricts = document.getElementById('layer-districts') as HTMLInputElement;
@@ -49,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const hudCoordGrid = document.getElementById('hud-coord-grid') as HTMLElement;
   const hudCoordWorld = document.getElementById('hud-coord-world') as HTMLElement;
   const hudTerrainType = document.getElementById('hud-terrain-type') as HTMLElement;
+  const hudElevation = document.getElementById('hud-elevation') as HTMLElement;
 
   // Inspector Elements
   const inspectTitleName = document.getElementById('inspect-title-name') as HTMLElement;
@@ -56,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const inspectSubtitle = document.getElementById('inspect-subtitle') as HTMLElement;
   const inspectCell = document.getElementById('inspect-cell') as HTMLElement;
   const inspectWorld = document.getElementById('inspect-world') as HTMLElement;
+  const inspectElevation = document.getElementById('inspect-elevation') as HTMLElement;
   const inspectDistrict = document.getElementById('inspect-district') as HTMLElement;
   const inspectHp = document.getElementById('inspect-hp') as HTMLElement;
 
@@ -92,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function syncLayerSwitches() {
     renderer.setLayers({
       water: layerWater.checked,
+      elevation: layerElevation ? layerElevation.checked : true,
       terrain: layerTerrain.checked,
       roads: layerRoads.checked,
       districts: layerDistricts.checked,
@@ -104,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   [
     layerWater,
+    layerElevation,
     layerTerrain,
     layerRoads,
     layerDistricts,
@@ -111,13 +116,14 @@ document.addEventListener('DOMContentLoaded', () => {
     layerLandmarks,
     layerOccupancy,
     layerGrid,
-  ].forEach((input) => {
+  ].filter(Boolean).forEach((input) => {
     input.addEventListener('change', syncLayerSwitches);
   });
 
   btnAllLayers.addEventListener('click', () => {
     [
       layerWater,
+      layerElevation,
       layerTerrain,
       layerRoads,
       layerDistricts,
@@ -125,12 +131,13 @@ document.addEventListener('DOMContentLoaded', () => {
       layerLandmarks,
       layerOccupancy,
       layerGrid,
-    ].forEach((i) => (i.checked = true));
+    ].filter(Boolean).forEach((i) => (i.checked = true));
     syncLayerSwitches();
   });
 
   btnResetLayers.addEventListener('click', () => {
     layerWater.checked = true;
+    if (layerElevation) layerElevation.checked = true;
     layerTerrain.checked = true;
     layerRoads.checked = true;
     layerDistricts.checked = true;
@@ -209,6 +216,8 @@ document.addEventListener('DOMContentLoaded', () => {
       hudCoordGrid.innerText = '--';
       hudCoordWorld.innerText = '--';
       hudTerrainType.innerText = '--';
+      if (hudElevation) hudElevation.innerText = '--';
+      if (inspectElevation) inspectElevation.innerText = '--';
       return;
     }
 
@@ -218,7 +227,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let displayTerrain = overlayName !== 'NONE' ? overlayName : terrainName;
     let displayTitle = overlayName !== 'NONE' ? `Road (${overlayName})` : terrainName;
 
-    if (info.terrainType === TerrainType.ROAD_ROUNDABOUT) {
+    if (info.terrainType === TerrainType.ROAD_RAMP_NS) {
+      displayTerrain = 'ROAD RAMP (NS)';
+      displayTitle = 'North-South Highway Ramp';
+    } else if (info.terrainType === TerrainType.ROAD_RAMP_EW) {
+      displayTerrain = 'ROAD RAMP (EW)';
+      displayTitle = 'East-West Highway Ramp';
+    } else if (info.terrainType === TerrainType.ROAD_ROUNDABOUT) {
       displayTerrain = 'ROUNDABOUT';
       displayTitle = 'Traffic Circle Rotary';
     } else if (info.terrainType >= TerrainType.ROAD_CURVE_NE && info.terrainType <= TerrainType.ROAD_CURVE_SW) {
@@ -233,12 +248,17 @@ document.addEventListener('DOMContentLoaded', () => {
       displayTitle = 'Shallow Coastal Water';
     }
 
+    const elev = info.elevation ?? 0;
+    const tier = info.elevationTier ?? (elev < 0 ? 0 : elev >= 30 ? 3 : elev >= 15 ? 2 : 1);
+
     hudCoordGrid.innerText = `[${info.gx}, ${info.gz}]`;
     hudCoordWorld.innerText = `(${info.worldX.toFixed(0)}, ${info.worldZ.toFixed(0)})`;
     hudTerrainType.innerText = displayTerrain;
+    if (hudElevation) hudElevation.innerText = `${elev >= 0 ? '+' : ''}${elev.toFixed(0)}m`;
 
     inspectCell.innerText = `[${info.gx}, ${info.gz}]`;
     inspectWorld.innerText = `(${info.worldX.toFixed(0)}, ${info.worldZ.toFixed(0)})`;
+    if (inspectElevation) inspectElevation.innerText = `Tier ${tier} (${elev >= 0 ? '+' : ''}${elev.toFixed(0)}m)`;
     inspectDistrict.innerText = info.district ? info.district.toUpperCase() : 'NONE';
 
     if (info.building && info.buildingDef) {
@@ -247,13 +267,16 @@ document.addEventListener('DOMContentLoaded', () => {
       inspectHp.innerText = `${info.buildingDef.maxHp || 100} HP`;
 
       inspectTierBadge.style.display = 'inline-block';
-      inspectTierBadge.innerText = info.buildingDef.tier || 'building';
-      inspectTierBadge.className = `tier-badge tier-${info.buildingDef.tier || 'foreground'}`;
+      inspectTierBadge.innerText = `${info.buildingDef.tier?.toUpperCase() || 'BLDG'} • TIER ${tier}`;
+      inspectTierBadge.className = `tier-badge tier-elev-${tier}`;
     } else {
       inspectTitleName.innerText = displayTitle;
       inspectSubtitle.innerText = info.isOccupied ? 'Reserved / Occupied' : 'Open Ground';
       inspectHp.innerText = '--';
-      inspectTierBadge.style.display = 'none';
+
+      inspectTierBadge.style.display = 'inline-block';
+      inspectTierBadge.innerText = `TIER ${tier} (${elev >= 0 ? '+' : ''}${elev.toFixed(0)}m)`;
+      inspectTierBadge.className = `tier-badge tier-elev-${tier}`;
     }
   };
 

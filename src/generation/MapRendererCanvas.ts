@@ -5,6 +5,7 @@ import { SerializedBuilding, RoadAxisType } from './GeneratedMapSchema';
 
 export interface LayerVisibility {
   water: boolean;
+  elevation: boolean;
   terrain: boolean;
   roads: boolean;
   districts: boolean;
@@ -21,6 +22,8 @@ export interface CellInspectInfo {
   worldZ: number;
   terrainType: TerrainType;
   overlayType: OverlayTileType;
+  elevation?: number;
+  elevationTier?: number;
   isOccupied: boolean;
   district?: string;
   building?: SerializedBuilding;
@@ -73,6 +76,7 @@ export class MapRendererCanvas {
   private snapshot: LayerSnapshot | null = null;
   private layers: LayerVisibility = {
     water: true,
+    elevation: true,
     terrain: true,
     roads: true,
     districts: true,
@@ -343,6 +347,91 @@ export class MapRendererCanvas {
           if ((tile.terrainType === TerrainType.WATER || tile.terrainType === TerrainType.WATER_SHORE) && this.layers.water) {
             this.ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
             this.ctx.strokeRect(x + 1, y + 1, baseTileSize - 2, baseTileSize - 2);
+          }
+        }
+      }
+    }
+
+    // 1.5. Stepped Plateau Elevation Tiers & Retaining Wall Cliffs Layer
+    if (this.layers.elevation) {
+      for (let gx = 0; gx < gridDim; gx++) {
+        for (let gz = 0; gz < gridDim; gz++) {
+          const tile = this.snapshot!.tiles[gx]?.[gz];
+          if (!tile) continue;
+
+          const x = gx * baseTileSize;
+          const y = gz * baseTileSize;
+          const tier = tile.elevationTier ?? 1;
+
+          // Subtle plateau tinting
+          if (tier === 3) {
+            this.ctx.fillStyle = 'rgba(139, 92, 246, 0.20)'; // Cyber violet summit
+            this.ctx.fillRect(x, y, baseTileSize, baseTileSize);
+          } else if (tier === 2) {
+            this.ctx.fillStyle = 'rgba(245, 158, 11, 0.14)'; // Terracotta / amber uptown
+            this.ctx.fillRect(x, y, baseTileSize, baseTileSize);
+          }
+
+          // Retaining wall cliff lines on borders with lower tiers
+          const northTile = gz > 0 ? this.snapshot!.tiles[gx]?.[gz - 1] : null;
+          const southTile = gz < gridDim - 1 ? this.snapshot!.tiles[gx]?.[gz + 1] : null;
+          const westTile = gx > 0 ? this.snapshot!.tiles[gx - 1]?.[gz] : null;
+          const eastTile = gx < gridDim - 1 ? this.snapshot!.tiles[gx + 1]?.[gz] : null;
+
+          const myElev = tile.elevation ?? 0;
+          const nElev = northTile?.elevation ?? (myElev > 0 ? 0 : myElev);
+          const sElev = southTile?.elevation ?? (myElev > 0 ? 0 : myElev);
+          const wElev = westTile?.elevation ?? (myElev > 0 ? 0 : myElev);
+          const eElev = eastTile?.elevation ?? (myElev > 0 ? 0 : myElev);
+
+          // Top edge cliff
+          if (myElev > nElev) {
+            this.ctx.strokeStyle = '#64748b';
+            this.ctx.lineWidth = Math.max(2, 2.5 * this.zoom);
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, y);
+            this.ctx.lineTo(x + baseTileSize, y);
+            this.ctx.stroke();
+          }
+
+          // Bottom edge cliff
+          if (myElev > sElev) {
+            this.ctx.strokeStyle = '#334155';
+            this.ctx.lineWidth = Math.max(2, 2.5 * this.zoom);
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, y + baseTileSize);
+            this.ctx.lineTo(x + baseTileSize, y + baseTileSize);
+            this.ctx.stroke();
+          }
+
+          // Left edge cliff
+          if (myElev > wElev) {
+            this.ctx.strokeStyle = '#64748b';
+            this.ctx.lineWidth = Math.max(2, 2.5 * this.zoom);
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, y);
+            this.ctx.lineTo(x, y + baseTileSize);
+            this.ctx.stroke();
+          }
+
+          // Right edge cliff
+          if (myElev > eElev) {
+            this.ctx.strokeStyle = '#334155';
+            this.ctx.lineWidth = Math.max(2, 2.5 * this.zoom);
+            this.ctx.beginPath();
+            this.ctx.moveTo(x + baseTileSize, y);
+            this.ctx.lineTo(x + baseTileSize, y + baseTileSize);
+            this.ctx.stroke();
+          }
+
+          // Ramp Direction Indicator
+          if (tile.terrainType === TerrainType.ROAD_RAMP_NS || tile.terrainType === TerrainType.ROAD_RAMP_EW) {
+            this.ctx.fillStyle = '#00f0ff';
+            this.ctx.font = `bold ${Math.max(10, Math.floor(12 * this.zoom))}px system-ui, sans-serif`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            const icon = tile.terrainType === TerrainType.ROAD_RAMP_NS ? (nElev < sElev ? '▲' : '▼') : (wElev < eElev ? '▶' : '◀');
+            this.ctx.fillText(icon, x + baseTileSize / 2, y + baseTileSize / 2);
           }
         }
       }
@@ -627,9 +716,11 @@ export class MapRendererCanvas {
     const isoH = 14 * this.zoom;
     const isGameStyle = this.renderTheme === 'game_tiles';
 
-    const toIso = (gx: number, gz: number) => {
+    const elevScale = this.layers.elevation ? 0.7 * this.zoom : 0.0;
+
+    const toIso = (gx: number, gz: number, elev: number = 0) => {
       const sx = (gx - gz) * (isoW / 2);
-      const sy = (gx + gz) * (isoH / 2);
+      const sy = (gx + gz) * (isoH / 2) - elev * elevScale;
       return { x: sx, y: sy };
     };
 
@@ -645,7 +736,37 @@ export class MapRendererCanvas {
         const tile = this.snapshot!.tiles[gx]?.[gz];
         if (!tile) continue;
 
+        const cellElev = tile.elevation ?? 0;
+        let elevNW = cellElev;
+        let elevNE = cellElev;
+        let elevSE = cellElev;
+        let elevSW = cellElev;
+
+        if (tile.terrainType === TerrainType.ROAD_RAMP_NS) {
+          const northTile = gz > 0 ? this.snapshot!.tiles[gx]?.[gz - 1] : null;
+          const southTile = gz < gridDim - 1 ? this.snapshot!.tiles[gx]?.[gz + 1] : null;
+          const nElev = northTile?.elevation ?? cellElev;
+          const sElev = southTile?.elevation ?? cellElev;
+          elevNW = nElev;
+          elevNE = nElev;
+          elevSE = sElev;
+          elevSW = sElev;
+        } else if (tile.terrainType === TerrainType.ROAD_RAMP_EW) {
+          const westTile = gx > 0 ? this.snapshot!.tiles[gx - 1]?.[gz] : null;
+          const eastTile = gx < gridDim - 1 ? this.snapshot!.tiles[gx + 1]?.[gz] : null;
+          const wElev = westTile?.elevation ?? cellElev;
+          const eElev = eastTile?.elevation ?? cellElev;
+          elevNW = wElev;
+          elevSW = wElev;
+          elevNE = eElev;
+          elevSE = eElev;
+        }
+
         const p = toIso(gx, gz);
+        const pNW = { x: p.x, y: p.y - elevNW * elevScale };
+        const pNE = { x: p.x + isoW / 2, y: p.y + isoH / 2 - elevNE * elevScale };
+        const pSE = { x: p.x, y: p.y + isoH - elevSE * elevScale };
+        const pSW = { x: p.x - isoW / 2, y: p.y + isoH / 2 - elevSW * elevScale };
 
         let fill = isGameStyle ? '#2d6a2d' : '#193324';
         if (tile.terrainType === TerrainType.WATER) {
@@ -662,12 +783,55 @@ export class MapRendererCanvas {
           fill = isGameStyle ? '#5a6473' : '#475569';
         }
 
+        // Retaining Walls facing Camera (South edge & East edge)
+        if (this.layers.elevation) {
+          // South edge cliff face (facing camera down-left)
+          const southTile = gz < gridDim - 1 ? this.snapshot!.tiles[gx]?.[gz + 1] : null;
+          const sNeighborElev = southTile?.elevation ?? (cellElev > 0 ? 0 : cellElev);
+          if (elevSW > sNeighborElev || elevSE > sNeighborElev) {
+            const pSW_bot = { x: p.x - isoW / 2, y: p.y + isoH / 2 - sNeighborElev * elevScale };
+            const pSE_bot = { x: p.x, y: p.y + isoH - sNeighborElev * elevScale };
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(pSW.x, pSW.y);
+            this.ctx.lineTo(pSE.x, pSE.y);
+            this.ctx.lineTo(pSE_bot.x, pSE_bot.y);
+            this.ctx.lineTo(pSW_bot.x, pSW_bot.y);
+            this.ctx.closePath();
+            this.ctx.fillStyle = isGameStyle ? '#3d444d' : '#222d3d';
+            this.ctx.fill();
+            this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+            this.ctx.lineWidth = 1;
+            this.ctx.stroke();
+          }
+
+          // East edge cliff face (facing camera down-right)
+          const eastTile = gx < gridDim - 1 ? this.snapshot!.tiles[gx + 1]?.[gz] : null;
+          const eNeighborElev = eastTile?.elevation ?? (cellElev > 0 ? 0 : cellElev);
+          if (elevSE > eNeighborElev || elevNE > eNeighborElev) {
+            const pSE_bot = { x: p.x, y: p.y + isoH - eNeighborElev * elevScale };
+            const pNE_bot = { x: p.x + isoW / 2, y: p.y + isoH / 2 - eNeighborElev * elevScale };
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(pSE.x, pSE.y);
+            this.ctx.lineTo(pNE.x, pNE.y);
+            this.ctx.lineTo(pNE_bot.x, pNE_bot.y);
+            this.ctx.lineTo(pSE_bot.x, pSE_bot.y);
+            this.ctx.closePath();
+            this.ctx.fillStyle = isGameStyle ? '#4d5661' : '#2d3b4e';
+            this.ctx.fill();
+            this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+            this.ctx.lineWidth = 1;
+            this.ctx.stroke();
+          }
+        }
+
         // Draw diamond
         this.ctx.beginPath();
-        this.ctx.moveTo(p.x, p.y);
-        this.ctx.lineTo(p.x + isoW / 2, p.y + isoH / 2);
-        this.ctx.lineTo(p.x, p.y + isoH);
-        this.ctx.lineTo(p.x - isoW / 2, p.y + isoH / 2);
+        this.ctx.moveTo(pNW.x, pNW.y);
+        this.ctx.lineTo(pNE.x, pNE.y);
+        this.ctx.lineTo(pSE.x, pSE.y);
+        this.ctx.lineTo(pSW.x, pSW.y);
         this.ctx.closePath();
 
         this.ctx.fillStyle = fill;
@@ -684,7 +848,9 @@ export class MapRendererCanvas {
     // Render 3D Isometric Roundabout Ellipses on Ground Plane
     if (this.layers.roads && this.snapshot!.roundabouts && this.snapshot!.roundabouts.length > 0) {
       for (const rb of this.snapshot!.roundabouts) {
+        const rbElev = (this.snapshot!.tiles[Math.floor(rb.cx)]?.[Math.floor(rb.cz)]?.elevation ?? 0) * elevScale;
         const p = toIso(rb.cx, rb.cz);
+        const cy = p.y + isoH / 2 - rbElev;
         const rX = rb.radius * isoW * 0.5;
         const rY = rX * 0.5; // Isometric 2:1 foreshortened projection
         const innerRx = Math.max(isoW * 0.4, rX - isoW * 0.55);
@@ -694,7 +860,7 @@ export class MapRendererCanvas {
 
         // Asphalt ring ellipse
         this.ctx.beginPath();
-        this.ctx.ellipse(p.x, p.y + isoH / 2, rX, rY, 0, 0, Math.PI * 2);
+        this.ctx.ellipse(p.x, cy, rX, rY, 0, 0, Math.PI * 2);
         this.ctx.fillStyle = isGameStyle ? '#1c1f24' : '#0f172a';
         this.ctx.fill();
 
@@ -705,7 +871,7 @@ export class MapRendererCanvas {
 
         // Dashed yellow divider ellipse
         this.ctx.beginPath();
-        this.ctx.ellipse(p.x, p.y + isoH / 2, laneRx, laneRy, 0, 0, Math.PI * 2);
+        this.ctx.ellipse(p.x, cy, laneRx, laneRy, 0, 0, Math.PI * 2);
         this.ctx.strokeStyle = 'rgba(245, 158, 11, 0.9)';
         this.ctx.lineWidth = Math.max(1, 1.5 * this.zoom);
         this.ctx.setLineDash([4, 4]);
@@ -714,7 +880,7 @@ export class MapRendererCanvas {
 
         // Inner landscaped island ellipse
         this.ctx.beginPath();
-        this.ctx.ellipse(p.x, p.y + isoH / 2, innerRx, innerRy, 0, 0, Math.PI * 2);
+        this.ctx.ellipse(p.x, cy, innerRx, innerRy, 0, 0, Math.PI * 2);
         this.ctx.fillStyle = rb.islandType === 'grass'
           ? (isGameStyle ? '#2d6a2d' : '#193324')
           : (isGameStyle ? '#9e8e78' : '#334155');
@@ -736,13 +902,14 @@ export class MapRendererCanvas {
         const isLandmark = b.lotType === 'landmark' || (def.tier === 'background' && def.is3D);
         if (isLandmark && !this.layers.landmarks) continue;
 
+        const bElev = (b.elevation ?? 0) * elevScale;
         const p = toIso(b.gx + b.w / 2, b.gz + b.h / 2);
         const bW = b.w * isoW * 0.85;
         const bH = b.h * isoH * 0.85;
         const altitude = Math.min(140, Math.max(12, (def.height || 30) * 0.7 * this.zoom));
 
         const bx = p.x;
-        const by = p.y;
+        const by = p.y - bElev;
 
         // If in Game Authentic mode, check if we have the real game sprite loaded!
         const spriteImg = isGameStyle ? this.buildingImages.get(b.typeKey) : null;
@@ -907,6 +1074,29 @@ export class MapRendererCanvas {
         this.onHoverCell?.(null);
         this.render();
       }
+    } else if (this.projection === 'isometric') {
+      const isoW = 28 * this.zoom;
+      const isoH = 14 * this.zoom;
+      const relX = mouseX - this.panX;
+      const relY = mouseY - this.panY;
+
+      const u = relX / (isoW / 2);
+      const v = relY / (isoH / 2);
+      const gx = Math.floor((u + v) / 2);
+      const gz = Math.floor((v - u) / 2);
+
+      if (gx >= 0 && gx < this.snapshot.gridDim && gz >= 0 && gz < this.snapshot.gridDim) {
+        if (!this.hoveredCell || this.hoveredCell.gx !== gx || this.hoveredCell.gz !== gz) {
+          this.hoveredCell = { gx, gz };
+          const info = this.getCellInspectInfo(gx, gz);
+          this.onHoverCell?.(info);
+          this.render();
+        }
+      } else if (this.hoveredCell) {
+        this.hoveredCell = null;
+        this.onHoverCell?.(null);
+        this.render();
+      }
     }
   }
 
@@ -942,6 +1132,8 @@ export class MapRendererCanvas {
       worldZ,
       terrainType: tile.terrainType,
       overlayType: tile.overlayType,
+      elevation: tile.elevation,
+      elevationTier: tile.elevationTier,
       isOccupied: !!this.snapshot.occupied[gx]?.[gz],
       district,
       building,

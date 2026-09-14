@@ -12,6 +12,8 @@ export type FXEvent =
   | { type: 'blast_zonal'; x: number; y: number; z: number; data: { entityId: Entity; targetFrame: number; zone: DamageZone; level: DamageLevel; uvCenter: { x: number; y: number } } }
   | { type: 'shake'; x: number; y: number; z: number; data: { intensity: number } }
   | { type: 'hit_fx'; x: number; y: number; z: number; data: { entityId: Entity; intensity: 'light' | 'heavy' } }
+  | { type: 'building_hit'; x: number; y: number; z: number; data: { entityId: Entity; intensity: 'light' | 'heavy' } }
+  | { type: 'building_destroyed'; x: number; y: number; z: number; data: { entityId: Entity; is3D?: boolean; name?: string } }
   | { type: 'debris' | 'dust' | 'smoke' | 'sparks'; x: number; y: number; z: number; data: { count: number; entityId?: Entity; palette?: number[] } }
   | { type: 'fire'; x: number; y: number; z: number; data: { entityId?: Entity } }
   | { type: 'laser'; x: number; y: number; z: number; data: { tx: number; ty: number; tz: number } };
@@ -333,6 +335,15 @@ export class DestructionSystem {
     this.fxQueue.push({ type: 'fire',   x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
     this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: (levelChanged || newLevel >= 2) ? 'heavy' : 'light' } });
 
+    // Distinct Building Hit Audio Feedback
+    if (zonalHealth.totalHp > 0) {
+      this.fxQueue.push({
+        type: 'building_hit',
+        x: pos.worldX, y: pos.worldY, z: pos.worldZ,
+        data: { entityId: entity, intensity: (levelChanged || newLevel >= 2) ? 'heavy' : 'light' }
+      });
+    }
+
     // Award hit score
     ScoreSystem.addScore(10, undefined, { x: pos.worldX, y: pos.worldY, z: 20 });
 
@@ -349,6 +360,13 @@ export class DestructionSystem {
         }
         ScoreSystem.addScore(pts, def?.name || 'Demolished', { x: pos.worldX, y: pos.worldY, z: 30 });
         this.updateDestructionStats();
+
+        // Distinct Building Destroyed Audio Event!
+        this.fxQueue.push({
+          type: 'building_destroyed',
+          x: pos.worldX, y: pos.worldY, z: pos.worldZ,
+          data: { entityId: entity, is3D: !!def?.is3D, name: def?.name }
+        });
       }
 
       if (def && def.is3D) {
@@ -411,6 +429,13 @@ export class DestructionSystem {
           }
           ScoreSystem.addScore(pts, def?.name || 'Demolished', { x: pos.worldX, y: pos.worldY, z: 30 });
           this.updateDestructionStats();
+
+          // Distinct Building Destroyed Audio Event!
+          this.fxQueue.push({
+            type: 'building_destroyed',
+            x: pos.worldX, y: pos.worldY, z: pos.worldZ,
+            data: { entityId: entity, is3D: !!def?.is3D, name: def?.name }
+          });
         }
 
         if (!def || !def.is3D) {
@@ -420,6 +445,11 @@ export class DestructionSystem {
         }
       } else {
         DecalManager.spawnDecal(pos.worldX, pos.worldY, 'scorch', 15);
+        this.fxQueue.push({
+          type: 'building_hit',
+          x: pos.worldX, y: pos.worldY, z: pos.worldZ,
+          data: { entityId: entity, intensity: 'heavy' }
+        });
       }
 
       this.fxQueue.push({
@@ -438,6 +468,11 @@ export class DestructionSystem {
       this.fxQueue.push({ type: 'fire',   x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });
       this.fxQueue.push({ type: 'sparks', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { count: 5, entityId: entity } });
       this.fxQueue.push({ type: 'hit_fx', x: 0, y: 0, z: 0, data: { entityId: entity, intensity: 'light' } });
+      this.fxQueue.push({
+        type: 'building_hit',
+        x: pos.worldX, y: pos.worldY, z: pos.worldZ,
+        data: { entityId: entity, intensity: 'light' }
+      });
     }
   }
 

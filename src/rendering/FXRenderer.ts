@@ -287,6 +287,10 @@ export class FXRenderer {
       // Immediately notify procedural AudioSystem before any visual culling
       AudioSystem.processEvent(event);
 
+      if (event.type === 'building_hit' || event.type === 'building_destroyed') {
+        continue;
+      }
+
       // Frustum culling for visual FX (event.y is ECS ground depth, event.z is altitude)
       if (event.type !== 'shake') {
         if (event.type === 'laser') {

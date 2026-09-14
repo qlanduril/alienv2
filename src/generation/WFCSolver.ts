@@ -335,6 +335,7 @@ export class WFCSolver {
           'superblock_spaceship_hq',
           'superblock_financial_tower',
           'superblock_cyber_reactor',
+          'superblock_art_deco_skyscraper',
           'superblock_statue_liberty'
         ]);
 
@@ -379,6 +380,7 @@ export class WFCSolver {
           { mx: 2, mz: 2, modId: 'superblock_financial_tower' },   // Financial Hub (1x 3x3 3D Financial Tower)
           { mx: 4, mz: 2, modId: 'superblock_mega_titan' },        // Downtown Apex Citadel (1x 4x4 3D Mega-Titan)
           { mx: 4, mz: 4, modId: 'superblock_cyber_reactor' },     // Energy Grid (1x 3x3 3D Cyber Reactor)
+          { mx: 2, mz: 4, modId: 'superblock_art_deco_skyscraper' }, // Downtown Art Deco Empire Tower (1x 4x4 3D Skyscraper)
           { mx: 6, mz: 6, modId: 'superblock_statue_liberty' },    // 1x Statue of Liberty Offshore in Water Basin!
           { mx: 6, mz: 5, modId: 'waterfront_beach_coast' },       // Beach & Coastal Surf
           { mx: 5, mz: 6, modId: 'waterfront_beach_coast' },       // Beach & Coastal Surf

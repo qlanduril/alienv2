@@ -63,6 +63,7 @@ const BUILDING_SPRITE_PATHS: Record<string, string> = {
   'pentagon_defense': '/buildingv2/pentagon_defense/png/state_000_pristine.png',
   'mega_titan': '/buildingv2/skyscraper/png/00_pristine.png',
   'mega_stadium': '/buildingv2/mall/png/00_pristine.png',
+  'art_deco_skyscraper': '/buildingv2/skyscraper_artdeco_titan/png/00_pristine.png',
 };
 
 export class MapRendererCanvas {
@@ -280,6 +281,9 @@ export class MapRendererCanvas {
     const gridDim = this.snapshot!.gridDim; // 64
     const baseTileSize = 16 * this.zoom;
     const isGameStyle = this.renderTheme === 'game_tiles';
+
+    // 0. Extended Horizon Environment Pass (Outward Highways & Ocean Horizon)
+    this.drawExtendedTopDownEnvironment(baseTileSize, isGameStyle, gridDim);
 
     // 1. Terrain & Water Pass
     for (let gx = 0; gx < gridDim; gx++) {
@@ -629,6 +633,9 @@ export class MapRendererCanvas {
       return { x: sx, y: sy };
     };
 
+    // 0. Extended Horizon Environment Pass (Outward Highways & Ocean Horizon)
+    this.drawExtendedIsometricEnvironment(toIso, isoW, isoH, isGameStyle, gridDim);
+
     // Draw Ground Diamonds (back-to-front by gx + gz)
     for (let sum = 0; sum <= (gridDim - 1) * 2; sum++) {
       for (let gx = 0; gx < gridDim; gx++) {
@@ -944,5 +951,264 @@ export class MapRendererCanvas {
 
   public exportPNG(): string {
     return this.canvas.toDataURL('image/png');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // EXTENDED HORIZON RENDERING (Infinite Highways & Expansive Ocean)
+  // ─────────────────────────────────────────────────────────────────────────────
+  private drawExtendedTopDownEnvironment(baseTileSize: number, isGameStyle: boolean, gridDim: number) {
+    if (!this.snapshot) return;
+
+    // Detect water on South & East borders
+    let southWaterMinX = gridDim;
+    let eastWaterMinZ = gridDim;
+    for (let gx = 0; gx < gridDim; gx++) {
+      const t = this.snapshot.tiles[gx]?.[gridDim - 1];
+      if (t && (t.terrainType === TerrainType.WATER || t.terrainType === TerrainType.WATER_SHORE)) {
+        if (gx < southWaterMinX) southWaterMinX = gx;
+      }
+    }
+    for (let gz = 0; gz < gridDim; gz++) {
+      const t = this.snapshot.tiles[gridDim - 1]?.[gz];
+      if (t && (t.terrainType === TerrainType.WATER || t.terrainType === TerrainType.WATER_SHORE)) {
+        if (gz < eastWaterMinZ) eastWaterMinZ = gz;
+      }
+    }
+
+    const extDistance = 35 * baseTileSize;
+
+    // 1. Extended Ocean (South-East bay)
+    if (this.layers.water && (southWaterMinX < gridDim || eastWaterMinZ < gridDim)) {
+      const oceanX = Math.max(0, southWaterMinX - 1) * baseTileSize;
+      const oceanY = Math.max(0, eastWaterMinZ - 1) * baseTileSize;
+      const oceanW = (gridDim * baseTileSize - oceanX) + extDistance;
+      const oceanH = (gridDim * baseTileSize - oceanY) + extDistance;
+      const beachW = 2 * baseTileSize;
+
+      // Golden beach sand buffer strip
+      this.ctx.fillStyle = isGameStyle ? '#d4b27a' : '#927848';
+      this.ctx.fillRect(oceanX - beachW, oceanY - beachW, oceanW + beachW, beachW); // North beach
+      this.ctx.fillRect(oceanX - beachW, oceanY, beachW, oceanH); // West beach
+
+      // Shallow coastal turquoise surf strip
+      this.ctx.fillStyle = isGameStyle ? '#1888c8' : '#14608c';
+      this.ctx.fillRect(oceanX, oceanY - baseTileSize, oceanW, baseTileSize);
+      this.ctx.fillRect(oceanX - baseTileSize, oceanY, baseTileSize, oceanH);
+
+      // Deep ocean water
+      this.ctx.fillStyle = isGameStyle ? '#0a2f64' : '#0a2342';
+      this.ctx.fillRect(oceanX, oceanY, oceanW, oceanH);
+
+      // Subtle wave crest lines
+      this.ctx.fillStyle = isGameStyle ? '#114488' : 'rgba(56, 189, 248, 0.15)';
+      for (let wy = oceanY + 20; wy < oceanY + oceanH; wy += 40 * this.zoom) {
+        this.ctx.fillRect(oceanX + 15, wy, oceanW - 30, 2);
+      }
+    }
+
+    // 2. Extended Highways (North, South, West, East)
+    if (this.layers.roads) {
+      const isRoad = (t: any) => t && (
+        t.overlayType === 1 ||
+        t.terrainType === TerrainType.ROAD_STRAIGHT_NS ||
+        t.terrainType === TerrainType.ROAD_STRAIGHT_EW ||
+        t.terrainType === TerrainType.ROAD_INTERSECTION ||
+        t.terrainType === TerrainType.ROAD_ROUNDABOUT ||
+        (t.terrainType >= TerrainType.ROAD_CURVE_NE && t.terrainType <= TerrainType.ROAD_CURVE_SW)
+      );
+      const isWater = (t: any) => t && (t.terrainType === TerrainType.WATER || t.terrainType === TerrainType.WATER_SHORE || t.terrainType === TerrainType.SAND);
+
+      const drawHighwayNS = (gx: number, startY: number, len: number) => {
+        const rx = gx * baseTileSize;
+        this.ctx.fillStyle = isGameStyle ? '#1c1f24' : '#0f172a';
+        this.ctx.fillRect(rx, startY, baseTileSize, len);
+        // Yellow double centerline
+        this.ctx.fillStyle = '#f5b800';
+        this.ctx.fillRect(rx + baseTileSize / 2 - 1, startY, 2, len);
+        // White curbs
+        this.ctx.fillStyle = isGameStyle ? '#d0d7e0' : 'rgba(255, 255, 255, 0.25)';
+        this.ctx.fillRect(rx, startY, 1, len);
+        this.ctx.fillRect(rx + baseTileSize - 1, startY, 1, len);
+      };
+
+      const drawHighwayEW = (gz: number, startX: number, len: number) => {
+        const ry = gz * baseTileSize;
+        this.ctx.fillStyle = isGameStyle ? '#1c1f24' : '#0f172a';
+        this.ctx.fillRect(startX, ry, len, baseTileSize);
+        // Yellow double centerline
+        this.ctx.fillStyle = '#f5b800';
+        this.ctx.fillRect(startX, ry + baseTileSize / 2 - 1, len, 2);
+        // White curbs
+        this.ctx.fillStyle = isGameStyle ? '#d0d7e0' : 'rgba(255, 255, 255, 0.25)';
+        this.ctx.fillRect(startX, ry, len, 1);
+        this.ctx.fillRect(startX, ry + baseTileSize - 1, len, 1);
+      };
+
+      // North highways (gz = 0)
+      for (let gx = 0; gx < gridDim; gx++) {
+        const t = this.snapshot.tiles[gx]?.[0];
+        if (isRoad(t) && !isWater(t)) {
+          drawHighwayNS(gx, -extDistance, extDistance);
+        }
+      }
+
+      // South highways (gz = gridDim - 1, safe from water >= 4 tiles)
+      for (let gx = 0; gx < gridDim; gx++) {
+        const t = this.snapshot.tiles[gx]?.[gridDim - 1];
+        if (isRoad(t) && !isWater(t) && gx < southWaterMinX - 4) {
+          drawHighwayNS(gx, gridDim * baseTileSize, extDistance);
+        }
+      }
+
+      // West highways (gx = 0)
+      for (let gz = 0; gz < gridDim; gz++) {
+        const t = this.snapshot.tiles[0]?.[gz];
+        if (isRoad(t) && !isWater(t)) {
+          drawHighwayEW(gz, -extDistance, extDistance);
+        }
+      }
+
+      // East highways (gx = gridDim - 1, safe from water >= 4 tiles)
+      for (let gz = 0; gz < gridDim; gz++) {
+        const t = this.snapshot.tiles[gridDim - 1]?.[gz];
+        if (isRoad(t) && !isWater(t) && gz < eastWaterMinZ - 4) {
+          drawHighwayEW(gz, gridDim * baseTileSize, extDistance);
+        }
+      }
+    }
+  }
+
+  private drawExtendedIsometricEnvironment(
+    toIso: (gx: number, gz: number) => { x: number; y: number },
+    isoW: number,
+    isoH: number,
+    isGameStyle: boolean,
+    gridDim: number
+  ) {
+    if (!this.snapshot) return;
+
+    // Detect water on South & East borders
+    let southWaterMinX = gridDim;
+    let eastWaterMinZ = gridDim;
+    for (let gx = 0; gx < gridDim; gx++) {
+      const t = this.snapshot.tiles[gx]?.[gridDim - 1];
+      if (t && (t.terrainType === TerrainType.WATER || t.terrainType === TerrainType.WATER_SHORE)) {
+        if (gx < southWaterMinX) southWaterMinX = gx;
+      }
+    }
+    for (let gz = 0; gz < gridDim; gz++) {
+      const t = this.snapshot.tiles[gridDim - 1]?.[gz];
+      if (t && (t.terrainType === TerrainType.WATER || t.terrainType === TerrainType.WATER_SHORE)) {
+        if (gz < eastWaterMinZ) eastWaterMinZ = gz;
+      }
+    }
+
+    // 1. Extended Ocean Diamonds (South-East bay) with beach sand & shallow surf buffer
+    if (this.layers.water && (southWaterMinX < gridDim || eastWaterMinZ < gridDim)) {
+      const oceanColor = isGameStyle ? '#0a2f64' : '#0a2342';
+      const surfColor = isGameStyle ? '#1888c8' : '#14608c';
+      const sandColor = isGameStyle ? '#d4b27a' : '#927848';
+      const maxExt = gridDim + 12;
+
+      const minX = Math.max(0, southWaterMinX - 2);
+      const minZ = Math.max(0, eastWaterMinZ - 2);
+
+      for (let gx = minX; gx < maxExt; gx++) {
+        for (let gz = minZ; gz < maxExt; gz++) {
+          if (gx < gridDim && gz < gridDim) continue; // Inside city grid is handled by main pass
+
+          let color = oceanColor;
+          if (gx === minX || gz === minZ) {
+            color = sandColor; // Exterior beach buffer
+          } else if (gx === minX + 1 || gz === minZ + 1) {
+            color = surfColor; // Exterior shallow surf
+          }
+
+          const p = toIso(gx, gz);
+          this.ctx.beginPath();
+          this.ctx.moveTo(p.x, p.y);
+          this.ctx.lineTo(p.x + isoW / 2, p.y + isoH / 2);
+          this.ctx.lineTo(p.x, p.y + isoH);
+          this.ctx.lineTo(p.x - isoW / 2, p.y + isoH / 2);
+          this.ctx.closePath();
+          this.ctx.fillStyle = color;
+          this.ctx.fill();
+        }
+      }
+    }
+
+    // 2. Extended Isometric Highway Ribbons
+    if (this.layers.roads) {
+      const isRoad = (t: any) => t && (
+        t.overlayType === 1 ||
+        t.terrainType === TerrainType.ROAD_STRAIGHT_NS ||
+        t.terrainType === TerrainType.ROAD_STRAIGHT_EW ||
+        t.terrainType === TerrainType.ROAD_INTERSECTION ||
+        t.terrainType === TerrainType.ROAD_ROUNDABOUT ||
+        (t.terrainType >= TerrainType.ROAD_CURVE_NE && t.terrainType <= TerrainType.ROAD_CURVE_SW)
+      );
+      const isWater = (t: any) => t && (t.terrainType === TerrainType.WATER || t.terrainType === TerrainType.WATER_SHORE || t.terrainType === TerrainType.SAND);
+
+      const drawIsoRoadTile = (gx: number, gz: number) => {
+        const p = toIso(gx, gz);
+        this.ctx.beginPath();
+        this.ctx.moveTo(p.x, p.y);
+        this.ctx.lineTo(p.x + isoW / 2, p.y + isoH / 2);
+        this.ctx.lineTo(p.x, p.y + isoH);
+        this.ctx.lineTo(p.x - isoW / 2, p.y + isoH / 2);
+        this.ctx.closePath();
+        this.ctx.fillStyle = isGameStyle ? '#1c1f24' : '#0f172a';
+        this.ctx.fill();
+
+        // Center line
+        this.ctx.strokeStyle = '#f5b800';
+        this.ctx.lineWidth = Math.max(1, 1.2 * this.zoom);
+        this.ctx.beginPath();
+        this.ctx.moveTo(p.x, p.y + isoH / 4);
+        this.ctx.lineTo(p.x, p.y + (3 * isoH) / 4);
+        this.ctx.stroke();
+      };
+
+      const steps = 14;
+      // North highways (gz = 0)
+      for (let gx = 0; gx < gridDim; gx++) {
+        const t = this.snapshot.tiles[gx]?.[0];
+        if (isRoad(t) && !isWater(t)) {
+          for (let step = 1; step <= steps; step++) {
+            drawIsoRoadTile(gx, -step);
+          }
+        }
+      }
+
+      // South highways (gz = gridDim - 1, safe from water >= 4 tiles)
+      for (let gx = 0; gx < gridDim; gx++) {
+        const t = this.snapshot.tiles[gx]?.[gridDim - 1];
+        if (isRoad(t) && !isWater(t) && gx < southWaterMinX - 4) {
+          for (let step = 0; step < steps; step++) {
+            drawIsoRoadTile(gx, gridDim + step);
+          }
+        }
+      }
+
+      // West highways (gx = 0)
+      for (let gz = 0; gz < gridDim; gz++) {
+        const t = this.snapshot.tiles[0]?.[gz];
+        if (isRoad(t) && !isWater(t)) {
+          for (let step = 1; step <= steps; step++) {
+            drawIsoRoadTile(-step, gz);
+          }
+        }
+      }
+
+      // East highways (gx = gridDim - 1, safe from water >= 4 tiles)
+      for (let gz = 0; gz < gridDim; gz++) {
+        const t = this.snapshot.tiles[gridDim - 1]?.[gz];
+        if (isRoad(t) && !isWater(t) && gz < eastWaterMinZ - 4) {
+          for (let step = 0; step < steps; step++) {
+            drawIsoRoadTile(gridDim + step, gz);
+          }
+        }
+      }
+    }
   }
 }

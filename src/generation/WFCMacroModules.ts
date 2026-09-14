@@ -1113,6 +1113,21 @@ export const WFC_MACRO_MODULES: WFCMacroModule[] = [
     grid: createRingTourSuperblock('cyber_reactor', 3, 3, 'b1')
   },
 
+  // 29.5 Downtown Art Deco Empire 3D Tower Ring Tour Superblock (4x4 3D Tower)
+  {
+    id: 'superblock_art_deco_skyscraper',
+    name: 'Downtown Art Deco Empire 3D Tower Ring Tour Superblock',
+    district: 'downtown',
+    weight: 50.0,
+    sockets: {
+      N: MacroSocketType.ROAD_MAIN,
+      E: MacroSocketType.ROAD_MAIN,
+      S: MacroSocketType.ROAD_MAIN,
+      W: MacroSocketType.ROAD_MAIN
+    },
+    grid: createRingTourSuperblock('art_deco_skyscraper', 4, 4, 'b1')
+  },
+
   // 30. Suburban Cul-de-Sac Family Homes (Suburbs - Where people live!)
   {
     id: 'residential_culdesac_homes',

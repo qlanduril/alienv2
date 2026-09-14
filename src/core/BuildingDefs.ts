@@ -42,6 +42,7 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   'spaceship_hq': { width: 64, length: 64, height: 160, name: 'Alien Spaceship HQ', visualScale: 1.0, footprintTiles: 4, heightScale: 1.0, tier: 'background', is3D: true, gltfKey: 'spaceship_hq', maxHp: 480 },
   'cyber_reactor': { width: 48, length: 48, height: 140, name: 'Cyber Quantum Reactor', visualScale: 1.0, footprintTiles: 3, heightScale: 1.0, tier: 'background', is3D: true, gltfKey: 'cyber_reactor', maxHp: 350 },
   'financial_tower': { width: 48, length: 48, height: 160, name: 'Metro Financial Tower', visualScale: 1.0, footprintTiles: 3, heightScale: 1.0, tier: 'background', is3D: true, gltfKey: 'financial_tower', maxHp: 380 },
+  'art_deco_skyscraper': { width: 64, length: 64, height: 175, name: 'Art Deco Empire Tower', visualScale: 1.0, footprintTiles: 4, heightScale: 1.0, tier: 'background', is3D: true, gltfKey: 'art_deco_skyscraper', maxHp: 480 },
   'statue_liberty': { width: 48, length: 48, height: 135, name: 'Statue of Liberty', visualScale: 0.85, footprintTiles: 3, heightScale: 0.85, tier: 'foreground', maxHp: 320 },
   'pentagon_defense': { width: 64, length: 64, height: 45, name: 'Defense Bunker', visualScale: 0.85, footprintTiles: 4, heightScale: 0.85, tier: 'foreground', maxHp: 350 },
   'hospital_civic': { width: 48, length: 48, height: 50, name: 'Civic Hospital', visualScale: 0.80, footprintTiles: 3, heightScale: 0.80, tier: 'foreground', maxHp: 275 },

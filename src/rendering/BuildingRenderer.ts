@@ -526,6 +526,7 @@ export class BuildingRenderer {
     'spaceship_hq': 6,
     'cyber_reactor': 6,
     'financial_tower': 6,
+    'art_deco_skyscraper': 3,
     'statue_liberty': 2,
     'pentagon_defense': 4,
     'hospital_civic': 4,

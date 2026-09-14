@@ -95,10 +95,11 @@ export const MAP_DEFINITION: MapDefinition = {
 
   landmarks: [
     // ── 4 Downtown 3D Mega-Landmarks Balanced Around (32, 32) ───────────────────
-    { key: 'mega_titan',       gx: 22, gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
-    { key: 'spaceship_hq',     gx: 38, gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
-    { key: 'financial_tower',  gx: 22, gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
-    { key: 'cyber_reactor',    gx: 38, gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
+    { key: 'mega_titan',           gx: 22, gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
+    { key: 'spaceship_hq',         gx: 38, gz: 22, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
+    { key: 'financial_tower',      gx: 22, gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
+    { key: 'cyber_reactor',        gx: 38, gz: 38, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
+    { key: 'art_deco_skyscraper',  gx: 18, gz: 34, terrain: TerrainType.PLAZA_STONE, bufferTiles: 2 },
 
     // ── Outer District Civic & Commercial Anchors ──────────────────────────────
     { key: 'hospital_civic',   gx: 6,  gz: 22, terrain: TerrainType.SIDEWALK,    bufferTiles: 1 },

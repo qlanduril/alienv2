@@ -43,6 +43,9 @@ export class AssetLoader {
     promises.push(this.loadGLTF('financial_tower', '/3d/financial_tower/financial_tower.glb').catch(err => {
       console.warn('[AssetLoader] financial_tower 3D load notice:', err);
     }));
+    promises.push(this.loadGLTF('art_deco_skyscraper', '/3d/art_deco_skyscraper_demolition.glb').catch(err => {
+      console.warn('[AssetLoader] art_deco_skyscraper 3D load notice:', err);
+    }));
 
     // 1. Load Map Data (Fast cached fetch)
     promises.push(

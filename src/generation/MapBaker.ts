@@ -8,7 +8,9 @@ import {
   SerializedBuilding,
   SerializedWaypoint,
   RoundaboutInfo,
-  RoadAxisType
+  RoadAxisType,
+  BoundaryExitInfo,
+  BoundaryWaterInfo
 } from './GeneratedMapSchema';
 
 import { WFCSolver } from './WFCSolver';
@@ -75,7 +77,45 @@ export class MapBaker {
      * Strict placement safety: Returns true ONLY if every cell of footprint + buffer ring is
      * free, NOT occupied, NOT a road cell, and NOT ocean water.
      */
-    const canPlace = (gx: number, gz: number, w: number, h: number, buf = 0): boolean => {
+    /**
+     * Strict placement safety: Returns true ONLY if every cell of footprint + buffer ring is
+     * free, NOT occupied, NOT a road cell, NOT water/shore/sand, and maintains a proper
+     * water clearance buffer.
+     */
+    const canPlace = (gx: number, gz: number, w: number, h: number, buf = 0, typeKey?: string): boolean => {
+      // Singularity exception for Statue of Liberty on its dedicated offshore platform
+      if (typeKey === 'statue_liberty') {
+        for (let dx = 0; dx < w; dx++) {
+          for (let dz = 0; dz < h; dz++) {
+            const tx = gx + dx, tz = gz + dz;
+            if (tx < 0 || tx >= gridDim || tz < 0 || tz >= gridDim) return false;
+            if (occupied[tx][tz]) return false;
+          }
+        }
+        return true;
+      }
+
+      // 1. Boundary Ring 0 Check: NO buildings may sit on the outermost world perimeter
+      if (gx <= 0 || gx + w >= gridDim || gz <= 0 || gz + h >= gridDim) {
+        return false;
+      }
+
+      // 2. Highrises, Spires & 3D Landmarks must be indented at least 2 tiles from world borders
+      const isTallOrLandmark = w >= 2 || h >= 2 || (typeKey && (
+        typeKey.startsWith('sky_') ||
+        typeKey.startsWith('mega_') ||
+        UNIQUE_LANDMARK_KEYS.has(typeKey) ||
+        typeKey === '5' || typeKey === '4' ||
+        typeKey === '1' || typeKey === '2' || typeKey === '3'
+      ));
+
+      if (isTallOrLandmark) {
+        if (gx < 2 || gx + w > gridDim - 2 || gz < 2 || gz + h > gridDim - 2) {
+          return false;
+        }
+      }
+
+      // 3. Footprint + Buffer Check
       for (let dx = -buf; dx < w + buf; dx++) {
         for (let dz = -buf; dz < h + buf; dz++) {
           const tx = gx + dx, tz = gz + dz;
@@ -85,12 +125,39 @@ export class MapBaker {
           const cell = TileMap.getCell(tx, tz);
           if (!cell) return false;
 
-          // STRICT INVARIANT: Buildings must NEVER overlap road tiles or ocean water!
-          if (cell.overlayType === OverlayTileType.ROAD || cell.terrainType === TerrainType.WATER) {
+          // STRICT INVARIANT: Buildings must NEVER overlap road tiles, water, shoreline or beach sand!
+          if (
+            cell.overlayType === OverlayTileType.ROAD ||
+            cell.terrainType === TerrainType.WATER ||
+            cell.terrainType === TerrainType.WATER_SHORE ||
+            cell.terrainType === TerrainType.SAND
+          ) {
             return false;
           }
         }
       }
+
+      // 4. Coastal Water Clearance Buffer:
+      // Regular buildings must be at least 1 tile away from water & shoreline surf.
+      // Skyscrapers and 3D landmarks must be at least 2 tiles away from water & shoreline surf.
+      const waterClearance = isTallOrLandmark ? 2 : 1;
+      for (let dx = -waterClearance; dx < w + waterClearance; dx++) {
+        for (let dz = -waterClearance; dz < h + waterClearance; dz++) {
+          const tx = gx + dx, tz = gz + dz;
+          if (tx >= 0 && tx < gridDim && tz >= 0 && tz < gridDim) {
+            const cell = TileMap.getCell(tx, tz);
+            if (
+              cell &&
+              (cell.terrainType === TerrainType.WATER ||
+               cell.terrainType === TerrainType.WATER_SHORE ||
+               cell.terrainType === TerrainType.SAND)
+            ) {
+              return false;
+            }
+          }
+        }
+      }
+
       return true;
     };
 
@@ -114,6 +181,7 @@ export class MapBaker {
       'spaceship_hq',
       'financial_tower',
       'cyber_reactor',
+      'art_deco_skyscraper',
       'statue_liberty'
     ]);
     const placedUniqueKeys = new Set<string>();
@@ -127,6 +195,8 @@ export class MapBaker {
             finalKey = '5';
           } else if (finalKey === 'financial_tower' || finalKey === 'cyber_reactor') {
             finalKey = 'sky_cyber';
+          } else if (finalKey === 'art_deco_skyscraper') {
+            finalKey = 'sky_artdeco';
           } else {
             return false;
           }
@@ -139,7 +209,7 @@ export class MapBaker {
       const w = def.footprintTiles ?? 1;
       const h = def.footprintTiles ?? 1;
 
-      if (!canPlace(gx, gz, w, h, buf)) {
+      if (!canPlace(gx, gz, w, h, buf, finalKey)) {
         if (UNIQUE_LANDMARK_KEYS.has(finalKey)) {
           placedUniqueKeys.delete(finalKey); // allow retry if placement failed
         }
@@ -214,67 +284,68 @@ export class MapBaker {
     // ── PASS 1: MACRO GEOGRAPHY (Ocean Coastline Spline & Grass Default) ──
     let t0 = performance.now();
 
+    const isMacroWater = (gx: number, gz: number): boolean => {
+      if (preset === 'retro_arcade') {
+        // SE Canal & Harbor water body
+        return gx >= 35 && gz >= 45 && (gx + gz >= 90 || gz >= 54);
+      } else {
+        // Metropolitan NY ocean spline
+        return gx + gz >= 88;
+      }
+    };
+
+    // Pre-calculate exact distance-to-water map using multi-source BFS
+    const distToWater: number[][] = Array.from({ length: gridDim }, () =>
+      Array(gridDim).fill(999)
+    );
+    const waterQueue: [number, number][] = [];
+
     for (let gx = 0; gx < gridDim; gx++) {
       for (let gz = 0; gz < gridDim; gz++) {
-        if (preset === 'retro_arcade') {
-          // SE Canal & Harbor water body
-          if (gx >= 35 && gz >= 45 && (gx + gz >= 90 || gz >= 54)) {
-            TileMap.setTerrain(gx, gz, TerrainType.WATER);
-            occupied[gx][gz] = true;
-          } else {
-            TileMap.setTerrain(gx, gz, TerrainType.GRASS);
-          }
+        if (isMacroWater(gx, gz)) {
+          TileMap.setTerrain(gx, gz, TerrainType.WATER);
+          occupied[gx][gz] = true;
+          distToWater[gx][gz] = 0;
+          waterQueue.push([gx, gz]);
         } else {
-          // Metropolitan NY ocean spline
-          if (gx + gz >= 88) {
-            TileMap.setTerrain(gx, gz, TerrainType.WATER);
-            occupied[gx][gz] = true;
-          } else {
-            TileMap.setTerrain(gx, gz, TerrainType.GRASS);
+          TileMap.setTerrain(gx, gz, TerrainType.GRASS);
+        }
+      }
+    }
+
+    let qHead = 0;
+    while (qHead < waterQueue.length) {
+      const [qx, qz] = waterQueue[qHead++];
+      const d = distToWater[qx][qz];
+      for (const [nx, nz] of [[qx - 1, qz], [qx + 1, qz], [qx, qz - 1], [qx, qz + 1]]) {
+        if (nx >= 0 && nx < gridDim && nz >= 0 && nz < gridDim) {
+          if (distToWater[nx][nz] > d + 1) {
+            distToWater[nx][nz] = d + 1;
+            waterQueue.push([nx, nz]);
           }
         }
       }
     }
 
-    // Natural Shoreline (WATER_SHORE) and Beach (SAND) Transition Pass
-    const isWater = (x: number, z: number) => {
-      const c = TileMap.getCell(x, z);
-      return c && (c.terrainType === TerrainType.WATER || c.terrainType === TerrainType.WATER_SHORE);
-    };
-
-    const toShore: Array<{ gx: number; gz: number }> = [];
-    const toSand: Array<{ gx: number; gz: number }> = [];
-
+    // Initial Natural Shoreline (WATER_SHORE) and Beach (SAND) Transition Pass
     for (let gx = 0; gx < gridDim; gx++) {
       for (let gz = 0; gz < gridDim; gz++) {
-        const c = TileMap.getCell(gx, gz);
-        if (!c) continue;
-
-        if (c.terrainType === TerrainType.WATER) {
+        if (distToWater[gx][gz] === 0) {
           // If water borders land, it becomes shallow coastal surf with white foam
           const hasLandNeighbor = [[gx - 1, gz], [gx + 1, gz], [gx, gz - 1], [gx, gz + 1]].some(([nx, nz]) => {
             if (nx < 0 || nx >= gridDim || nz < 0 || nz >= gridDim) return false;
-            const nc = TileMap.getCell(nx, nz);
-            return nc && nc.terrainType !== TerrainType.WATER;
+            return distToWater[nx][nz] > 0;
           });
-          if (hasLandNeighbor) toShore.push({ gx, gz });
-        } else if (c.terrainType === TerrainType.GRASS) {
-          // If grass borders water, it becomes golden beach sand
-          const hasWaterNeighbor = [[gx - 1, gz], [gx + 1, gz], [gx, gz - 1], [gx, gz + 1]].some(([nx, nz]) => {
-            if (nx < 0 || nx >= gridDim || nz < 0 || nz >= gridDim) return false;
-            return isWater(nx, nz);
-          });
-          if (hasWaterNeighbor) toSand.push({ gx, gz });
+          if (hasLandNeighbor) {
+            TileMap.setTerrain(gx, gz, TerrainType.WATER_SHORE);
+            occupied[gx][gz] = true;
+          }
+        } else if (distToWater[gx][gz] === 1) {
+          // Immediate border with water becomes golden beach sand
+          TileMap.setTerrain(gx, gz, TerrainType.SAND);
+          occupied[gx][gz] = true;
         }
       }
-    }
-
-    for (const { gx, gz } of toShore) {
-      TileMap.setTerrain(gx, gz, TerrainType.WATER_SHORE);
-      occupied[gx][gz] = true;
-    }
-    for (const { gx, gz } of toSand) {
-      TileMap.setTerrain(gx, gz, TerrainType.SAND);
     }
 
     layerTimings['Pass 1 (Geography)'] = performance.now() - t0;
@@ -360,16 +431,47 @@ export class MapBaker {
             const gx = baseGx + lx;
             const gz = baseGz + lz;
             if (gx < gridDim && gz < gridDim) {
+              // Preserve Statue of Liberty offshore island platform
+              if (gx >= platformGx && gx < platformGx + platformW && gz >= platformGz && gz < platformGz + platformH) {
+                continue;
+              }
+
               const cellData = mod.grid[lx][lz];
               const cell = TileMap.getCell(gx, gz);
-              if (cell && cell.terrainType !== TerrainType.WATER) {
-                cell.terrainType = cellData.terrainType;
-                cell.overlayType = cellData.overlayType;
-                cellRoadAxes[gx][gz] = cellData.roadAxis;
+              if (!cell) continue;
 
-                if (TileMap.isRoad(cellData.terrainType, cellData.overlayType)) {
+              if (distToWater[gx][gz] === 0) {
+                // Keep deep ocean water
+                cell.terrainType = TerrainType.WATER;
+                cell.overlayType = OverlayTileType.NONE;
+                cellRoadAxes[gx][gz] = undefined;
+                occupied[gx][gz] = true;
+                continue;
+              }
+
+              if (distToWater[gx][gz] <= 2) {
+                // Strict coastal buffer zone: NO roads may collide with water/shoreline!
+                if (distToWater[gx][gz] === 1) {
+                  cell.terrainType = TerrainType.SAND;
+                  cell.overlayType = OverlayTileType.NONE;
                   occupied[gx][gz] = true;
+                } else {
+                  // Distance 2: Pedestrian promenade boardwalk or lush coastal park
+                  const isPedestrianOrRoad = cellData.overlayType === OverlayTileType.ROAD || cellData.terrainType === TerrainType.SIDEWALK;
+                  cell.terrainType = isPedestrianOrRoad ? TerrainType.SIDEWALK : TerrainType.GRASS;
+                  cell.overlayType = cell.terrainType === TerrainType.SIDEWALK ? OverlayTileType.SIDEWALK : OverlayTileType.NONE;
                 }
+                cellRoadAxes[gx][gz] = undefined;
+                continue;
+              }
+
+              // Normal urban zone stamping (distToWater >= 3)
+              cell.terrainType = cellData.terrainType;
+              cell.overlayType = cellData.overlayType;
+              cellRoadAxes[gx][gz] = cellData.roadAxis;
+
+              if (TileMap.isRoad(cellData.terrainType, cellData.overlayType)) {
+                occupied[gx][gz] = true;
               }
             }
           }
@@ -409,6 +511,93 @@ export class MapBaker {
         TileMap.setRoad(27 + d, 31, 'NS'); occupied[27 + d][31] = true; cellRoadAxes[27 + d][31] = 'NS';
         TileMap.setRoad(24, 27 + d, 'EW'); occupied[24][27 + d] = true; cellRoadAxes[24][27 + d] = 'EW';
         TileMap.setRoad(31, 27 + d, 'EW'); occupied[31][27 + d] = true; cellRoadAxes[31][27 + d] = 'EW';
+      }
+    }
+
+    // ── POST-ROAD COASTAL SHORELINE & PROMENADE SYNTHESIS ──
+    // Re-verify that water transitions smoothly: WATER -> WATER_SHORE -> SAND -> SIDEWALK/GRASS -> ROADS
+    for (let gx = 0; gx < gridDim; gx++) {
+      for (let gz = 0; gz < gridDim; gz++) {
+        if (gx >= platformGx && gx < platformGx + platformW && gz >= platformGz && gz < platformGz + platformH) {
+          continue;
+        }
+
+        const cell = TileMap.getCell(gx, gz);
+        if (!cell) continue;
+
+        if (distToWater[gx][gz] === 0) {
+          // If water borders land, it becomes shallow coastal surf with white foam
+          const hasLandNeighbor = [[gx - 1, gz], [gx + 1, gz], [gx, gz - 1], [gx, gz + 1]].some(([nx, nz]) => {
+            if (nx < 0 || nx >= gridDim || nz < 0 || nz >= gridDim) return false;
+            return distToWater[nx][nz] > 0;
+          });
+          cell.terrainType = hasLandNeighbor ? TerrainType.WATER_SHORE : TerrainType.WATER;
+          cell.overlayType = OverlayTileType.NONE;
+          cellRoadAxes[gx][gz] = undefined;
+          occupied[gx][gz] = true;
+        } else if (distToWater[gx][gz] === 1) {
+          cell.terrainType = TerrainType.SAND;
+          cell.overlayType = OverlayTileType.NONE;
+          cellRoadAxes[gx][gz] = undefined;
+          occupied[gx][gz] = true;
+        } else if (distToWater[gx][gz] === 2) {
+          if (TileMap.isRoad(cell.terrainType, cell.overlayType)) {
+            cell.terrainType = TerrainType.SIDEWALK;
+            cell.overlayType = OverlayTileType.SIDEWALK;
+            cellRoadAxes[gx][gz] = undefined;
+          }
+        }
+      }
+    }
+
+    // ── MAP PERIMETER GREEN BUFFER PASS ──
+    // Smoothly blend the 64x64 city grid into the outer infinite green landscape
+    // by ensuring all non-arterial highway perimeter cells (Ring 0) are pure GRASS.
+    for (let i = 0; i < gridDim; i++) {
+      const perimeterCoords: Array<{ gx: number; gz: number; edge: 'N' | 'S' | 'W' | 'E' }> = [
+        { gx: i, gz: 0, edge: 'N' },
+        { gx: i, gz: gridDim - 1, edge: 'S' },
+        { gx: 0, gz: i, edge: 'W' },
+        { gx: gridDim - 1, gz: i, edge: 'E' },
+      ];
+
+      for (const { gx, gz, edge } of perimeterCoords) {
+        const cell = TileMap.getCell(gx, gz);
+        if (!cell) continue;
+
+        // Coastal water/beach at the border flows into the outer ocean
+        if (cell.terrainType === TerrainType.WATER || cell.terrainType === TerrainType.WATER_SHORE || cell.terrainType === TerrainType.SAND) {
+          continue;
+        }
+
+        let isArterialHighway = false;
+        const axis = cellRoadAxes[gx][gz];
+        const isRoad = TileMap.isRoad(cell.terrainType, cell.overlayType);
+
+        if (isRoad) {
+          if (edge === 'N' && (axis === 'NS' || cell.terrainType === TerrainType.ROAD_STRAIGHT_NS)) {
+            isArterialHighway = true;
+          } else if (edge === 'S' && (axis === 'NS' || cell.terrainType === TerrainType.ROAD_STRAIGHT_NS)) {
+            // South highway must have safe clearance from the water body
+            if (distToWater[gx][gz] >= 4) {
+              isArterialHighway = true;
+            }
+          } else if (edge === 'W' && (axis === 'EW' || cell.terrainType === TerrainType.ROAD_STRAIGHT_EW)) {
+            isArterialHighway = true;
+          } else if (edge === 'E' && (axis === 'EW' || cell.terrainType === TerrainType.ROAD_STRAIGHT_EW)) {
+            // East highway must have safe clearance from the water body
+            if (distToWater[gx][gz] >= 4) {
+              isArterialHighway = true;
+            }
+          }
+        }
+
+        if (!isArterialHighway) {
+          cell.terrainType = TerrainType.GRASS;
+          cell.overlayType = OverlayTileType.NONE;
+          cellRoadAxes[gx][gz] = undefined;
+          occupied[gx][gz] = true; // reserve buffer cell so no buildings spawn on Ring 0
+        }
       }
     }
 
@@ -457,12 +646,13 @@ export class MapBaker {
       }
     }
 
-    // 3. Guarantee all 4 signature 3D Landmark models are placed
+    // 3. Guarantee all 5 signature 3D Landmark models are placed
     const landmark3DList = [
-      { key: 'mega_titan',       gx: 34, gz: 18, lotType: 'landmark_3d' }, // 4x4 Apex Mega-Tower at mx=4, mz=2
-      { key: 'spaceship_hq',     gx: 10, gz: 10, lotType: 'landmark_3d' }, // 4x4 Alien Spaceship HQ at mx=1, mz=1
-      { key: 'financial_tower',  gx: 18, gz: 18, lotType: 'landmark_3d' }, // 3x3 Metro Financial Tower at mx=2, mz=2
-      { key: 'cyber_reactor',    gx: 34, gz: 34, lotType: 'landmark_3d' }, // 3x3 Quantum Cyber Reactor at mx=4, mz=4
+      { key: 'mega_titan',           gx: 34, gz: 18, lotType: 'landmark_3d' }, // 4x4 Apex Mega-Tower at mx=4, mz=2
+      { key: 'spaceship_hq',         gx: 10, gz: 10, lotType: 'landmark_3d' }, // 4x4 Alien Spaceship HQ at mx=1, mz=1
+      { key: 'financial_tower',      gx: 18, gz: 18, lotType: 'landmark_3d' }, // 3x3 Metro Financial Tower at mx=2, mz=2
+      { key: 'cyber_reactor',        gx: 34, gz: 34, lotType: 'landmark_3d' }, // 3x3 Quantum Cyber Reactor at mx=4, mz=4
+      { key: 'art_deco_skyscraper',  gx: 18, gz: 34, lotType: 'landmark_3d' }, // 4x4 Art Deco Empire Tower at mx=2, mz=4
     ];
 
     for (const lm of landmark3DList) {
@@ -473,15 +663,18 @@ export class MapBaker {
     }
 
     // 4. Urban streetfront infill pass: ensure vibrant streets without empty pavement
-    for (let gx = 1; gx < gridDim - 1; gx++) {
-      for (let gz = 1; gz < gridDim - 1; gz++) {
+    // Strictly bounds inside [2..gridDim - 3] to leave outer perimeter buffer rings pristine green!
+    for (let gx = 2; gx < gridDim - 2; gx++) {
+      for (let gz = 2; gz < gridDim - 2; gz++) {
         if (!occupied[gx][gz]) {
           const cell = TileMap.getCell(gx, gz);
           if (
             cell &&
             cell.overlayType !== OverlayTileType.ROAD &&
             cell.terrainType !== TerrainType.WATER &&
-            cell.terrainType !== TerrainType.WATER_SHORE
+            cell.terrainType !== TerrainType.WATER_SHORE &&
+            cell.terrainType !== TerrainType.SAND &&
+            distToWater[gx][gz] > 2
           ) {
             // Check if cell borders a sidewalk or road
             let hasStreetfront = false;
@@ -492,14 +685,6 @@ export class MapBaker {
                 hasStreetfront = true;
                 break;
               }
-            }
-
-            // Keep sandy beaches open, with occasional beach pavilion
-            if (cell.terrainType === TerrainType.SAND) {
-              if (hasStreetfront && Math.abs(gx * 31 + gz * 97) % 100 < 20) {
-                placeBuilding(gx, gz, 'b1', 'beach_kiosk', 0);
-              }
-              continue;
             }
 
             // District-aware infill: Suburbs get family homes (Brownstones b2) and quiet apartments (b3)
@@ -551,6 +736,8 @@ export class MapBaker {
     const totalTime = performance.now() - startTime;
     layerTimings['Total Bake Time'] = totalTime;
 
+    const { boundaryExits, boundaryWater } = MapBaker.analyzeBoundaries(serializedTiles, gridDim);
+
     const mapData: GeneratedMapData = {
       version: this.SCHEMA_VERSION,
       seed,
@@ -562,7 +749,9 @@ export class MapBaker {
         generatedAt: new Date().toISOString(),
         layerTimings,
         wfcAttempts: 50,
-        buildingCount: serializedBuildings.length
+        buildingCount: serializedBuildings.length,
+        boundaryExits,
+        boundaryWater
       }
     };
 
@@ -576,5 +765,150 @@ export class MapBaker {
     );
 
     return { data: mapData, jsonString, snapshots };
+  }
+
+  /**
+   * Analyzes the 4 boundary borders of the tile grid to detect where arterial highways exit
+   * and where the coastal ocean/sea borders the map.
+   */
+  public static analyzeBoundaries(
+    tiles: SerializedTile[][],
+    gridDim: number
+  ): { boundaryExits: BoundaryExitInfo[]; boundaryWater: BoundaryWaterInfo } {
+    const boundaryExits: BoundaryExitInfo[] = [];
+
+    const isRoadTile = (t: SerializedTile): boolean => {
+      return (
+        t.overlayType === OverlayTileType.ROAD ||
+        t.terrainType === TerrainType.ROAD_STRAIGHT_NS ||
+        t.terrainType === TerrainType.ROAD_STRAIGHT_EW ||
+        t.terrainType === TerrainType.ROAD_INTERSECTION ||
+        t.terrainType === TerrainType.ROAD_ROUNDABOUT ||
+        (t.terrainType >= TerrainType.ROAD_CURVE_NE && t.terrainType <= TerrainType.ROAD_CURVE_SW)
+      );
+    };
+
+    const isWaterTile = (t: SerializedTile): boolean => {
+      return t.terrainType === TerrainType.WATER || t.terrainType === TerrainType.WATER_SHORE;
+    };
+
+    // 1. North Border (gz = 0): Roads pointing NS
+    let currentSpanStart: number | null = null;
+    for (let gx = 0; gx < gridDim; gx++) {
+      const tile = tiles[gx]?.[0];
+      const road = tile && isRoadTile(tile) && (tile.roadAxis === 'NS' || tile.terrainType === TerrainType.ROAD_STRAIGHT_NS || tile.isIntersection || tile.overlayType === OverlayTileType.ROAD);
+      if (road) {
+        if (currentSpanStart === null) currentSpanStart = gx;
+      } else {
+        if (currentSpanStart !== null) {
+          const width = gx - currentSpanStart;
+          const centerWorldX = -TileMap.MAP_BOUNDS / 2 + (currentSpanStart + width * 0.5) * TileMap.TILE_SIZE;
+          boundaryExits.push({ axis: 'NS', edge: 'N', gridIndex: currentSpanStart, worldCoord: centerWorldX, widthTiles: width });
+          currentSpanStart = null;
+        }
+      }
+    }
+    if (currentSpanStart !== null) {
+      const width = gridDim - currentSpanStart;
+      const centerWorldX = -TileMap.MAP_BOUNDS / 2 + (currentSpanStart + width * 0.5) * TileMap.TILE_SIZE;
+      boundaryExits.push({ axis: 'NS', edge: 'N', gridIndex: currentSpanStart, worldCoord: centerWorldX, widthTiles: width });
+    }
+
+    // 2. Water Analysis (South & East coasts) computed first for exit safety checks
+    let hasSouthWater = false;
+    let southWaterMinX = gridDim;
+    for (let gx = 0; gx < gridDim; gx++) {
+      if (isWaterTile(tiles[gx][gridDim - 1])) {
+        hasSouthWater = true;
+        if (gx < southWaterMinX) southWaterMinX = gx;
+      }
+    }
+
+    let hasEastWater = false;
+    let eastWaterMinZ = gridDim;
+    for (let gz = 0; gz < gridDim; gz++) {
+      if (isWaterTile(tiles[gridDim - 1][gz])) {
+        hasEastWater = true;
+        if (gz < eastWaterMinZ) eastWaterMinZ = gz;
+      }
+    }
+
+    // 3. South Border (gz = gridDim - 1): Roads pointing NS (safe land only, >= 4 tiles from water)
+    currentSpanStart = null;
+    for (let gx = 0; gx < gridDim; gx++) {
+      const tile = tiles[gx]?.[gridDim - 1];
+      const isNearWater = hasSouthWater && gx >= southWaterMinX - 4;
+      const road = tile && !isWaterTile(tile) && !isNearWater && isRoadTile(tile) && (tile.roadAxis === 'NS' || tile.terrainType === TerrainType.ROAD_STRAIGHT_NS || tile.isIntersection || tile.overlayType === OverlayTileType.ROAD);
+      if (road) {
+        if (currentSpanStart === null) currentSpanStart = gx;
+      } else {
+        if (currentSpanStart !== null) {
+          const width = gx - currentSpanStart;
+          const centerWorldX = -TileMap.MAP_BOUNDS / 2 + (currentSpanStart + width * 0.5) * TileMap.TILE_SIZE;
+          boundaryExits.push({ axis: 'NS', edge: 'S', gridIndex: currentSpanStart, worldCoord: centerWorldX, widthTiles: width });
+          currentSpanStart = null;
+        }
+      }
+    }
+    if (currentSpanStart !== null) {
+      const width = gridDim - currentSpanStart;
+      const centerWorldX = -TileMap.MAP_BOUNDS / 2 + (currentSpanStart + width * 0.5) * TileMap.TILE_SIZE;
+      boundaryExits.push({ axis: 'NS', edge: 'S', gridIndex: currentSpanStart, worldCoord: centerWorldX, widthTiles: width });
+    }
+
+    // 4. West Border (gx = 0): Roads pointing EW
+    currentSpanStart = null;
+    for (let gz = 0; gz < gridDim; gz++) {
+      const tile = tiles[0]?.[gz];
+      const road = tile && isRoadTile(tile) && (tile.roadAxis === 'EW' || tile.terrainType === TerrainType.ROAD_STRAIGHT_EW || tile.isIntersection || tile.overlayType === OverlayTileType.ROAD);
+      if (road) {
+        if (currentSpanStart === null) currentSpanStart = gz;
+      } else {
+        if (currentSpanStart !== null) {
+          const width = gz - currentSpanStart;
+          const centerWorldZ = -TileMap.MAP_BOUNDS / 2 + (currentSpanStart + width * 0.5) * TileMap.TILE_SIZE;
+          boundaryExits.push({ axis: 'EW', edge: 'W', gridIndex: currentSpanStart, worldCoord: centerWorldZ, widthTiles: width });
+          currentSpanStart = null;
+        }
+      }
+    }
+    if (currentSpanStart !== null) {
+      const width = gridDim - currentSpanStart;
+      const centerWorldZ = -TileMap.MAP_BOUNDS / 2 + (currentSpanStart + width * 0.5) * TileMap.TILE_SIZE;
+      boundaryExits.push({ axis: 'EW', edge: 'W', gridIndex: currentSpanStart, worldCoord: centerWorldZ, widthTiles: width });
+    }
+
+    // 5. East Border (gx = gridDim - 1): Roads pointing EW (safe land only, >= 4 tiles from water)
+    currentSpanStart = null;
+    for (let gz = 0; gz < gridDim; gz++) {
+      const tile = tiles[gridDim - 1]?.[gz];
+      const isNearWater = hasEastWater && gz >= eastWaterMinZ - 4;
+      const road = tile && !isWaterTile(tile) && !isNearWater && isRoadTile(tile) && (tile.roadAxis === 'EW' || tile.terrainType === TerrainType.ROAD_STRAIGHT_EW || tile.isIntersection || tile.overlayType === OverlayTileType.ROAD);
+      if (road) {
+        if (currentSpanStart === null) currentSpanStart = gz;
+      } else {
+        if (currentSpanStart !== null) {
+          const width = gz - currentSpanStart;
+          const centerWorldZ = -TileMap.MAP_BOUNDS / 2 + (currentSpanStart + width * 0.5) * TileMap.TILE_SIZE;
+          boundaryExits.push({ axis: 'EW', edge: 'E', gridIndex: currentSpanStart, worldCoord: centerWorldZ, widthTiles: width });
+          currentSpanStart = null;
+        }
+      }
+    }
+    if (currentSpanStart !== null) {
+      const width = gridDim - currentSpanStart;
+      const centerWorldZ = -TileMap.MAP_BOUNDS / 2 + (currentSpanStart + width * 0.5) * TileMap.TILE_SIZE;
+      boundaryExits.push({ axis: 'EW', edge: 'E', gridIndex: currentSpanStart, worldCoord: centerWorldZ, widthTiles: width });
+    }
+
+    return {
+      boundaryExits,
+      boundaryWater: {
+        hasSouthWater,
+        southWaterMinX: hasSouthWater ? southWaterMinX : gridDim,
+        hasEastWater,
+        eastWaterMinZ: hasEastWater ? eastWaterMinZ : gridDim,
+      }
+    };
   }
 }

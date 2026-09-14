@@ -36,11 +36,28 @@ export interface SerializedWaypoint {
   name: string;
 }
 
+export interface BoundaryExitInfo {
+  axis: 'NS' | 'EW';
+  gridIndex: number; // gx for NS, gz for EW
+  edge: 'N' | 'S' | 'W' | 'E';
+  worldCoord: number; // worldX for NS, worldZ for EW
+  widthTiles: number; // e.g. 1 or 2 tiles
+}
+
+export interface BoundaryWaterInfo {
+  hasSouthWater: boolean;
+  southWaterMinX: number;
+  hasEastWater: boolean;
+  eastWaterMinZ: number;
+}
+
 export interface GenerationMetadata {
   generatedAt: string;
   layerTimings: Record<string, number>;
   wfcAttempts: number;
   buildingCount: number;
+  boundaryExits?: BoundaryExitInfo[];
+  boundaryWater?: BoundaryWaterInfo;
 }
 
 export interface GeneratedMapData {

@@ -169,8 +169,9 @@ export class BuildingRenderer {
   private static lastFrameMap = new Map<Entity, number>();
   private static cachedTexture = new Map<Entity, THREE.Texture | null>();
   private static cachedOffset = new Map<Entity, any>();
-  private static cachedTypeKey = new Map<Entity, string>();
-  private static cachedDef = new Map<Entity, any>();
+  private static cachedTypeInfo = new Map<Entity, { typeKey: string; def: any }>();
+  private static initializedTransforms = new Set<Entity>();
+  private static activeTransforms = new Set<Entity>();
   private static collapseMap = new Map<Entity, { tiltAngle: number; impactVector: THREE.Vector3 }>();
 
   // Smooth 2D frame interpolation & 3D real-time demolition state
@@ -224,12 +225,14 @@ export class BuildingRenderer {
         });
       }
       shadow = new THREE.Mesh(this.sharedShadowGeo, this.sharedShadowMat);
+      shadow.matrixAutoUpdate = false;
       shadow.rotation.x = -Math.PI / 2;
       shadow.rotation.z = Math.PI / 4; // 45-deg isometric lot orientation
       shadow.renderOrder = 4; // Ground layer: above terrain (0), below decals (10) and buildings (100+)
       const s = size * 1.35;
       shadow.scale.set(s, s, 1);
       shadow.position.set(pos.worldX, 0.04, pos.worldY);
+      shadow.updateMatrix();
       SceneManager.groundGroup.add(shadow);
       this.shadowMeshes.set(entity, shadow);
     }
@@ -237,32 +240,36 @@ export class BuildingRenderer {
   }
 
   /**
-   * Helper to resolve typeKey and def with caching per entity.
-   * Avoids running regex match on texturePrefix every frame in tick().
+   * Helper to resolve typeKey and def with zero-allocation caching per entity.
+   * Returns pre-cached object reference without allocating new wrapper objects in tick().
    */
   public static getTypeInfo(entity: Entity, texturePrefix: string): { typeKey: string; def: any } {
-    let typeKey = this.cachedTypeKey.get(entity);
-    let def = this.cachedDef.get(entity);
+    let info = this.cachedTypeInfo.get(entity);
 
-    if (!typeKey || !def) {
+    if (!info) {
       const prefixMatch = texturePrefix ? texturePrefix.match(/building_([a-zA-Z0-9_]+)_stage_/) : null;
-      typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
-      def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
-
-      this.cachedTypeKey.set(entity, typeKey);
-      this.cachedDef.set(entity, def);
+      const typeKey = prefixMatch ? prefixMatch[1] : DEFAULT_BUILDING_KEY;
+      const def = BUILDING_DEFS[typeKey] || BUILDING_DEFS[DEFAULT_BUILDING_KEY];
+      info = { typeKey, def };
+      this.cachedTypeInfo.set(entity, info);
     }
 
-    return { typeKey, def };
+    return info;
+  }
+
+  public static markDirty(entity: Entity) {
+    this.activeTransforms.add(entity);
   }
 
   public static triggerCollapse(entity: Entity, impactDir: THREE.Vector3) {
+    this.activeTransforms.add(entity);
     if (!this.collapseMap.has(entity)) {
       this.collapseMap.set(entity, { tiltAngle: ZERO_VALUE, impactVector: impactDir.clone().normalize() });
     }
   }
 
   public static trigger2DDemolition(entity: Entity, footprintSize: number, palette?: number[]) {
+    this.activeTransforms.add(entity);
     if (this.demo2DMap.has(entity)) return;
     this.demo2DMap.set(entity, {
       elapsed: ZERO_VALUE,
@@ -299,13 +306,13 @@ export class BuildingRenderer {
     return sprite ? sprite.position.clone() : null;
   }
 
-  public static getVisualCenter(entity: Entity): THREE.Vector3 | null {
+  public static getVisualCenter(entity: Entity, outVec?: THREE.Vector3): THREE.Vector3 | null {
     const dummy = this.dummyHitSprites.get(entity);
-    if (dummy) return dummy.position.clone();
+    if (dummy) return outVec ? outVec.copy(dummy.position) : dummy.position.clone();
     const sprite = this.sprites.get(entity);
-    if (sprite) return sprite.position.clone();
+    if (sprite) return outVec ? outVec.copy(sprite.position) : sprite.position.clone();
     const model = this.models3D.get(entity);
-    if (model) return new THREE.Vector3(model.position.x, 30, model.position.z);
+    if (model) return outVec ? outVec.set(model.position.x, 30, model.position.z) : new THREE.Vector3(model.position.x, 30, model.position.z);
     return null;
   }
 
@@ -320,6 +327,7 @@ export class BuildingRenderer {
    * Called by FXRenderer when it processes a hit_fx event or state swap.
    */
   public static applyHitFX(entity: Entity, intensity: 'light' | 'heavy') {
+    this.activeTransforms.add(entity);
     let effects = this.hitFxMap.get(entity);
     if (!effects) {
       effects = [];
@@ -549,6 +557,7 @@ export class BuildingRenderer {
     let displayFrame = this.displayFrameMap.get(entity) ?? renderState.currentFrame ?? 0;
 
     if (displayFrame < targetFrame) {
+      this.activeTransforms.add(entity);
       const prevInt = Math.floor(displayFrame);
       displayFrame = Math.min(targetFrame, displayFrame + delta * this.FRAME_STEP_SPEED);
       this.displayFrameMap.set(entity, displayFrame);
@@ -592,6 +601,7 @@ export class BuildingRenderer {
         depthTest: true // Correctly tests depth against 3D buildings; ground plane (depthWrite: false) never slices sprites!
       });
       sprite = new THREE.Mesh(this.sharedGeometry, material);
+      sprite.matrixAutoUpdate = false;
       sprite.castShadow = false;
       sprite.receiveShadow = false;
 
@@ -642,6 +652,7 @@ export class BuildingRenderer {
     }
 
     if (lastFrame !== renderState.currentFrame || texture === undefined) {
+      this.activeTransforms.add(entity);
       const textureName = `${renderState.texturePrefix}${renderState.currentFrame}`;
       const newTexture = AssetLoader.getTexture(textureName);
       offset = AssetLoader.getSpriteOffset(typeKey, renderState.currentFrame);
@@ -659,6 +670,7 @@ export class BuildingRenderer {
     }
 
     if (blendState.isBlending) {
+      this.activeTransforms.add(entity);
       blendState.mixRatio = Math.min(1.0, blendState.mixRatio + delta * 3.33);
       if (blendState.mixRatio >= 1.0) {
         blendState.texA = blendState.texB;
@@ -728,6 +740,11 @@ export class BuildingRenderer {
     demoSinkOffset: number = ZERO_VALUE,
     demoTiltZ: number = ZERO_VALUE
   ) {
+    const isDirty = !this.initializedTransforms.has(entity) || this.activeTransforms.has(entity);
+    if (!isDirty) {
+      return;
+    }
+
     // 1. Footprint & Mesh Sizing (Aligned to Grid Cell Lot Dimensions)
     const { def } = this.getTypeInfo(entity, renderState.texturePrefix);
     const vScale = def ? (def.visualScale || 1.0) : 1.0;
@@ -784,7 +801,6 @@ export class BuildingRenderer {
     // 4. Collapse & Topple Physics
     const collapse = this.collapseMap.get(entity);
     if (collapse) {
-      sprite.matrixAutoUpdate = true;
       collapse.tiltAngle += delta * COLLAPSE_TILT_SPEED;
 
       // Keep billboard Y-rotation facing camera (ISOMETRIC_ROTATION_Y) and apply subtle in-plane Z lean
@@ -805,7 +821,6 @@ export class BuildingRenderer {
       }
     } else {
       // Clean upright vertical placement facing isometric camera, with demolition sink & tilt
-      sprite.matrixAutoUpdate = true;
       sprite.scale.set(sx, sy, INITIAL_SCALE_UNIT);
       sprite.rotation.set(0, ISOMETRIC_ROTATION_Y, demoTiltZ);
       sprite.position.set(tx, y_mesh - demoSinkOffset, tz);
@@ -821,6 +836,32 @@ export class BuildingRenderer {
         mat.opacity = Math.max(0, 0.45 - collapse.tiltAngle * 0.5);
       } else {
         mat.opacity = 0.45 * (renderState.opacity ?? 1.0);
+      }
+    }
+
+    // Explicitly update matrices for frozen transform pipeline
+    sprite.updateMatrix();
+    sprite.matrixWorldNeedsUpdate = true;
+    if (shadow) {
+      shadow.updateMatrix();
+      shadow.matrixWorldNeedsUpdate = true;
+    }
+
+    // Check if the entity has returned to steady state
+    const blendState = this.blendMap.get(entity);
+    const stillActive = (
+      this.hitFxMap.has(entity) ||
+      this.collapseMap.has(entity) ||
+      this.demo2DMap.has(entity) ||
+      (blendState?.isBlending ?? false)
+    );
+
+    if (!stillActive) {
+      this.activeTransforms.delete(entity);
+      this.initializedTransforms.add(entity);
+      sprite.matrixAutoUpdate = false;
+      if (shadow) {
+        shadow.matrixAutoUpdate = false;
       }
     }
   }
@@ -1221,8 +1262,10 @@ export class BuildingRenderer {
         this.lastFrameMap.delete(entity);
         this.cachedTexture.delete(entity);
         this.cachedOffset.delete(entity);
-        this.cachedTypeKey.delete(entity);
-        this.cachedDef.delete(entity);
+        this.cachedTypeInfo.delete(entity);
+        this.initializedTransforms.delete(entity);
+        this.activeTransforms.delete(entity);
+        HitZoneManager.unregisterBuilding(entity);
         this.displayFrameMap.delete(entity);
         this.demoStateMap.delete(entity);
         this.demo2DMap.delete(entity);
@@ -1261,8 +1304,10 @@ export class BuildingRenderer {
         this.animActions.delete(entity);
         this.hitFxMap.delete(entity);
         this.flashMap.delete(entity);
-        this.cachedTypeKey.delete(entity);
-        this.cachedDef.delete(entity);
+        this.cachedTypeInfo.delete(entity);
+        this.initializedTransforms.delete(entity);
+        this.activeTransforms.delete(entity);
+        HitZoneManager.unregisterBuilding(entity);
         this.displayFrameMap.delete(entity);
         this.demoStateMap.delete(entity);
         this.demo2DMap.delete(entity);
@@ -1312,8 +1357,10 @@ export class BuildingRenderer {
     this.lastFrameMap.clear();
     this.cachedTexture.clear();
     this.cachedOffset.clear();
-    this.cachedTypeKey.clear();
-    this.cachedDef.clear();
+    this.cachedTypeInfo.clear();
+    this.initializedTransforms.clear();
+    this.activeTransforms.clear();
     this.demo2DMap.clear();
+    HitZoneManager.clearAll();
   }
 }

@@ -39,6 +39,8 @@ export class ParticleRenderer {
   private static tempColor = new THREE.Color();
   private static emberHotColor = new THREE.Color(0xffcc33);
   private static emberCoolColor = new THREE.Color(0xcc2200);
+  private static lastPCount = ZERO_VALUE;
+  private static lastDCount = ZERO_VALUE;
 
   public static init() {
     // 1. Particles (sparks, dust, smoke, fire_embers)
@@ -115,10 +117,13 @@ export class ParticleRenderer {
       }
     }
     this.particleMesh.count = pCount;
-    this.particleMesh.instanceMatrix.needsUpdate = true;
-    if (this.particleMesh.instanceColor) {
-      this.particleMesh.instanceColor.needsUpdate = true;
+    if (pCount > ZERO_VALUE || this.lastPCount > ZERO_VALUE) {
+      this.particleMesh.instanceMatrix.needsUpdate = true;
+      if (this.particleMesh.instanceColor) {
+        this.particleMesh.instanceColor.needsUpdate = true;
+      }
     }
+    this.lastPCount = pCount;
 
     // Sync debris
     let dCount = ZERO_VALUE;
@@ -140,9 +145,12 @@ export class ParticleRenderer {
       }
     }
     this.debrisMesh.count = dCount;
-    this.debrisMesh.instanceMatrix.needsUpdate = true;
-    if (this.debrisMesh.instanceColor) {
-      this.debrisMesh.instanceColor.needsUpdate = true;
+    if (dCount > ZERO_VALUE || this.lastDCount > ZERO_VALUE) {
+      this.debrisMesh.instanceMatrix.needsUpdate = true;
+      if (this.debrisMesh.instanceColor) {
+        this.debrisMesh.instanceColor.needsUpdate = true;
+      }
     }
+    this.lastDCount = dCount;
   }
 }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { AnimatedSprite3D } from './AnimatedSprite3D';
 import { SceneManager } from './SceneManager';
-import { DestructionSystem, FXEvent } from '../systems/DestructionSystem';
+import { DestructionSystem } from '../systems/DestructionSystem';
 import { AssetLoader } from '../assets/AssetLoader';
 import { CameraController } from './CameraController';
 import { BuildingRenderer } from './BuildingRenderer';
@@ -279,9 +279,11 @@ export class FXRenderer {
   }
 
   public static tick(delta: number) {
-    // 1. Process queued events from Simulation Layer
-    while (DestructionSystem.fxQueue.length > ZERO_VALUE) {
-      const event = DestructionSystem.fxQueue.shift() as FXEvent;
+    // 1. Process queued events from Simulation Layer (O(N) cursor loop, zero array-shift churn)
+    const queue = DestructionSystem.fxQueue;
+    const qLen = queue.length;
+    for (let qIdx = ZERO_VALUE; qIdx < qLen; qIdx++) {
+      const event = queue[qIdx];
       if (!event) continue;
 
       // Immediately notify procedural AudioSystem before any visual culling
@@ -329,6 +331,7 @@ export class FXRenderer {
         this.spawnLaser(event.x, event.y, event.z, event.data.tx, event.data.ty, event.data.tz);
       }
     }
+    queue.length = ZERO_VALUE;
 
     // 2. Tick dynamic impact lights (dimming over 100-200ms)
     for (let i = ZERO_VALUE; i < this.lightPool.length; i++) {

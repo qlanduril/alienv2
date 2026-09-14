@@ -3,6 +3,7 @@ import { Entity } from '../core/ECS';
 import { HealthComponent } from '../core/Components';
 import { DamageZone, ZoneDef } from '../core/ZoneDefs';
 import { InputManager } from '../input/InputManager';
+import { SpatialGrid } from '../core/SpatialGrid';
 
 // --- HitZoneManager Constants ---
 const ZERO_VALUE = 0;
@@ -28,13 +29,23 @@ export class HitZoneManager {
   // Maps invisible hit mesh UUID → { entity, zone, uvOffset }
   private static zoneObjects = new Map<string, { entity: Entity, zone: DamageZone, uvCenter: THREE.Vector2 }>();
   private static allZoneMeshes: THREE.Mesh[] = [];
-  
+  private static entityZoneMeshes = new Map<Entity, THREE.Mesh[]>();
+  private static candidateMeshes: THREE.Mesh[] = [];
+
   // Reusable static Raycaster & Vectors to eliminate garbage collection spikes
   private static raycaster = new THREE.Raycaster();
   private static pointerVector = new THREE.Vector2();
   private static tempVec = new THREE.Vector3();
+  private static staticGroundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private static groundHitVec = new THREE.Vector3();
 
   public static createZonesForBuilding(entity: Entity, sprite: THREE.Mesh, zones: ZoneDef[]) {
+    let meshList = this.entityZoneMeshes.get(entity);
+    if (!meshList) {
+      meshList = [];
+      this.entityZoneMeshes.set(entity, meshList);
+    }
+
     for (const def of zones) {
       const width = def.u1 - def.u0;
       const height = def.v1 - def.v0;
@@ -59,19 +70,80 @@ export class HitZoneManager {
         uvCenter: new THREE.Vector2(uCenter, vCenter) 
       });
       this.allZoneMeshes.push(mesh);
+      meshList.push(mesh);
     }
   }
 
-  public static getHitZone(camera: THREE.Camera): HitZoneResult | null {
+  public static unregisterBuilding(entity: Entity) {
+    const meshes = this.entityZoneMeshes.get(entity);
+    if (meshes) {
+      for (let i = 0; i < meshes.length; i++) {
+        const mesh = meshes[i];
+        if (mesh.parent) {
+          mesh.parent.remove(mesh);
+        }
+        this.zoneObjects.delete(mesh.uuid);
+        const idx = this.allZoneMeshes.indexOf(mesh);
+        if (idx !== -1) {
+          this.allZoneMeshes.splice(idx, 1);
+        }
+        mesh.geometry.dispose();
+        if (Array.isArray(mesh.material)) {
+          mesh.material.forEach(m => m.dispose());
+        } else {
+          mesh.material.dispose();
+        }
+      }
+      this.entityZoneMeshes.delete(entity);
+    }
+  }
+
+  public static getHitZone(camera: THREE.Camera, groundPos?: { x: number; z: number } | null): HitZoneResult | null {
     if (this.allZoneMeshes.length === ZERO_VALUE) return null;
 
     const ndc = InputManager.getMouseNDC();
     this.pointerVector.set(ndc.x, ndc.y);
     this.raycaster.setFromCamera(this.pointerVector, camera);
-    
-    // intersectObjects against invisible hit meshes
-    const hits = this.raycaster.intersectObjects(this.allZoneMeshes, false);
-    if (hits.length === ZERO_VALUE) return null;
+
+    // Spatially-partitioned raycast filtering: test only candidate meshes within proximity of cursor ground point
+    let targetMeshes: THREE.Mesh[] = this.allZoneMeshes;
+    let gx = groundPos ? groundPos.x : 0;
+    let gz = groundPos ? groundPos.z : 0;
+
+    if (!groundPos) {
+      const hit = this.raycaster.ray.intersectPlane(this.staticGroundPlane, this.groundHitVec);
+      if (hit) {
+        gx = hit.x;
+        gz = hit.z;
+      }
+    }
+
+    const candidates = SpatialGrid.queryRadius(gx, gz, 140);
+    if (candidates.length > 0) {
+      this.candidateMeshes.length = 0;
+      for (let i = 0; i < candidates.length; i++) {
+        const meshes = this.entityZoneMeshes.get(candidates[i]);
+        if (meshes) {
+          for (let j = 0; j < meshes.length; j++) {
+            this.candidateMeshes.push(meshes[j]);
+          }
+        }
+      }
+      if (this.candidateMeshes.length > 0) {
+        targetMeshes = this.candidateMeshes;
+      }
+    }
+
+    let hits = this.raycaster.intersectObjects(targetMeshes, false);
+    if (hits.length === ZERO_VALUE) {
+      // Fallback: if narrow candidate test missed, check all meshes if not already tested
+      if (targetMeshes !== this.allZoneMeshes) {
+        hits = this.raycaster.intersectObjects(this.allZoneMeshes, false);
+        if (hits.length === ZERO_VALUE) return null;
+      } else {
+        return null;
+      }
+    }
 
     // Single hit: fast path
     if (hits.length === 1) {
@@ -160,6 +232,8 @@ export class HitZoneManager {
       }
     }
     this.zoneObjects.clear();
-    this.allZoneMeshes = [];
+    this.allZoneMeshes.length = 0;
+    this.entityZoneMeshes.clear();
+    this.candidateMeshes.length = 0;
   }
 }

@@ -34,6 +34,7 @@ import { ScoreSystem } from './ScoreSystem';
 import { UIOverlay } from '../rendering/UIOverlay';
 import { TrafficSystem } from './TrafficSystem';
 import { DefenseSystem } from './DefenseSystem';
+import { CameraController } from '../rendering/CameraController';
 
 export class DestructionSystem {
   public static fxQueue: FXEvent[] = [];
@@ -65,6 +66,10 @@ export class DestructionSystem {
         const zonalHealth = ZonalHealthComponent.get(entity);
         const pos = PositionComponent.get(entity);
         if (!zonalHealth || !pos) continue;
+
+        // Viewport frustum culling: skip ambient smoke/fire simulation for off-screen buildings
+        if (!CameraController.isPointInView(pos.worldX, pos.worldY)) continue;
+
         const dmgRatio = 1 - zonalHealth.totalHp / zonalHealth.maxTotalHp;
         if (dmgRatio > AMBIENT_FIRE_THRESHOLD && Math.random() < dmgRatio * 0.6) {
           this.fxQueue.push({ type: 'fire', x: pos.worldX, y: pos.worldY, z: pos.worldZ, data: { entityId: entity } });

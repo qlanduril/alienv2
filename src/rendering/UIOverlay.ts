@@ -66,6 +66,18 @@ export class UIOverlay {
   private static currentDestructionPercent: number = 0;
   private static tempVec = new THREE.Vector3();
 
+  // Cached HUD values to eliminate redundant DOM mutations
+  private static lastScore = -1;
+  private static lastHighScore = -1;
+  private static lastCombo = -1;
+  private static lastDestructStr = '';
+  private static lastShield = -1;
+  private static lastHull = -1;
+  private static lastHullColor = '';
+  private static lastWeapon = '';
+  private static lastOverheated = false;
+  private static lastBeamActive = false;
+
   public static init() {
     // 1. Top HUD Container
     const hudContainer = document.createElement('div');
@@ -494,42 +506,67 @@ export class UIOverlay {
       }
     }
 
-    // 4. Update Command Center HUD
+    // 4. Update Command Center HUD (throttled/cached to eliminate redundant DOM mutations)
     if (this.scoreValEl) {
-      this.scoreValEl.innerText = ScoreSystem.getScore().toLocaleString();
+      const score = ScoreSystem.getScore();
+      if (score !== this.lastScore) {
+        this.scoreValEl.innerText = score.toLocaleString();
+        this.lastScore = score;
+      }
     }
     if (this.highValEl) {
-      this.highValEl.innerText = ScoreSystem.getHighScore().toLocaleString();
+      const high = ScoreSystem.getHighScore();
+      if (high !== this.lastHighScore) {
+        this.highValEl.innerText = high.toLocaleString();
+        this.lastHighScore = high;
+      }
     }
 
     if (this.comboBadgeEl) {
       const combo = ScoreSystem.getCombo();
-      if (combo > 1) {
-        this.comboBadgeEl.style.display = 'block';
-        this.comboBadgeEl.innerText = `x${combo} COMBO!`;
-        this.comboBadgeEl.style.background = combo >= 4 ? '#ef4444' : (combo >= 3 ? '#f59e0b' : '#3b82f6');
-        this.comboBadgeEl.style.boxShadow = `0 0 10px ${combo >= 4 ? '#ef4444' : '#f59e0b'}`;
-      } else {
-        this.comboBadgeEl.style.display = 'none';
+      if (combo !== this.lastCombo) {
+        this.lastCombo = combo;
+        if (combo > 1) {
+          this.comboBadgeEl.style.display = 'block';
+          this.comboBadgeEl.innerText = `x${combo} COMBO!`;
+          this.comboBadgeEl.style.background = combo >= 4 ? '#ef4444' : (combo >= 3 ? '#f59e0b' : '#3b82f6');
+          this.comboBadgeEl.style.boxShadow = `0 0 10px ${combo >= 4 ? '#ef4444' : '#f59e0b'}`;
+        } else {
+          this.comboBadgeEl.style.display = 'none';
+        }
       }
     }
 
     if (this.destructValEl && this.destructBarEl) {
-      this.destructValEl.innerText = `${this.currentDestructionPercent.toFixed(1)}%`;
-      this.destructBarEl.style.width = `${Math.min(100, this.currentDestructionPercent)}%`;
+      const destructStr = `${this.currentDestructionPercent.toFixed(1)}%`;
+      if (destructStr !== this.lastDestructStr) {
+        this.lastDestructStr = destructStr;
+        this.destructValEl.innerText = destructStr;
+        this.destructBarEl.style.width = `${Math.min(100, this.currentDestructionPercent)}%`;
+      }
     }
 
     if (this.shieldValEl && this.shieldBarEl) {
       const shield = Math.max(0, Math.round(DefenseSystem.playerShield));
-      this.shieldValEl.innerText = `${shield}%`;
-      this.shieldBarEl.style.width = `${shield}%`;
+      if (shield !== this.lastShield) {
+        this.lastShield = shield;
+        this.shieldValEl.innerText = `${shield}%`;
+        this.shieldBarEl.style.width = `${shield}%`;
+      }
     }
 
     if (this.hullValEl && this.hullBarEl) {
       const hull = Math.max(0, Math.round(DefenseSystem.playerHull));
-      this.hullValEl.innerText = `${hull}%`;
-      this.hullBarEl.style.width = `${hull}%`;
-      this.hullBarEl.style.background = hull > 50 ? '#4ade80' : (hull > 25 ? '#facc15' : '#ef4444');
+      if (hull !== this.lastHull) {
+        this.lastHull = hull;
+        this.hullValEl.innerText = `${hull}%`;
+        this.hullBarEl.style.width = `${hull}%`;
+        const color = hull > 50 ? '#4ade80' : (hull > 25 ? '#facc15' : '#ef4444');
+        if (color !== this.lastHullColor) {
+          this.lastHullColor = color;
+          this.hullBarEl.style.background = color;
+        }
+      }
     }
 
     // Sync Active Weapon Highlights
@@ -546,40 +583,47 @@ export class UIOverlay {
     const isCluster = currentWeapon === 'cluster';
     const isBeam = currentWeapon === 'beam';
 
-    if (this.weaponBtn1) {
-      this.weaponBtn1.style.background = isLaser ? '#0284c7' : '#1e293b';
-      this.weaponBtn1.style.borderColor = isLaser ? '#38bdf8' : 'rgba(255,255,255,0.2)';
-      this.weaponBtn1.style.color = isLaser ? '#ffffff' : '#94a3b8';
+    if (currentWeapon !== this.lastWeapon) {
+      this.lastWeapon = currentWeapon;
+      if (this.weaponBtn1) {
+        this.weaponBtn1.style.background = isLaser ? '#0284c7' : '#1e293b';
+        this.weaponBtn1.style.borderColor = isLaser ? '#38bdf8' : 'rgba(255,255,255,0.2)';
+        this.weaponBtn1.style.color = isLaser ? '#ffffff' : '#94a3b8';
+      }
+
+      if (this.weaponBtn2) {
+        this.weaponBtn2.style.background = isCluster ? '#d97706' : '#1e293b';
+        this.weaponBtn2.style.borderColor = isCluster ? '#f59e0b' : 'rgba(255,255,255,0.2)';
+        this.weaponBtn2.style.color = isCluster ? '#ffffff' : '#94a3b8';
+      }
     }
 
-    if (this.weaponBtn2) {
-      this.weaponBtn2.style.background = isCluster ? '#d97706' : '#1e293b';
-      this.weaponBtn2.style.borderColor = isCluster ? '#f59e0b' : 'rgba(255,255,255,0.2)';
-      this.weaponBtn2.style.color = isCluster ? '#ffffff' : '#94a3b8';
-    }
-
-    const beamHeatRatio = WeaponSystem.getBeamHeatRatio();
     const isOverheated = WeaponSystem.isBeamOverheated();
-
-    if (this.weaponBtn3) {
-      if (isOverheated) {
-        this.weaponBtn3.style.background = 'rgba(127, 29, 29, 0.85)';
-        this.weaponBtn3.style.borderColor = '#ef4444';
-        this.weaponBtn3.style.color = '#fca5a5';
-      } else if (isBeam) {
-        this.weaponBtn3.style.background = '#0e7490';
-        this.weaponBtn3.style.borderColor = '#06b6d4';
-        this.weaponBtn3.style.color = '#ffffff';
-      } else {
-        this.weaponBtn3.style.background = '#1e293b';
-        this.weaponBtn3.style.borderColor = 'rgba(255,255,255,0.2)';
-        this.weaponBtn3.style.color = '#94a3b8';
+    if (isOverheated !== this.lastOverheated || isBeam !== this.lastBeamActive) {
+      this.lastOverheated = isOverheated;
+      this.lastBeamActive = isBeam;
+      if (this.weaponBtn3) {
+        if (isOverheated) {
+          this.weaponBtn3.style.background = 'rgba(127, 29, 29, 0.85)';
+          this.weaponBtn3.style.borderColor = '#ef4444';
+          this.weaponBtn3.style.color = '#fca5a5';
+        } else if (isBeam) {
+          this.weaponBtn3.style.background = '#0e7490';
+          this.weaponBtn3.style.borderColor = '#06b6d4';
+          this.weaponBtn3.style.color = '#ffffff';
+        } else {
+          this.weaponBtn3.style.background = '#1e293b';
+          this.weaponBtn3.style.borderColor = 'rgba(255,255,255,0.2)';
+          this.weaponBtn3.style.color = '#94a3b8';
+        }
       }
     }
 
     if (this.clusterOverlayEl) {
       this.clusterOverlayEl.style.height = `${WeaponSystem.getClusterCooldownRatio() * 100}%`;
     }
+
+    const beamHeatRatio = WeaponSystem.getBeamHeatRatio();
 
     if (this.beamHeatOverlayEl) {
       this.beamHeatOverlayEl.style.height = `${beamHeatRatio * 100}%`;

@@ -28,6 +28,7 @@ const MAX_HOVER_SCREEN_RADIUS_NDC = 0.10; // ~65px screen radius on 1080p
 export class PlayerControlSystem {
   private static groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private static midHeightPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -30);
+  private static elevPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
   // Reusable static instances to prevent GC frame drops
   private static raycaster = new THREE.Raycaster();
@@ -134,7 +135,8 @@ export class PlayerControlSystem {
         if (this.lastHoverCheckTime >= this.HOVER_CHECK_INTERVAL) {
           this.lastHoverCheckTime = 0;
 
-          this.cachedHoveredHit = HitZoneManager.getHitZone(SceneManager.camera);
+          const hoverGroundPos = this.getMouseGroundPosition();
+          this.cachedHoveredHit = HitZoneManager.getHitZone(SceneManager.camera, hoverGroundPos);
           this.cachedFallbackPoint = null;
 
           if (this.cachedHoveredHit) {
@@ -396,8 +398,8 @@ export class PlayerControlSystem {
 
     const elev = TileMap.getElevationAtWorld(hit.x, hit.z);
     if (elev !== 0) {
-      const elevPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -elev);
-      this.raycaster.ray.intersectPlane(elevPlane, this.groundIntersectPoint);
+      this.elevPlane.constant = -elev;
+      this.raycaster.ray.intersectPlane(this.elevPlane, this.groundIntersectPoint);
     }
     return this.groundIntersectPoint;
   }

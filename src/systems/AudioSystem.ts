@@ -26,6 +26,9 @@ export class AudioSystem {
   // Audio throttling to prevent rapid-fire beam tick pileups
   private static lastBuildingHitTime = 0;
 
+  // Queue for building size-based animation-aligned check confirmation cues
+  private static pendingCheckCues: Array<{ timeLeft: number; is3D: boolean }> = [];
+
   // Continuous Alien Beam Audio Nodes
   private static beamOscA: OscillatorNode | null = null;
   private static beamOscB: OscillatorNode | null = null;
@@ -159,16 +162,30 @@ export class AudioSystem {
       case 'building_hit':
         this.playBuildingHitSFX((event.data as any).intensity);
         break;
-      case 'building_destroyed':
-        this.playBuildingDestroyedSFX(!!(event.data as any).is3D);
+      case 'building_destroyed': {
+        const data = event.data as any;
+        this.playBuildingDestroyedSFX(!!data.is3D, data.delay || 0);
         break;
+      }
     }
   }
 
-  public static tick(_delta: number) {
+  public static tick(delta: number) {
     // Context lifecycle watchdog
     if (this.ctx && this.ctx.state === 'suspended') {
       // Will resume on next user gesture
+    }
+
+    // Process building size-based animation-aligned check confirmation chimes
+    if (this.pendingCheckCues.length > 0) {
+      for (let i = this.pendingCheckCues.length - 1; i >= 0; i--) {
+        const cue = this.pendingCheckCues[i];
+        cue.timeLeft -= delta;
+        if (cue.timeLeft <= 0) {
+          this.playBuildingDestroyedSFX(cue.is3D);
+          this.pendingCheckCues.splice(i, 1);
+        }
+      }
     }
   }
 
@@ -274,7 +291,12 @@ export class AudioSystem {
   // - Pristine bell decay that cleanly pierces through battle noise
   // - For 3D landmarks: Triumphant 3-note major arpeggio (C6 → E6 → C7)
   // ───────────────────────────────────────────────────────────────────────────
-  public static playBuildingDestroyedSFX(is3D: boolean = false) {
+  public static playBuildingDestroyedSFX(is3D: boolean = false, delaySeconds: number = 0) {
+    if (delaySeconds > 0) {
+      this.pendingCheckCues.push({ timeLeft: delaySeconds, is3D });
+      return;
+    }
+
     this.ensureAudioContext();
     if (!this.ctx || !this.masterGain) return;
 

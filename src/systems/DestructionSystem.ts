@@ -13,7 +13,7 @@ export type FXEvent =
   | { type: 'shake'; x: number; y: number; z: number; data: { intensity: number } }
   | { type: 'hit_fx'; x: number; y: number; z: number; data: { entityId: Entity; intensity: 'light' | 'heavy' } }
   | { type: 'building_hit'; x: number; y: number; z: number; data: { entityId: Entity; intensity: 'light' | 'heavy' } }
-  | { type: 'building_destroyed'; x: number; y: number; z: number; data: { entityId: Entity; is3D?: boolean; name?: string } }
+  | { type: 'building_destroyed'; x: number; y: number; z: number; data: { entityId: Entity; is3D?: boolean; name?: string; delay?: number } }
   | { type: 'debris' | 'dust' | 'smoke' | 'sparks'; x: number; y: number; z: number; data: { count: number; entityId?: Entity; palette?: number[] } }
   | { type: 'fire'; x: number; y: number; z: number; data: { entityId?: Entity } }
   | { type: 'laser'; x: number; y: number; z: number; data: { tx: number; ty: number; tz: number } };
@@ -249,6 +249,40 @@ export class DestructionSystem {
     }
   }
 
+  /**
+   * Compute building size-based delay for the "check" confirmation chime.
+   * Keeps small values fast and tight (~0.38s), while scaling up large skyscrapers and 3D landmarks
+   * by ~50% (~1.15s - 1.95s) to align with full structural collapse and ground impact.
+   */
+  public static computeDemolitionCheckDelay(def?: any): number {
+    if (!def) return 0.45;
+
+    if (def.is3D) {
+      // 3D Mega Landmarks: Full structural crash into rubble completes around 1.80s - 1.95s (~50% increase from 1.20s)
+      const height = def.height || 160;
+      const height3DBonus = Math.min(0.15, Math.max(0, (height - 135) / 45 * 0.15));
+      return 1.80 + height3DBonus;
+    }
+
+    // Footprint expansion factor: 1x1 = 0s, 2x2 = 0.08s, 3x3 = 0.16s, 4x4 = 0.24s
+    const footprintTiles = def.footprintTiles || 1;
+    const footprintBonus = Math.max(0, footprintTiles - 1) * 0.08;
+
+    // Progressive height scaling:
+    // Small shops (height 30) -> ~0.38s (similar small values preserved)
+    // Mid-rise apartments (height 65-75) -> ~0.58s - 0.65s
+    // Tall skyscrapers (height 110-135) -> ~1.00s - 1.25s (~50% increase on big values)
+    const height = def.height || 40;
+    const heightFactor = Math.min(1.0, Math.max(0, (height - 30) / 105)); // 0.0 at 30, 1.0 at 135
+    const progressiveFactor = Math.pow(heightFactor, 1.25);
+    const heightBonus = progressiveFactor * 0.72;
+
+    const totalDelay = 0.38 + heightBonus + footprintBonus;
+
+    // Clamped between 0.35s and 1.30s for 2D buildings
+    return Math.min(1.30, Math.max(0.35, totalDelay));
+  }
+
   // ─── Direct Hit Damage ────────────────────────────────────────────────────────
 
   /**
@@ -361,11 +395,12 @@ export class DestructionSystem {
         ScoreSystem.addScore(pts, def?.name || 'Demolished', { x: pos.worldX, y: pos.worldY, z: 30 });
         this.updateDestructionStats();
 
-        // Distinct Building Destroyed Audio Event!
+        // Distinct Building Destroyed Audio Event (with animation-aligned size delay)!
+        const delay = this.computeDemolitionCheckDelay(def);
         this.fxQueue.push({
           type: 'building_destroyed',
           x: pos.worldX, y: pos.worldY, z: pos.worldZ,
-          data: { entityId: entity, is3D: !!def?.is3D, name: def?.name }
+          data: { entityId: entity, is3D: !!def?.is3D, name: def?.name, delay }
         });
       }
 
@@ -430,11 +465,12 @@ export class DestructionSystem {
           ScoreSystem.addScore(pts, def?.name || 'Demolished', { x: pos.worldX, y: pos.worldY, z: 30 });
           this.updateDestructionStats();
 
-          // Distinct Building Destroyed Audio Event!
+          // Distinct Building Destroyed Audio Event (with animation-aligned size delay)!
+          const delay = this.computeDemolitionCheckDelay(def);
           this.fxQueue.push({
             type: 'building_destroyed',
             x: pos.worldX, y: pos.worldY, z: pos.worldZ,
-            data: { entityId: entity, is3D: !!def?.is3D, name: def?.name }
+            data: { entityId: entity, is3D: !!def?.is3D, name: def?.name, delay }
           });
         }
 

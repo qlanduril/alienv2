@@ -19,6 +19,11 @@ Governs procedural city layout generation, tile map data structures, lot allocat
 - **3D Landmark Budget:** Exactly 1 instance per 3D model (`mega_titan`, `spaceship_hq`, `financial_tower`, `cyber_reactor`) in designated downtown lots.
 - **3D Landmark North Clearance:** 6-tile corridor to the North ($-Z$) and 4-tile corridor to the North-West ($-X$) reserved as open `PLAZA_STONE` paving with `occupied = true`.
 - **High-Density District Packing:** Commercial districts pack 1x1 shops side-by-side (step 1) along sidewalks with mid-block pedestrian breezeways, creating crowded, lively urban streetfronts.
+- **Fortified Outer City Wall & Highway Gatehouses:**
+  - 3D perimeter blast-concrete defense wall ($Y = 10.0$ high, $4.0$ thick) enclosing the landward bounds ($X = -512, Z = -512$, and non-water segments of $+512$).
+  - Highway openings flanked by security pilasters ($Y = 13.5$) and overhead surveillance portal gantries ($Y \in [11.0, 13.5]$).
+  - Northwest corner observation fortress bastion ($12 \times 12$ units, height $14.5$, antenna mast $Y = 23.0$) at $(-512, -512)$.
+  - Perimeter Ring 0 reserved as open grass buffer; cells $(0..2, 0..2)$ reserved around the NW corner bastion.
 
 ## 3. Code & File Dependencies
 - [bake_assets.py](file:///home/berkans/development/alienv2/scripts/bake_assets.py) — Macro 16-chunk district generator, landmark placement, and static map JSON baker.

@@ -466,14 +466,14 @@
         "isIntersection": false
       },
       {
-        "terrainType": 4,
+        "terrainType": 5,
         "overlayType": 0,
         "elevation": 0,
         "elevationTier": 1,
         "isIntersection": false
       },
       {
-        "terrainType": 4,
+        "terrainType": 5,
         "overlayType": 0,
         "elevation": 0,
         "elevationTier": 1,
@@ -920,14 +920,14 @@
         "isIntersection": false
       },
       {
-        "terrainType": 4,
+        "terrainType": 5,
         "overlayType": 0,
         "elevation": 0,
         "elevationTier": 1,
         "isIntersection": false
       },
       {
-        "terrainType": 4,
+        "terrainType": 5,
         "overlayType": 0,
         "elevation": 0,
         "elevationTier": 1,
@@ -39210,15 +39210,15 @@
     }
   ],
   "metadata": {
-    "generatedAt": "2026-09-14T12:32:47.194Z",
+    "generatedAt": "2026-09-14T12:54:05.625Z",
     "layerTimings": {
-      "Pass 1 (Geography)": 5.0531950000000165,
-      "Pass 2 (Plateau Tiers)": 0.386148999999989,
-      "Pass 3 (Zones & Platforms)": 0.5029010000000085,
-      "Pass 4 (Macro WFC Solve)": 2.3820049999999924,
-      "Pass 5 (Road Grid & Ramps)": 1.5670059999999921,
-      "Pass 6 (Buildings)": 2.6261100000000113,
-      "Total Bake Time": 17.77141499999999
+      "Pass 1 (Geography)": 8.195345000000003,
+      "Pass 2 (Plateau Tiers)": 0.555269999999993,
+      "Pass 3 (Zones & Platforms)": 0.5800899999999984,
+      "Pass 4 (Macro WFC Solve)": 3.485748000000001,
+      "Pass 5 (Road Grid & Ramps)": 3.434337999999997,
+      "Pass 6 (Buildings)": 3.7131669999999986,
+      "Total Bake Time": 27.561911999999992
     },
     "wfcAttempts": 50,
     "buildingCount": 852,

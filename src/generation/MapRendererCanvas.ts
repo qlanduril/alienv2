@@ -1329,18 +1329,49 @@ export class MapRendererCanvas {
       }
     }
 
-    // 2. Extended Isometric Highway Ribbons
-    if (this.layers.roads) {
-      const isRoad = (t: any) => t && (
-        t.overlayType === 1 ||
-        t.terrainType === TerrainType.ROAD_STRAIGHT_NS ||
-        t.terrainType === TerrainType.ROAD_STRAIGHT_EW ||
-        t.terrainType === TerrainType.ROAD_INTERSECTION ||
-        t.terrainType === TerrainType.ROAD_ROUNDABOUT ||
-        (t.terrainType >= TerrainType.ROAD_CURVE_NE && t.terrainType <= TerrainType.ROAD_CURVE_SW)
-      );
-      const isWater = (t: any) => t && (t.terrainType === TerrainType.WATER || t.terrainType === TerrainType.WATER_SHORE || t.terrainType === TerrainType.SAND);
+    // 1b. Extended Farmland Countryside Diamonds (North & West exterior landscape)
+    const farmColors = ['#c2a764', '#483928', '#2a6828', '#2d6a2d', '#557a34', '#9aa45c'];
+    const minExt = -8;
+    const maxExt = gridDim + 8;
 
+    for (let gx = minExt; gx < maxExt; gx++) {
+      for (let gz = minExt; gz < maxExt; gz++) {
+        if (gx >= 0 && gx < gridDim && gz >= 0 && gz < gridDim) continue;
+        if (gx >= Math.max(0, southWaterMinX - 2) && gz >= Math.max(0, eastWaterMinZ - 2)) continue;
+
+        const parcelIdx = (Math.abs(Math.floor(gx / 3) * 7 + Math.floor(gz / 3) * 13)) % farmColors.length;
+        const color = isGameStyle ? farmColors[parcelIdx] : '#1e293b';
+
+        const p = toIso(gx, gz);
+        this.ctx.beginPath();
+        this.ctx.moveTo(p.x, p.y);
+        this.ctx.lineTo(p.x + isoW / 2, p.y + isoH / 2);
+        this.ctx.lineTo(p.x, p.y + isoH);
+        this.ctx.lineTo(p.x - isoW / 2, p.y + isoH / 2);
+        this.ctx.closePath();
+        this.ctx.fillStyle = color;
+        this.ctx.fill();
+
+        if ((gx % 3 === 0 || gz % 3 === 0) && this.zoom >= 0.5) {
+          this.ctx.strokeStyle = 'rgba(20, 50, 20, 0.4)';
+          this.ctx.lineWidth = 1;
+          this.ctx.stroke();
+        }
+      }
+    }
+
+    // 2. Extended Isometric Highway Ribbons
+    const isRoad = (t: any) => t && (
+      t.overlayType === 1 ||
+      t.terrainType === TerrainType.ROAD_STRAIGHT_NS ||
+      t.terrainType === TerrainType.ROAD_STRAIGHT_EW ||
+      t.terrainType === TerrainType.ROAD_INTERSECTION ||
+      t.terrainType === TerrainType.ROAD_ROUNDABOUT ||
+      (t.terrainType >= TerrainType.ROAD_CURVE_NE && t.terrainType <= TerrainType.ROAD_CURVE_SW)
+    );
+    const isWater = (t: any) => t && (t.terrainType === TerrainType.WATER || t.terrainType === TerrainType.WATER_SHORE || t.terrainType === TerrainType.SAND);
+
+    if (this.layers.roads) {
       const drawIsoRoadTile = (gx: number, gz: number) => {
         const p = toIso(gx, gz);
         this.ctx.beginPath();
@@ -1402,5 +1433,87 @@ export class MapRendererCanvas {
         }
       }
     }
+
+    // 3. Fortified Outer City Wall & Highway Security Gatehouses (Isometric Parapet)
+    const wallH = 7 * this.zoom;
+    const gateH = 10 * this.zoom;
+
+    // North Wall (gz = 0)
+    for (let gx = 0; gx < gridDim; gx++) {
+      const t = this.snapshot.tiles[gx]?.[0];
+      const p = toIso(gx, 0);
+      const isHwy = isRoad(t) && !isWater(t);
+
+      if (isHwy) {
+        // Highway Security Gatehouse (Overhead Gantry Arch)
+        this.ctx.fillStyle = isGameStyle ? '#22262c' : '#334155';
+        this.ctx.fillRect(p.x - isoW / 2, p.y - gateH, isoW, 3 * this.zoom);
+        // Warning lights
+        this.ctx.fillStyle = '#00f0ff';
+        this.ctx.fillRect(p.x - 4 * this.zoom, p.y - gateH + 1, 8 * this.zoom, 1.5 * this.zoom);
+      } else if (!isWater(t)) {
+        // Wall Segment
+        this.ctx.fillStyle = isGameStyle ? '#3a404a' : '#475569';
+        this.ctx.beginPath();
+        this.ctx.moveTo(p.x - isoW / 2, p.y + isoH / 2);
+        this.ctx.lineTo(p.x, p.y);
+        this.ctx.lineTo(p.x, p.y - wallH);
+        this.ctx.lineTo(p.x - isoW / 2, p.y + isoH / 2 - wallH);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Parapet top coping line
+        this.ctx.strokeStyle = isGameStyle ? '#64748b' : '#94a3b8';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(p.x - isoW / 2, p.y + isoH / 2 - wallH);
+        this.ctx.lineTo(p.x, p.y - wallH);
+        this.ctx.stroke();
+      }
+    }
+
+    // West Wall (gx = 0)
+    for (let gz = 0; gz < gridDim; gz++) {
+      const t = this.snapshot.tiles[0]?.[gz];
+      const p = toIso(0, gz);
+      const isHwy = isRoad(t) && !isWater(t);
+
+      if (isHwy) {
+        this.ctx.fillStyle = isGameStyle ? '#22262c' : '#334155';
+        this.ctx.fillRect(p.x - isoW / 2, p.y - gateH, isoW, 3 * this.zoom);
+        this.ctx.fillStyle = '#00f0ff';
+        this.ctx.fillRect(p.x - 4 * this.zoom, p.y - gateH + 1, 8 * this.zoom, 1.5 * this.zoom);
+      } else if (!isWater(t)) {
+        this.ctx.fillStyle = isGameStyle ? '#2e333b' : '#334155';
+        this.ctx.beginPath();
+        this.ctx.moveTo(p.x, p.y);
+        this.ctx.lineTo(p.x + isoW / 2, p.y + isoH / 2);
+        this.ctx.lineTo(p.x + isoW / 2, p.y + isoH / 2 - wallH);
+        this.ctx.lineTo(p.x, p.y - wallH);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        this.ctx.strokeStyle = isGameStyle ? '#64748b' : '#94a3b8';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(p.x, p.y - wallH);
+        this.ctx.lineTo(p.x + isoW / 2, p.y + isoH / 2 - wallH);
+        this.ctx.stroke();
+      }
+    }
+
+    // NW Corner Observation Bastion
+    const nwP = toIso(0, 0);
+    this.ctx.fillStyle = isGameStyle ? '#1e2228' : '#1e293b';
+    this.ctx.fillRect(nwP.x - 5 * this.zoom, nwP.y - 11 * this.zoom, 10 * this.zoom, 11 * this.zoom);
+    this.ctx.fillStyle = '#f5b800';
+    this.ctx.fillRect(nwP.x - 3 * this.zoom, nwP.y - 13 * this.zoom, 6 * this.zoom, 2 * this.zoom);
+    // Antenna mast
+    this.ctx.strokeStyle = '#94a3b8';
+    this.ctx.lineWidth = 1.5;
+    this.ctx.beginPath();
+    this.ctx.moveTo(nwP.x, nwP.y - 13 * this.zoom);
+    this.ctx.lineTo(nwP.x, nwP.y - 18 * this.zoom);
+    this.ctx.stroke();
   }
 }

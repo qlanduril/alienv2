@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { TileMap, TerrainType, ELEVATION_TIER_WATER } from './TileMap';
+import { TileMap, TerrainType, ELEVATION_TIER_WATER, TileCell } from './TileMap';
 import { SceneManager } from '../SceneManager';
 
 // --- TileRenderer Constants ---
@@ -359,6 +359,7 @@ export class TileRenderer {
     groundTex.minFilter = THREE.LinearFilter;
     groundTex.magFilter = THREE.LinearFilter;
     groundTex.anisotropy = TEXTURE_ANISOTROPY;
+    groundTex.colorSpace = THREE.SRGBColorSpace;
     groundTex.needsUpdate = true;
 
     const halfBound = TileMap.MAP_BOUNDS / 2; // 512
@@ -702,13 +703,14 @@ export class TileRenderer {
     retainingWallMesh.castShadow = true;
     retainingWallMesh.renderOrder = 1;
 
-    // Extended base green landscape layer below the tiles
+    // Extended base green landscape layer with procedural agricultural countryside texturing
     const BASE_GROUND_SIZE = 4800; // Expansive exterior horizon
     const baseGreenGeo = new THREE.PlaneGeometry(BASE_GROUND_SIZE, BASE_GROUND_SIZE);
+    const exteriorTex = this.createExteriorLandscapeTexture();
     const baseGreenMat = new THREE.MeshStandardMaterial({
-      color: 0x2d6a2d, // Seamlessly matches city park green grass (#2d6a2d)
-      roughness: DEFAULT_ROUGHNESS,
-      metalness: DEFAULT_METALNESS,
+      map: exteriorTex,
+      roughness: 0.85,
+      metalness: 0.05,
       depthWrite: false
     });
     const baseGreenMesh = new THREE.Mesh(baseGreenGeo, baseGreenMat);
@@ -985,11 +987,24 @@ export class TileRenderer {
       }
     }
 
+    // Fortified Outer City Wall & Highway Security Gatehouses
+    const outerCityWallMesh = this.createOuterCityWall(
+      cells,
+      halfBound,
+      hasSouthWater,
+      southWaterMinX,
+      hasEastWater,
+      eastWaterMinZ,
+      isRoadCell,
+      isWaterCell
+    );
+
     this.layer0Group.add(baseGreenMesh);
     for (const m of additionalMeshes) {
       this.layer0Group.add(m);
     }
     this.layer0Group.add(retainingWallMesh);
+    this.layer0Group.add(outerCityWallMesh);
     this.layer0Group.add(singleGroundMesh);
   }
 
@@ -1246,4 +1261,609 @@ export class TileRenderer {
     tex.needsUpdate = true;
     return tex;
   }
+
+  // ── PROCEDURAL AGRICULTURAL COUNTRYSIDE TEXTURE ────────────────────────────
+  private static createExteriorLandscapeTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d')!;
+
+    // 1. Base Meadow Green (matches city park green exactly)
+    ctx.fillStyle = '#2d6a2d';
+    ctx.fillRect(0, 0, 1024, 1024);
+
+    // Subtle grass blade noise
+    for (let i = 0; i < 4000; i++) {
+      const x = Math.floor(Math.random() * 1024);
+      const y = Math.floor(Math.random() * 1024);
+      ctx.fillStyle = Math.random() > 0.5 ? '#367c36' : '#245624';
+      ctx.fillRect(x, y, 2, 2);
+    }
+
+    // 2. Rectilinear Agricultural Field Patchwork
+    interface FieldDef {
+      x: number; y: number; w: number; h: number;
+      type: 'wheat' | 'loam' | 'crops' | 'orchard' | 'pasture' | 'vineyard' | 'barley';
+    }
+
+    const fields: FieldDef[] = [
+      { x: 30,  y: 30,  w: 215, h: 215, type: 'wheat' },
+      { x: 275, y: 30,  w: 205, h: 135, type: 'crops' },
+      { x: 275, y: 185, w: 205, h: 285, type: 'loam' },
+      { x: 510, y: 30,  w: 225, h: 235, type: 'orchard' },
+      { x: 765, y: 30,  w: 225, h: 215, type: 'pasture' },
+
+      { x: 30,  y: 275, w: 215, h: 195, type: 'vineyard' },
+      { x: 510, y: 295, w: 225, h: 215, type: 'barley' },
+      { x: 765, y: 275, w: 225, h: 235, type: 'wheat' },
+
+      { x: 30,  y: 500, w: 215, h: 215, type: 'crops' },
+      { x: 275, y: 500, w: 205, h: 215, type: 'pasture' },
+      { x: 510, y: 540, w: 225, h: 175, type: 'loam' },
+      { x: 765, y: 540, w: 225, h: 175, type: 'orchard' },
+
+      { x: 30,  y: 745, w: 215, h: 245, type: 'barley' },
+      { x: 275, y: 745, w: 205, h: 245, type: 'wheat' },
+      { x: 510, y: 745, w: 225, h: 245, type: 'crops' },
+      { x: 765, y: 745, w: 225, h: 245, type: 'vineyard' },
+    ];
+
+    for (const f of fields) {
+      if (f.type === 'wheat') {
+        // Golden wheat field
+        ctx.fillStyle = '#c2a764';
+        ctx.fillRect(f.x, f.y, f.w, f.h);
+        ctx.fillStyle = '#b39752';
+        for (let py = f.y + 4; py < f.y + f.h; py += 8) {
+          ctx.fillRect(f.x + 2, py, f.w - 4, 2);
+        }
+      } else if (f.type === 'loam') {
+        // Rich plowed furrowed dark loam
+        ctx.fillStyle = '#483928';
+        ctx.fillRect(f.x, f.y, f.w, f.h);
+        ctx.fillStyle = '#36291b';
+        for (let py = f.y + 4; py < f.y + f.h; py += 6) {
+          ctx.fillRect(f.x + 2, py, f.w - 4, 2);
+        }
+      } else if (f.type === 'crops') {
+        // Emerald crop rows
+        ctx.fillStyle = '#2a6828';
+        ctx.fillRect(f.x, f.y, f.w, f.h);
+        ctx.strokeStyle = '#1e521c';
+        ctx.lineWidth = 2;
+        for (let offset = -f.h; offset < f.w; offset += 10) {
+          ctx.beginPath();
+          ctx.moveTo(f.x + Math.max(0, offset), f.y);
+          ctx.lineTo(f.x + Math.min(f.w, offset + f.h), f.y + f.h);
+          ctx.stroke();
+        }
+      } else if (f.type === 'orchard') {
+        // Fruit tree orchard
+        ctx.fillStyle = '#255425';
+        ctx.fillRect(f.x, f.y, f.w, f.h);
+        for (let tx = f.x + 16; tx < f.x + f.w - 12; tx += 28) {
+          for (let ty = f.y + 16; ty < f.y + f.h - 12; ty += 28) {
+            ctx.fillStyle = 'rgba(10, 30, 10, 0.4)';
+            ctx.beginPath();
+            ctx.arc(tx + 2, ty + 2, 7, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#174217';
+            ctx.beginPath();
+            ctx.arc(tx, ty, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#2f742f';
+            ctx.beginPath();
+            ctx.arc(tx - 1, ty - 1, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else if (f.type === 'vineyard') {
+        // Vineyard trellises
+        ctx.fillStyle = '#563e2c';
+        ctx.fillRect(f.x, f.y, f.w, f.h);
+        ctx.fillStyle = '#1e481e';
+        for (let px = f.x + 8; px < f.x + f.w; px += 14) {
+          ctx.fillRect(px, f.y + 2, 3, f.h - 4);
+        }
+      } else if (f.type === 'barley') {
+        // Light barley / rye
+        ctx.fillStyle = '#9aa45c';
+        ctx.fillRect(f.x, f.y, f.w, f.h);
+        ctx.fillStyle = '#86904a';
+        for (let py = f.y + 4; py < f.y + f.h; py += 7) {
+          ctx.fillRect(f.x + 2, py, f.w - 4, 2);
+        }
+      } else {
+        // Sunlit wildflower pasture
+        ctx.fillStyle = '#3d7836';
+        ctx.fillRect(f.x, f.y, f.w, f.h);
+        for (let i = 0; i < 40; i++) {
+          const sx = f.x + 4 + Math.floor(Math.random() * (f.w - 8));
+          const sy = f.y + 4 + Math.floor(Math.random() * (f.h - 8));
+          ctx.fillStyle = Math.random() > 0.4 ? '#e4d262' : '#d894b4';
+          ctx.fillRect(sx, sy, 2, 2);
+        }
+      }
+
+      // Dense Hedgerow & Shrub Border around every field
+      ctx.strokeStyle = '#153615';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(f.x, f.y, f.w, f.h);
+
+      ctx.fillStyle = '#183e18';
+      for (let bx = f.x; bx < f.x + f.w; bx += 8) {
+        ctx.fillRect(bx, f.y - 1, 3, 3);
+        ctx.fillRect(bx, f.y + f.h - 2, 3, 3);
+      }
+      for (let by = f.y; by < f.y + f.h; by += 8) {
+        ctx.fillRect(f.x - 1, by, 3, 3);
+        ctx.fillRect(f.x + f.w - 2, by, 3, 3);
+      }
+    }
+
+    // 3. Meandering Country Dirt Roads & Farm Tracks
+    ctx.strokeStyle = '#826f56';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(0, 256);
+    ctx.lineTo(260, 256);
+    ctx.lineTo(260, 480);
+    ctx.lineTo(500, 480);
+    ctx.lineTo(500, 730);
+    ctx.lineTo(1024, 730);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(500, 0);
+    ctx.lineTo(500, 260);
+    ctx.lineTo(750, 260);
+    ctx.lineTo(750, 1024);
+    ctx.stroke();
+
+    // Wheel ruts on dirt tracks
+    ctx.strokeStyle = '#6e5d46';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, 254);
+    ctx.lineTo(258, 254);
+    ctx.lineTo(258, 478);
+    ctx.lineTo(498, 478);
+    ctx.lineTo(498, 728);
+    ctx.lineTo(1024, 728);
+    ctx.moveTo(0, 258);
+    ctx.lineTo(262, 258);
+    ctx.lineTo(262, 482);
+    ctx.lineTo(502, 482);
+    ctx.lineTo(502, 732);
+    ctx.lineTo(1024, 732);
+    ctx.stroke();
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(12, 12);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = true;
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  // ── PROCEDURAL FORTIFIED CITY WALL TEXTURE ──────────────────────────────────
+  private static createCityWallTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+
+    // 1. Blast Concrete Base
+    ctx.fillStyle = '#343942';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Subtle grain noise
+    for (let i = 0; i < 2000; i++) {
+      const x = Math.floor(Math.random() * 256);
+      const y = Math.floor(Math.random() * 256);
+      ctx.fillStyle = Math.random() > 0.5 ? '#3e444f' : '#2a2e36';
+      ctx.fillRect(x, y, 1, 1);
+    }
+
+    // 2. Horizontal Panel Seams
+    for (const y of [64, 128, 192]) {
+      ctx.fillStyle = '#1a1d22';
+      ctx.fillRect(0, y, 256, 2);
+      ctx.fillStyle = '#5c6470';
+      ctx.fillRect(0, y + 2, 256, 1);
+    }
+
+    // 3. Vertical Expansion Seams
+    for (let x = 0; x < 256; x += 64) {
+      ctx.fillStyle = '#1a1d22';
+      ctx.fillRect(x, 0, 2, 256);
+      ctx.fillStyle = '#5c6470';
+      ctx.fillRect(x + 2, 0, 1, 256);
+    }
+
+    // 4. Steel Tie-Rod Anchor Plates
+    for (let x = 16; x < 256; x += 64) {
+      for (let y = 16; y < 256; y += 64) {
+        ctx.fillStyle = '#22252a';
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#626a75';
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 5. High-Tech Cyan & Amber Security Sensor Slits
+    ctx.fillStyle = '#00f0ff'; // Electric cyan neon
+    ctx.fillRect(18, 92, 28, 4);
+    ctx.fillRect(82, 92, 28, 4);
+    ctx.fillRect(146, 92, 28, 4);
+    ctx.fillRect(210, 92, 28, 4);
+
+    ctx.fillStyle = '#ffffff'; // White core
+    ctx.fillRect(22, 93, 20, 2);
+    ctx.fillRect(86, 93, 20, 2);
+    ctx.fillRect(150, 93, 20, 2);
+    ctx.fillRect(214, 93, 20, 2);
+
+    ctx.fillStyle = '#ffaa00'; // Amber alert indicator
+    ctx.fillRect(30, 156, 12, 3);
+    ctx.fillRect(94, 156, 12, 3);
+    ctx.fillRect(158, 156, 12, 3);
+    ctx.fillRect(222, 156, 12, 3);
+
+    // 6. Top Parapet Coping Stone & Metal Grating (top 14px)
+    ctx.fillStyle = '#687280';
+    ctx.fillRect(0, 0, 256, 10);
+    ctx.fillStyle = '#1c1f24';
+    ctx.fillRect(0, 10, 256, 4);
+
+    // 7. Base Hazard Safety Striping (bottom 24px)
+    ctx.fillStyle = '#1c1f24';
+    ctx.fillRect(0, 232, 256, 24);
+    ctx.fillStyle = '#f5b800';
+    for (let x = -24; x < 256; x += 16) {
+      ctx.beginPath();
+      ctx.moveTo(x, 256);
+      ctx.lineTo(x + 10, 232);
+      ctx.lineTo(x + 18, 232);
+      ctx.lineTo(x + 8, 256);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = true;
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  // ── FORTIFIED OUTER CITY WALL & HIGHWAY SECURITY GATEHOUSES ────────────────
+  private static createOuterCityWall(
+    cells: TileCell[][],
+    halfBound: number,
+    hasSouthWater: boolean,
+    southWaterMinX: number,
+    hasEastWater: boolean,
+    eastWaterMinZ: number,
+    isRoadCell: (c: any) => boolean,
+    isWaterCell: (c: any) => boolean
+  ): THREE.Mesh {
+    const wallGeo = new THREE.BufferGeometry();
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const uvs: number[] = [];
+
+    // Helper to push a 3D box (6 faces, 12 triangles, 36 vertices)
+    const addBox = (
+      minX: number, maxX: number,
+      minY: number, maxY: number,
+      minZ: number, maxZ: number,
+      uScale: number = 1 / 16,
+      vScale: number = 1 / 16
+    ) => {
+      const dx = (maxX - minX) * uScale;
+      const dy = (maxY - minY) * vScale;
+      const dz = (maxZ - minZ) * uScale;
+
+      // 1. Top face (+Y, normal: 0, 1, 0)
+      positions.push(
+        minX, maxY, minZ,
+        minX, maxY, maxZ,
+        maxX, maxY, maxZ,
+        minX, maxY, minZ,
+        maxX, maxY, maxZ,
+        maxX, maxY, minZ
+      );
+      normals.push(
+        0, 1, 0,  0, 1, 0,  0, 1, 0,
+        0, 1, 0,  0, 1, 0,  0, 1, 0
+      );
+      uvs.push(
+        0, 0,  0, dz,  dx, dz,
+        0, 0,  dx, dz,  dx, 0
+      );
+
+      // 2. Bottom face (-Y, normal: 0, -1, 0)
+      positions.push(
+        minX, minY, maxZ,
+        minX, minY, minZ,
+        maxX, minY, minZ,
+        minX, minY, maxZ,
+        maxX, minY, minZ,
+        maxX, minY, maxZ
+      );
+      normals.push(
+        0, -1, 0,  0, -1, 0,  0, -1, 0,
+        0, -1, 0,  0, -1, 0,  0, -1, 0
+      );
+      uvs.push(
+        0, 0,  0, dz,  dx, dz,
+        0, 0,  dx, dz,  dx, 0
+      );
+
+      // 3. Front face (+Z, normal: 0, 0, 1)
+      positions.push(
+        minX, minY, maxZ,
+        maxX, minY, maxZ,
+        maxX, maxY, maxZ,
+        minX, minY, maxZ,
+        maxX, maxY, maxZ,
+        minX, maxY, maxZ
+      );
+      normals.push(
+        0, 0, 1,  0, 0, 1,  0, 0, 1,
+        0, 0, 1,  0, 0, 1,  0, 0, 1
+      );
+      uvs.push(
+        0, 0,  dx, 0,  dx, dy,
+        0, 0,  dx, dy,  0, dy
+      );
+
+      // 4. Back face (-Z, normal: 0, 0, -1)
+      positions.push(
+        maxX, minY, minZ,
+        minX, minY, minZ,
+        minX, maxY, minZ,
+        maxX, minY, minZ,
+        minX, maxY, minZ,
+        maxX, maxY, minZ
+      );
+      normals.push(
+        0, 0, -1,  0, 0, -1,  0, 0, -1,
+        0, 0, -1,  0, 0, -1,  0, 0, -1
+      );
+      uvs.push(
+        0, 0,  dx, 0,  dx, dy,
+        0, 0,  dx, dy,  0, dy
+      );
+
+      // 5. Left face (-X, normal: -1, 0, 0)
+      positions.push(
+        minX, minY, minZ,
+        minX, minY, maxZ,
+        minX, maxY, maxZ,
+        minX, minY, minZ,
+        minX, maxY, maxZ,
+        minX, maxY, minZ
+      );
+      normals.push(
+        -1, 0, 0,  -1, 0, 0,  -1, 0, 0,
+        -1, 0, 0,  -1, 0, 0,  -1, 0, 0
+      );
+      uvs.push(
+        0, 0,  dz, 0,  dz, dy,
+        0, 0,  dz, dy,  0, dy
+      );
+
+      // 6. Right face (+X, normal: 1, 0, 0)
+      positions.push(
+        maxX, minY, maxZ,
+        maxX, minY, minZ,
+        maxX, maxY, minZ,
+        maxX, minY, maxZ,
+        maxX, maxY, minZ,
+        maxX, maxY, maxZ
+      );
+      normals.push(
+        1, 0, 0,  1, 0, 0,  1, 0, 0,
+        1, 0, 0,  1, 0, 0,  1, 0, 0
+      );
+      uvs.push(
+        0, 0,  dz, 0,  dz, dy,
+        0, 0,  dz, dy,  0, dy
+      );
+    };
+
+    const WALL_H = 10.0;
+    const WALL_T = 4.0;
+    const halfT = WALL_T / 2;
+    const PILASTER_H = 13.5;
+    const GANTRY_MIN_Y = 11.0;
+    const GANTRY_MAX_Y = 13.5;
+
+    // Helper to find highway gates along a border
+    const findGates = (border: 'N' | 'S' | 'W' | 'E', maxCoord: number): Array<{ start: number; end: number }> => {
+      const gates: Array<{ start: number; end: number }> = [];
+      let spanStart: number | null = null;
+
+      for (let i = 0; i < maxCoord; i++) {
+        let isRoad = false;
+        let isWater = false;
+
+        if (border === 'N') {
+          const c = cells[i]?.[0];
+          isRoad = isRoadCell(c);
+          isWater = isWaterCell(c);
+        } else if (border === 'S') {
+          const c = cells[i]?.[TileMap.GRID_DIM - 1];
+          isRoad = isRoadCell(c);
+          isWater = isWaterCell(c);
+        } else if (border === 'W') {
+          const c = cells[0]?.[i];
+          isRoad = isRoadCell(c);
+          isWater = isWaterCell(c);
+        } else if (border === 'E') {
+          const c = cells[TileMap.GRID_DIM - 1]?.[i];
+          isRoad = isRoadCell(c);
+          isWater = isWaterCell(c);
+        }
+
+        if (isRoad && !isWater) {
+          if (spanStart === null) spanStart = i;
+        } else {
+          if (spanStart !== null) {
+            gates.push({
+              start: -halfBound + spanStart * TileMap.TILE_SIZE,
+              end: -halfBound + i * TileMap.TILE_SIZE
+            });
+            spanStart = null;
+          }
+        }
+      }
+      if (spanStart !== null) {
+        gates.push({
+          start: -halfBound + spanStart * TileMap.TILE_SIZE,
+          end: -halfBound + maxCoord * TileMap.TILE_SIZE
+        });
+      }
+      return gates;
+    };
+
+    // ── 1. NORTH WALL (Z = -halfBound) ──────────────────────────────────────
+    const northGates = findGates('N', TileMap.GRID_DIM);
+    let curX = -halfBound + 5; // Start after NW corner bastion
+    for (const g of northGates) {
+      if (g.start - 2 > curX) {
+        addBox(curX, g.start - 2, 0, WALL_H, -halfBound - halfT, -halfBound + halfT);
+      }
+      // Highway Security Gatehouse (Left & Right Pilasters + Overhead Gantry)
+      addBox(g.start - 5, g.start - 1, 0, PILASTER_H, -halfBound - 3.5, -halfBound + 3.5);
+      addBox(g.end + 1, g.end + 5, 0, PILASTER_H, -halfBound - 3.5, -halfBound + 3.5);
+      addBox(g.start - 5, g.end + 5, GANTRY_MIN_Y, GANTRY_MAX_Y, -halfBound - 2.5, -halfBound + 2.5);
+      curX = g.end + 2;
+    }
+    if (halfBound > curX) {
+      addBox(curX, halfBound, 0, WALL_H, -halfBound - halfT, -halfBound + halfT);
+    }
+
+    // ── 2. WEST WALL (X = -halfBound) ───────────────────────────────────────
+    const westGates = findGates('W', TileMap.GRID_DIM);
+    let curZ = -halfBound + 5; // Start after NW corner bastion
+    for (const g of westGates) {
+      if (g.start - 2 > curZ) {
+        addBox(-halfBound - halfT, -halfBound + halfT, 0, WALL_H, curZ, g.start - 2);
+      }
+      // Highway Security Gatehouse
+      addBox(-halfBound - 3.5, -halfBound + 3.5, 0, PILASTER_H, g.start - 5, g.start - 1);
+      addBox(-halfBound - 3.5, -halfBound + 3.5, 0, PILASTER_H, g.end + 1, g.end + 5);
+      addBox(-halfBound - 2.5, -halfBound + 2.5, GANTRY_MIN_Y, GANTRY_MAX_Y, g.start - 5, g.end + 5);
+      curZ = g.end + 2;
+    }
+    if (halfBound > curZ) {
+      addBox(-halfBound - halfT, -halfBound + halfT, 0, WALL_H, curZ, halfBound);
+    }
+
+    // ── 3. SOUTH WALL (Z = +halfBound, Landward section) ────────────────────
+    const southMaxX = hasSouthWater ? Math.max(0, southWaterMinX - 1) : TileMap.GRID_DIM;
+    const southEndWorldX = -halfBound + southMaxX * TileMap.TILE_SIZE;
+    const southGates = findGates('S', southMaxX);
+    curX = -halfBound;
+    for (const g of southGates) {
+      if (g.start - 2 > curX) {
+        addBox(curX, g.start - 2, 0, WALL_H, halfBound - halfT, halfBound + halfT);
+      }
+      addBox(g.start - 5, g.start - 1, 0, PILASTER_H, halfBound - 3.5, halfBound + 3.5);
+      addBox(g.end + 1, g.end + 5, 0, PILASTER_H, halfBound - 3.5, halfBound + 3.5);
+      addBox(g.start - 5, g.end + 5, GANTRY_MIN_Y, GANTRY_MAX_Y, halfBound - 2.5, halfBound + 2.5);
+      curX = g.end + 2;
+    }
+    if (southEndWorldX > curX) {
+      addBox(curX, southEndWorldX, 0, WALL_H, halfBound - halfT, halfBound + halfT);
+    }
+    // Coastal Seawall Redoubt where South wall meets water
+    if (hasSouthWater) {
+      addBox(southEndWorldX - 5, southEndWorldX + 5, 0, 12.0, halfBound - 5, halfBound + 5);
+    }
+
+    // ── 4. EAST WALL (X = +halfBound, Landward section) ─────────────────────
+    const eastMaxZ = hasEastWater ? Math.max(0, eastWaterMinZ - 1) : TileMap.GRID_DIM;
+    const eastEndWorldZ = -halfBound + eastMaxZ * TileMap.TILE_SIZE;
+    const eastGates = findGates('E', eastMaxZ);
+    curZ = -halfBound;
+    for (const g of eastGates) {
+      if (g.start - 2 > curZ) {
+        addBox(halfBound - halfT, halfBound + halfT, 0, WALL_H, curZ, g.start - 2);
+      }
+      addBox(halfBound - 3.5, halfBound + 3.5, 0, PILASTER_H, g.start - 5, g.start - 1);
+      addBox(halfBound - 3.5, halfBound + 3.5, 0, PILASTER_H, g.end + 1, g.end + 5);
+      addBox(halfBound - 2.5, halfBound + 2.5, GANTRY_MIN_Y, GANTRY_MAX_Y, g.start - 5, g.end + 5);
+      curZ = g.end + 2;
+    }
+    if (eastEndWorldZ > curZ) {
+      addBox(halfBound - halfT, halfBound + halfT, 0, WALL_H, curZ, eastEndWorldZ);
+    }
+    // Coastal Seawall Redoubt where East wall meets water
+    if (hasEastWater) {
+      addBox(halfBound - 5, halfBound + 5, 0, 12.0, eastEndWorldZ - 5, eastEndWorldZ + 5);
+    }
+
+    // ── 5. NORTHWEST CORNER OBSERVATION BASTION ─────────────────────────────
+    // Heavy angular fortress bastion tower at the corner junction of North & West walls
+    addBox(-halfBound - 6, -halfBound + 6, 0, 14.5, -halfBound - 6, -halfBound + 6);
+    // Central radar/communications antenna pylon
+    addBox(-halfBound - 1, -halfBound + 1, 14.5, 23.0, -halfBound - 1, -halfBound + 1);
+
+    // ── 6. CLEARED PERIMETER GRAVEL SECURITY APRON ──────────────────────────
+    // Compacted gravel service apron running immediately outside the wall
+    const APRON_W = 22.0;
+    // North Apron
+    addBox(-halfBound - APRON_W, halfBound, -0.15, 0.05, -halfBound - APRON_W, -halfBound - halfT, 1 / 16, 1 / 16);
+    // West Apron
+    addBox(-halfBound - APRON_W, -halfBound - halfT, -0.15, 0.05, -halfBound - APRON_W, halfBound, 1 / 16, 1 / 16);
+    // South Landward Apron
+    if (southEndWorldX > -halfBound) {
+      addBox(-halfBound, southEndWorldX, -0.15, 0.05, halfBound + halfT, halfBound + APRON_W, 1 / 16, 1 / 16);
+    }
+    // East Landward Apron
+    if (eastEndWorldZ > -halfBound) {
+      addBox(halfBound + halfT, halfBound + APRON_W, -0.15, 0.05, -halfBound, eastEndWorldZ, 1 / 16, 1 / 16);
+    }
+
+    wallGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    wallGeo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    wallGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+
+    const wallTex = this.createCityWallTexture();
+    const wallMat = new THREE.MeshStandardMaterial({
+      map: wallTex,
+      roughness: 0.85,
+      metalness: 0.15,
+      depthWrite: true,
+      side: THREE.FrontSide
+    });
+
+    const wallMesh = new THREE.Mesh(wallGeo, wallMat);
+    wallMesh.position.set(0, 0, 0);
+    wallMesh.receiveShadow = true;
+    wallMesh.castShadow = true;
+    wallMesh.renderOrder = 2;
+
+    return wallMesh;
+  }
 }
+

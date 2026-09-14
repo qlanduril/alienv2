@@ -119,6 +119,12 @@ export class MapBaker {
         }
       }
 
+      // 2b. Outer Fortified Wall & Corner Bastion Setback:
+      // Corner tiles (0..2, 0..2) must remain open for the Northwest observation fortress bastion
+      if (gx <= 2 && gz <= 2) {
+        return false;
+      }
+
       // 3. Footprint + Buffer Check
       for (let dx = -buf; dx < w + buf; dx++) {
         for (let dz = -buf; dz < h + buf; dz++) {
@@ -710,6 +716,18 @@ export class MapBaker {
           cell.overlayType = OverlayTileType.NONE;
           cellRoadAxes[gx][gz] = undefined;
           occupied[gx][gz] = true; // reserve buffer cell so no buildings spawn on Ring 0
+        }
+      }
+    }
+
+    // Ensure NW corner cells around the corner fortress bastion remain open landscaped green
+    for (let x = 0; x <= 2; x++) {
+      for (let z = 0; z <= 2; z++) {
+        occupied[x][z] = true;
+        const c = TileMap.getCell(x, z);
+        if (c && c.terrainType !== TerrainType.WATER && !TileMap.isRoad(c.terrainType, c.overlayType)) {
+          c.terrainType = TerrainType.GRASS;
+          c.overlayType = OverlayTileType.NONE;
         }
       }
     }
